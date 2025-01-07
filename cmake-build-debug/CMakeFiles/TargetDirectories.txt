@@ -1,0 +1,3 @@
+C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/CMakeFiles/optymalizacja_kombinatoryczna.dir
+C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/CMakeFiles/rebuild_cache.dir
