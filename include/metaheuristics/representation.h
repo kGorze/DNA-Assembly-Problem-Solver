@@ -52,8 +52,17 @@ public:
  */
 class DirectDNARepresentation : public IRepresentation {
 public:
+  DirectDNARepresentation(int fallbackN = 500, double randomRatio = 1.0)
+    : fallbackN(fallbackN), randomRatio(randomRatio) {}
+  
     std::vector<void*> initializePopulation(int popSize, const DNAInstance &instance) override;
+
+ 
     std::string decodeToDNA(void* individual, const DNAInstance &instance) override;
+
+private:
+  int fallbackN;
+  double randomRatio;
 };
 
 /**

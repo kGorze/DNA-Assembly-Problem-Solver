@@ -28,6 +28,17 @@ add_executable(optymalizacja_kombinatoryczna src/main.cpp
         include/metaheuristics/stopping_criteria.h
         include/metaheuristics/representation.h
         src/metaheuristics/representation.cpp
+        include/benchmark/crossover_benchmark.h
+        src/benchmark/crossover_benchmark.cpp
+        src/utils/utility_functions.cpp
+        include/utils/utility_functions.h
+        include/configuration/genetic_algorithm_configuration.h
+        src/configuration/genetic_algorithm_configuration.cpp
+        include/utils/performance_profilling_framework.h
+        src/utils/performance_profilling_framework.cpp
+        include/metaheuristics/population_cache.h
+        src/metaheuristics/population_cache.cpp
+        include/utils/zobrist_hasher.h
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)

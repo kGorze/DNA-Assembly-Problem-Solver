@@ -27,6 +27,36 @@ public:
     std::vector<void*>  crossover(const std::vector<void*> &parents,const DNAInstance &instance, std::shared_ptr<IRepresentation> representation) override;
 };
 
+// Order Crossover (OX)
+class OrderCrossover : public ICrossover {
+public:
+    std::vector<void*> crossover(
+        const std::vector<void*>        &parents,
+        const DNAInstance               &instance,
+        std::shared_ptr<IRepresentation> representation
+    ) override;
+};
+
+// Edge Recombination Crossover (ERX)
+class EdgeRecombination : public ICrossover {
+public:
+    std::vector<void*> crossover(
+        const std::vector<void*>        &parents,
+        const DNAInstance               &instance,
+        std::shared_ptr<IRepresentation> representation
+    ) override;
+};
+
+// Partially Mapped Crossover (PMX)
+class PMXCrossover : public ICrossover {
+public:
+    std::vector<void*> crossover(
+        const std::vector<void*>        &parents,
+        const DNAInstance               &instance,
+        std::shared_ptr<IRepresentation> representation
+    ) override;
+};
+
 // class TwoPointCrossover : public ICrossover {
 // public:
 //     std::vector<std::vector<double>> 

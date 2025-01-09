@@ -13,26 +13,63 @@
  *  DirectDNARepresentation
  ************************************************/
 std::vector<void*> DirectDNARepresentation::initializePopulation(int popSize, const DNAInstance &instance)
-
 {
     std::vector<void*> population;
     population.reserve(popSize);
 
-    // PRZYKŁADOWA inicjalizacja: generujemy losowy łańcuch DNA stałej długości,
-    // np. n=500. W practice – powinniśmy znać n skądś, np. z parametru lub z DNAInstance.
-    // Dla uproszczenia tu napisane "500".
-    int n = 500; 
+    // Uzyskaj rzeczywistą długość n z instancji
+    int n = instance.getN();
+    if(n <= 0) n = fallbackN;  // fallback w przypadku problemów
+
+    int k = instance.getK();
+    const auto &spectrum = instance.getSpectrum();
+    if(spectrum.empty() || k <= 0) {
+        // Fallback: gdy spektrum jest puste, generuj losowe DNA
+        // (możesz tutaj użyć wcześniejszego kodu)
+        return population;
+    }
+
     std::mt19937 rng(std::random_device{}());
-    std::uniform_int_distribution<int> dist(0, 3);
+    std::uniform_int_distribution<size_t> spectrumDist(0, spectrum.size() - 1);
     static const char* letters = "ACGT";
 
     for(int i = 0; i < popSize; i++) {
-        // Tworzymy nowy std::string
         auto *dnaStr = new std::string;
         dnaStr->reserve(n);
-        for(int j = 0; j < n; j++){
-            (*dnaStr) += letters[dist(rng)];
+
+        // 2.1. Losowo wybierz pierwszy k-mer ze spektrum
+        std::string current = spectrum[spectrumDist(rng)];
+        *dnaStr = current;
+
+        // 2.2. Łączenie k-merów aż do osiągnięcia długości n
+        while((int)dnaStr->size() < n) {
+            int maxOverlap = 0;
+            std::string bestNext;
+            // Szukaj k-mera z największym dopasowaniem sufiks->prefiks
+            for(const auto &km : spectrum) {
+                // Ograniczenie długości nakładki do min(k-1, aktualna długość dnaStr)
+                int maxPossibleOverlap = std::min(k - 1, (int)dnaStr->size());
+                for(int overlap = maxPossibleOverlap; overlap > 0; overlap--) {
+                    // Porównanie sufiksu current dnaStr z prefiksem km
+                    if(dnaStr->compare(dnaStr->size() - overlap, overlap, km, 0, overlap) == 0) {
+                        if(overlap > maxOverlap) {
+                            maxOverlap = overlap;
+                            bestNext = km;
+                        }
+                        break; // znaleziono dopasowanie dla tego km, przejdź do następnego
+                    }
+                }
+            }
+            if(maxOverlap == 0) {
+                // Jeżeli nie znaleziono żadnego k-mera pasującego do sufiksu,
+                // dodaj losowy znak (alternatywnie: wstrzymaj lub zakończ)
+                dnaStr->push_back(letters[rng() % 4]);
+            } else {
+                // Dopisz resztę k-mera, która się nie pokrywa
+                dnaStr->append(bestNext.substr(maxOverlap));
+            }
         }
+
         population.push_back(dnaStr);
     }
     return population;
@@ -57,7 +94,7 @@ std::vector<void*> PermutationRepresentation::initializePopulation(int popSize, 
     // (0,1,2,3,4,...) w pewnej kolejności, bądź same k-mery.
     // Na potrzeby przykładu zrobimy permutację [0..99].
     // (Realnie – w SBH: permutację k-merów z instance.getSpectrum().)
-    int length = 100;  
+    int length = instance.getSpectrum().size();  
     for(int i = 0; i < popSize; i++){
         auto *perm = new std::vector<int>;
         perm->reserve(length);
@@ -73,29 +110,46 @@ std::vector<void*> PermutationRepresentation::initializePopulation(int popSize, 
 
 std::string PermutationRepresentation::decodeToDNA(void* individual, const DNAInstance &instance)
 {
-    // Tutaj "individual" to (std::vector<int>*). 
-    // Dekodowanie: 
-    //  1. Weź spektrum k-merów z instance.getSpectrum().
-    //  2. Iteruj po kolei po indeksach w permutacji.
-    //  3. "Sklejaj" k-mery z maksymalnym overlapem (tu w dużym uproszczeniu).
-    auto permPtr = static_cast<std::vector<int>*>(individual);
-    const auto &spec = instance.getSpectrum();
-    if(spec.empty() || permPtr->empty()) {
+    if (individual == nullptr) {
         return "";
     }
-    // Bierzemy pierwszy k-mer
-    std::string result = spec[ (*permPtr)[0] ];
+
+    auto permPtr = static_cast<std::vector<int>*>(individual);
+    if (!permPtr || permPtr->empty()) {
+        return "";
+    }
+
+    const auto &spec = instance.getSpectrum();
+    if (spec.empty()) {
+        return "";
+    }
+
     int k = instance.getK();
-    for(size_t i = 1; i < permPtr->size(); i++){
+    if (k <= 0) {
+        return "";
+    }
+
+    int firstIndex = (*permPtr)[0];
+    if (firstIndex < 0 || firstIndex >= static_cast<int>(spec.size())) {
+        return "";
+    }
+
+    std::string result = spec[firstIndex];
+
+    for (size_t i = 1; i < permPtr->size(); ++i) {
         int idx = (*permPtr)[i];
-        if(idx < 0 || idx >= (int)spec.size()) {
-            // W praktyce: błąd w rejonach permutacji
+        if (idx < 0 || idx >= static_cast<int>(spec.size())) {
             continue;
         }
-        // Doklej overlap
-        // (naiwne: doklejamy ostatnie k-1 znaków)
-        result += spec[idx].substr(k-1);
+
+        const std::string &km = spec[idx];
+        if (km.size() < static_cast<size_t>(k-1)) {
+            continue;
+        }
+
+        result += km.substr(k-1);
     }
+
     return result;
 }
 

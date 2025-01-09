@@ -14,27 +14,73 @@
 #include "metaheuristics/selection.h"
 #include "metaheuristics/stopping_criteria.h"
 
+#include "benchmark/crossover_benchmark.h"
+
+#include "configuration/genetic_algorithm_configuration.h"
+
+
+void runGeneticAlgorithm(const DNAInstance& instance) {
+    // Get the configuration
+    auto& config = GAConfig::getInstance();
+    config.setMutationRate(0.15);
+    config.setPopulationSize(100);
+    config.setMaxGenerations(197);
+    config.setPopulationSize(100);  // Keep it consistent
+    config.setReplacementRatio(0.7);  // Keep 30% of parents
+    
+
+    
+    // Create GA with configuration
+    auto cache = std::make_shared<CachedPopulation>();
+    GeneticAlgorithm ga(
+        config.getRepresentation(),
+        config.getSelection(),
+        config.getCrossover("order"),
+        config.getMutation(),
+        config.getReplacement(),
+        std::make_shared<SmithWatermanFitness>(),
+        std::make_shared<NoImprovementStopping>(300),
+        cache
+    );
+    
+    // Run the GA
+    ga.run(instance);
+    
+    // Get and print results
+    std::string reconstructedDNA = ga.getBestDNA();
+    std::string originalDNA = instance.getDNA();
+    
+    std::cout << "\nOriginal DNA (first 100 bases): " 
+              << originalDNA.substr(0, 100) << "...\n";
+    std::cout << "Reconstructed DNA (first 100 bases): " 
+              << reconstructedDNA.substr(0, 100) << "...\n";
+    
+    int distance = levenshteinDistance(originalDNA, reconstructedDNA);
+    std::cout << "Levenshtein distance: " << distance << "\n";
+}
 
 
 int main()
 {
+    srand(static_cast<unsigned int>(time(nullptr))); // Seed rand()
+    
     DNAInstanceBuilder builder;
-    builder.setN(500).setK(9)
+    builder.setN(50).setK(4)
            .buildDNA()
            .buildSpectrum();
-
+    
     NegativeErrorIntroducer negErr(5.0);
     builder.applyError(&negErr);
-
+    
     PositiveErrorIntroducer posErr(3.0, 0.7);
     builder.applyError(&posErr);
-
+    
     DNAInstance instance = builder.getInstance();
     bool saved = InstanceIO::saveInstance(instance, "instance.txt");
     if(!saved) {
         std::cerr << "Błąd zapisu!\n";
     }
-
+    
     DNAInstance loadedInst;
     bool loaded = InstanceIO::loadInstance("instance.txt", loadedInst);
     if(loaded) {
@@ -44,34 +90,19 @@ int main()
                   << ", rozmiar spektrum=" << loadedInst.getSpectrum().size() 
                   << std::endl;
     }
+    
+    // NaiveBenchmark nb;
+    // nb.runBenchmark(loadedInst);
+    
+    //CrossoverBenchmark cb;
+    //cb.runBenchmark(loadedInst);
 
-    // 2) Possibly run naive benchmark
-    std::cout << "\n=== Uruchamiam NaiveBenchmark ===\n";
-    NaiveBenchmark nb;
-    nb.runBenchmark(loadedInst);
+    runGeneticAlgorithm(loadedInst);
+    Profiler::getInstance().saveReport("profiling_report.csv");
 
-    // 3) Setup metaheuristic with representation + strategies
-    auto representation = std::make_shared<DirectDNARepresentation>();
-    auto selection  = std::make_shared<TournamentSelection>(3);
-    auto crossover  = std::make_shared<OnePointCrossover>();
-    auto mutation   = std::make_shared<PointMutation>();
-    auto replacement = std::make_shared<FullReplacement>();
-    auto fitness    = std::make_shared<SimpleFitness>();
-    auto stopping   = std::make_shared<MaxGenerationsStopping>(50);
+    
 
-    // 4) Create GeneticAlgorithm
-    GeneticAlgorithm ga(
-        representation, // 7 args total
-        selection,
-        crossover,
-        mutation,
-        replacement,
-        fitness,
-        stopping
-    );
 
-    // 5) Run
-    ga.run(loadedInst);
 
     return 0;
 }
