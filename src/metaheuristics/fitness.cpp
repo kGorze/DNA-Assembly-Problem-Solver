@@ -105,29 +105,23 @@ double SmithWatermanFitness::evaluate(void* individual,
 int SmithWatermanFitness::smithWaterman(const std::string& seq1, const std::string& seq2) const {
     int m = seq1.length();
     int n = seq2.length();
-        
-    // Initialize scoring matrix
-    std::vector<std::vector<int>> score(m + 1, std::vector<int>(n + 1, 0));
-        
-    // Fill the scoring matrix
+    
+    // Use single vector instead of 2D
+    std::vector<int> score((m+1), 0);
     int maxScore = 0;
-    for (int i = 1; i <= m; i++) {
-        for (int j = 1; j <= n; j++) {
-            // Calculate match/mismatch score
-            int match = score[i-1][j-1] + 
-                (seq1[i-1] == seq2[j-1] ? MATCH_SCORE : MISMATCH_SCORE);
-                
-            // Calculate gap scores
-            int delete_gap = score[i-1][j] + GAP_PENALTY;
-            int insert_gap = score[i][j-1] + GAP_PENALTY;
-                
-            // Take the maximum score
-            score[i][j] = std::max({0, match, delete_gap, insert_gap});
-                
-            // Update maximum score seen so far
-            maxScore = std::max(maxScore, score[i][j]);
+    
+    for (int j = 1; j <= n; j++) {
+        int prev = 0;
+        for (int i = 1; i <= m; i++) {
+            int temp = score[i];
+            int match = prev + (seq1[i-1] == seq2[j-1] ? MATCH_SCORE : MISMATCH_SCORE);
+            int delete_gap = score[i] + GAP_PENALTY;
+            int insert_gap = score[i-1] + GAP_PENALTY;
+            
+            score[i] = std::max({0, match, delete_gap, insert_gap});
+            maxScore = std::max(maxScore, score[i]);
+            prev = temp;
         }
     }
-        
     return maxScore;
 }

@@ -3,42 +3,39 @@ project(optymalizacja_kombinatoryczna)
 
 set(CMAKE_CXX_STANDARD 20)
 
-
-add_executable(optymalizacja_kombinatoryczna src/main.cpp
-        include/common.h
+# Create library from source files
+add_library(${PROJECT_NAME}_lib
         src/generator/dna_generator.cpp
-        include/generator/dna_generator.h
         src/naive/naive_reconstruction.cpp
-        include/naive/naive_reconstruction.h
         src/benchmark/naive_benchmark.cpp
-        include/benchmark/naive_benchmark.h
         src/metaheuristics/genetic_algorithm.cpp
-        include/metaheuristics/genetic_algorithm.h
         src/metaheuristics/selection.cpp
-        include/metaheuristics/selection.h
-        include/metaheuristics/crossover.h
         src/metaheuristics/crossover.cpp
-        include/metaheuristics/mutation.h
         src/metaheuristics/mutation.cpp
-        include/metaheuristics/replacement.h
         src/metaheuristics/replacement.cpp
-        include/metaheuristics/fitness.h
         src/metaheuristics/fitness.cpp
         src/metaheuristics/stopping_criteria.cpp
-        include/metaheuristics/stopping_criteria.h
-        include/metaheuristics/representation.h
         src/metaheuristics/representation.cpp
-        include/benchmark/crossover_benchmark.h
         src/benchmark/crossover_benchmark.cpp
         src/utils/utility_functions.cpp
-        include/utils/utility_functions.h
-        include/configuration/genetic_algorithm_configuration.h
         src/configuration/genetic_algorithm_configuration.cpp
-        include/utils/performance_profilling_framework.h
         src/utils/performance_profilling_framework.cpp
-        include/metaheuristics/population_cache.h
-        src/metaheuristics/population_cache.cpp
-        include/utils/zobrist_hasher.h
-)
+        src/metaheuristics/population_cache.cpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME}_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+# Main executable
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
+
+# Google Test
+include(FetchContent)
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG release-1.12.1
+)
+FetchContent_MakeAvailable(googletest)
+
+enable_testing()
+add_subdirectory(google_tests)

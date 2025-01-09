@@ -18,6 +18,12 @@ TournamentSelection::select(const std::vector<void*> &population,
                             std::shared_ptr<IFitness> fitness,
                             std::shared_ptr<IRepresentation> representation)
 {
+    std::vector<double> fitnessValues(population.size());
+    #pragma omp parallel for
+    for(size_t i = 0; i < population.size(); i++) {
+        fitnessValues[i] = fitness->evaluate(population[i], instance, representation);
+    }
+    
     // Let's produce as many parents as population.size().
     // We'll do 2 picks at a time = 2 tournaments.
     std::vector<void*> parents;

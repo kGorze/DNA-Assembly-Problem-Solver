@@ -29,46 +29,31 @@ GeneticAlgorithm::GeneticAlgorithm(
 {}
 
 void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
-                                          const DNAInstance &instance,
-                                          int generation)
-{
-    
-    // Inicjuj zmienne do przechowywania statystyk
-    double bestFit    = -std::numeric_limits<double>::infinity();
-    double worstFit   =  std::numeric_limits<double>::infinity();
-    double sumFit     = 0.0;
-    int count         = 0;
-    void* bestInd     = nullptr;
+                                         const DNAInstance &instance,
+                                         int generation) {
+    if (generation % 10 != 0) return;
 
-    // Iteracja po populacji
-    for (auto &ind : pop) {
-        double fitVal = m_fitness->evaluate(ind, instance, m_representation);
-        sumFit  += fitVal;
-        count++;
+    double bestFit = -std::numeric_limits<double>::infinity();
+    double worstFit = std::numeric_limits<double>::infinity();
+    double sumFit = 0.0;
+    void* bestInd = nullptr;
 
-        if (fitVal > bestFit) {
-            bestFit = fitVal;
-            bestInd = ind;
-        }
-        if (fitVal < worstFit) {
-            worstFit = fitVal;
-        }
+#pragma omp parallel for reduction(max:bestFit) reduction(min:worstFit) reduction(+:sumFit)
+    for (size_t i = 0; i < pop.size(); i++) {
+        double fitVal = m_fitness->evaluate(pop[i], instance, m_representation);
+        bestFit = std::max(bestFit, fitVal);
+        worstFit = std::min(worstFit, fitVal);
+        sumFit += fitVal;
     }
 
-    double avgFit = (count > 0) ? (sumFit / count) : 0.0;
+    double avgFit = sumFit / pop.size();  // Use pop.size() directly instead of count
 
-    // Wypisz statystyki
     std::cout << "[Gen " << generation << "] "
-              << "BestFit = "   << bestFit 
+              << "BestFit = "   << bestFit
               << ", WorstFit = " << worstFit
               << ", AvgFit = "   << avgFit
               << ", PopSize = "  << pop.size()
               << "\n";
-    
-    // if (bestInd) {
-    //     std::string bestDNA = m_representation->decodeToDNA(bestInd, instance);
-    //     std::cout << "   (Best DNA length: " << bestDNA.size() << ")\n";
-    // }
 }
 
 void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance &instance)

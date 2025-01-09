@@ -9,6 +9,8 @@
 
 #include <memory>
 #include <vector>
+#include <mutex>
+#include <omp.h>
 #include "metaheuristics/selection.h"
 #include "metaheuristics/crossover.h"
 #include "metaheuristics/mutation.h"

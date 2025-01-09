@@ -41,13 +41,150 @@ include CMakeFiles/rules.ninja
 
 cmake_ninja_workdir = C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/
 # =============================================================================
+# Object build statements for STATIC_LIBRARY target optymalizacja_kombinatoryczna_lib
+
+
+#############################################
+# Order-only phony target for optymalizacja_kombinatoryczna_lib
+
+build cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib: phony || .
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/generator/dna_generator.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/generator/dna_generator.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\generator\dna_generator.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\generator
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/naive/naive_reconstruction.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/naive/naive_reconstruction.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\naive\naive_reconstruction.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\naive
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/naive_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/naive_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark\naive_benchmark.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/genetic_algorithm.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\genetic_algorithm.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/selection.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/selection.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\selection.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/crossover.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/crossover.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\crossover.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/mutation.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/mutation.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\mutation.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/replacement.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/replacement.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\replacement.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/fitness.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\fitness.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/stopping_criteria.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/stopping_criteria.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\stopping_criteria.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/representation.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/representation.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\representation.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/crossover_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/crossover_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark\crossover_benchmark.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/utility_functions.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/utils/utility_functions.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils\utility_functions.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/configuration/genetic_algorithm_configuration.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/configuration/genetic_algorithm_configuration.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\configuration\genetic_algorithm_configuration.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\configuration
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/performance_profilling_framework.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/utils/performance_profilling_framework.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils\performance_profilling_framework.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils
+
+build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/population_cache.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/population_cache.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\population_cache.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target optymalizacja_kombinatoryczna_lib
+
+
+#############################################
+# Link the static library liboptymalizacja_kombinatoryczna_lib.a
+
+build liboptymalizacja_kombinatoryczna_lib.a: CXX_STATIC_LIBRARY_LINKER__optymalizacja_kombinatoryczna_lib_Debug CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/generator/dna_generator.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/naive/naive_reconstruction.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/naive_benchmark.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/genetic_algorithm.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/selection.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/crossover.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/mutation.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/replacement.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/fitness.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/stopping_criteria.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/representation.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/crossover_benchmark.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/utility_functions.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/configuration/genetic_algorithm_configuration.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/performance_profilling_framework.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/population_cache.cpp.obj
+  LANGUAGE_COMPILE_FLAGS = -g
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = liboptymalizacja_kombinatoryczna_lib.a
+  TARGET_PDB = optymalizacja_kombinatoryczna_lib.a.dbg
+
+# =============================================================================
 # Object build statements for EXECUTABLE target optymalizacja_kombinatoryczna
 
 
 #############################################
 # Order-only phony target for optymalizacja_kombinatoryczna
 
-build cmake_object_order_depends_target_optymalizacja_kombinatoryczna: phony || .
+build cmake_object_order_depends_target_optymalizacja_kombinatoryczna: phony || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
 
 build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\main.cpp.obj.d
@@ -55,118 +192,6 @@ build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj: CXX_COMPILE
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/generator/dna_generator.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/generator/dna_generator.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\generator\dna_generator.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\generator
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/naive/naive_reconstruction.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/naive/naive_reconstruction.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\naive\naive_reconstruction.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\naive
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/naive_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/naive_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark\naive_benchmark.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/genetic_algorithm.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\genetic_algorithm.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/selection.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/selection.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\selection.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/crossover.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/crossover.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\crossover.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/mutation.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/mutation.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\mutation.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/replacement.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/replacement.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\replacement.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/fitness.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\fitness.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/stopping_criteria.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/stopping_criteria.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\stopping_criteria.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/representation.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/representation.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\representation.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/crossover_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/crossover_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark\crossover_benchmark.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/utils/utility_functions.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/utils/utility_functions.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\utils\utility_functions.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\utils
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/configuration/genetic_algorithm_configuration.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/configuration/genetic_algorithm_configuration.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\configuration\genetic_algorithm_configuration.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\configuration
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/utils/performance_profilling_framework.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/utils/performance_profilling_framework.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\utils\performance_profilling_framework.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\utils
-
-build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/population_cache.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/population_cache.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
-  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\population_cache.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
-  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
-  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
-  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
 
 
 # =============================================================================
@@ -176,15 +201,27 @@ build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/population
 #############################################
 # Link the executable optymalizacja_kombinatoryczna.exe
 
-build optymalizacja_kombinatoryczna.exe: CXX_EXECUTABLE_LINKER__optymalizacja_kombinatoryczna_Debug CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/generator/dna_generator.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/naive/naive_reconstruction.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/naive_benchmark.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/genetic_algorithm.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/selection.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/crossover.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/mutation.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/replacement.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/fitness.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/stopping_criteria.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/representation.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/crossover_benchmark.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/utils/utility_functions.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/configuration/genetic_algorithm_configuration.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/utils/performance_profilling_framework.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/population_cache.cpp.obj
+build optymalizacja_kombinatoryczna.exe: CXX_EXECUTABLE_LINKER__optymalizacja_kombinatoryczna_Debug CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj | liboptymalizacja_kombinatoryczna_lib.a || liboptymalizacja_kombinatoryczna_lib.a
   FLAGS = -g
-  LINK_LIBRARIES = -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  LINK_LIBRARIES = liboptymalizacja_kombinatoryczna_lib.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
   TARGET_FILE = optymalizacja_kombinatoryczna.exe
   TARGET_IMPLIB = liboptymalizacja_kombinatoryczna.dll.a
   TARGET_PDB = optymalizacja_kombinatoryczna.exe.dbg
+
+
+#############################################
+# Utility command for test
+
+build CMakeFiles/test.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\ctest.exe" --force-new-ctest-process "
+  DESC = Running tests...
+  pool = console
+  restat = 1
+
+build test: phony CMakeFiles/test.util
 
 
 #############################################
@@ -209,10 +246,571 @@ build CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
 
 build rebuild_cache: phony CMakeFiles/rebuild_cache.util
 
+
+#############################################
+# Utility command for list_install_components
+
+build list_install_components: phony
+
+
+#############################################
+# Utility command for install
+
+build CMakeFiles/install.util: CUSTOM_COMMAND all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -P cmake_install.cmake"
+  DESC = Install the project...
+  pool = console
+  restat = 1
+
+build install: phony CMakeFiles/install.util
+
+
+#############################################
+# Utility command for install/local
+
+build CMakeFiles/install/local.util: CUSTOM_COMMAND all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake"
+  DESC = Installing only the local directory...
+  pool = console
+  restat = 1
+
+build install/local: phony CMakeFiles/install/local.util
+
+
+#############################################
+# Utility command for install/strip
+
+build CMakeFiles/install/strip.util: CUSTOM_COMMAND all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake"
+  DESC = Installing the project stripped...
+  pool = console
+  restat = 1
+
+build install/strip: phony CMakeFiles/install/strip.util
+
+# =============================================================================
+# Write statements declared in CMakeLists.txt:
+# C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/CMakeLists.txt
+# =============================================================================
+
+
+#############################################
+# Utility command for test
+
+build _deps/googletest-build/CMakeFiles/test.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\ctest.exe" --force-new-ctest-process "
+  DESC = Running tests...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/test: phony _deps/googletest-build/CMakeFiles/test.util
+
+
+#############################################
+# Utility command for edit_cache
+
+build _deps/googletest-build/CMakeFiles/edit_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -E echo "No interactive CMake dialog available.""
+  DESC = No interactive CMake dialog available...
+  restat = 1
+
+build _deps/googletest-build/edit_cache: phony _deps/googletest-build/CMakeFiles/edit_cache.util
+
+
+#############################################
+# Utility command for rebuild_cache
+
+build _deps/googletest-build/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" --regenerate-during-build -SC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna -BC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug"
+  DESC = Running CMake to regenerate build system...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/rebuild_cache: phony _deps/googletest-build/CMakeFiles/rebuild_cache.util
+
+
+#############################################
+# Utility command for list_install_components
+
+build _deps/googletest-build/list_install_components: phony
+
+
+#############################################
+# Utility command for install
+
+build _deps/googletest-build/CMakeFiles/install.util: CUSTOM_COMMAND _deps/googletest-build/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -P cmake_install.cmake"
+  DESC = Install the project...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/install: phony _deps/googletest-build/CMakeFiles/install.util
+
+
+#############################################
+# Utility command for install/local
+
+build _deps/googletest-build/CMakeFiles/install/local.util: CUSTOM_COMMAND _deps/googletest-build/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake"
+  DESC = Installing only the local directory...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/install/local: phony _deps/googletest-build/CMakeFiles/install/local.util
+
+
+#############################################
+# Utility command for install/strip
+
+build _deps/googletest-build/CMakeFiles/install/strip.util: CUSTOM_COMMAND _deps/googletest-build/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake"
+  DESC = Installing the project stripped...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/install/strip: phony _deps/googletest-build/CMakeFiles/install/strip.util
+
+# =============================================================================
+# Write statements declared in CMakeLists.txt:
+# C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/CMakeLists.txt
+# =============================================================================
+
+# =============================================================================
+# Object build statements for STATIC_LIBRARY target gmock
+
+
+#############################################
+# Order-only phony target for gmock
+
+build cmake_object_order_depends_target_gmock: phony || cmake_object_order_depends_target_gtest
+
+build _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.obj: CXX_COMPILER__gmock_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/src/gmock-all.cc || cmake_object_order_depends_target_gmock
+  DEP_FILE = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir\src\gmock-all.cc.obj.d
+  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/include -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
+  OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir
+  OBJECT_FILE_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir\src
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target gmock
+
+
+#############################################
+# Link the static library lib\libgmock.a
+
+build lib/libgmock.a: CXX_STATIC_LIBRARY_LINKER__gmock_Debug _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.obj || lib/libgtest.a
+  LANGUAGE_COMPILE_FLAGS = -g
+  OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = lib\libgmock.a
+  TARGET_PDB = gmock.a.dbg
+
+# =============================================================================
+# Object build statements for STATIC_LIBRARY target gmock_main
+
+
+#############################################
+# Order-only phony target for gmock_main
+
+build cmake_object_order_depends_target_gmock_main: phony || cmake_object_order_depends_target_gmock cmake_object_order_depends_target_gtest
+
+build _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.obj: CXX_COMPILER__gmock_main_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/src/gmock_main.cc || cmake_object_order_depends_target_gmock_main
+  DEP_FILE = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir\src\gmock_main.cc.obj.d
+  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  INCLUDES = -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
+  OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir
+  OBJECT_FILE_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir\src
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target gmock_main
+
+
+#############################################
+# Link the static library lib\libgmock_main.a
+
+build lib/libgmock_main.a: CXX_STATIC_LIBRARY_LINKER__gmock_main_Debug _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.obj || lib/libgmock.a lib/libgtest.a
+  LANGUAGE_COMPILE_FLAGS = -g
+  OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = lib\libgmock_main.a
+  TARGET_PDB = gmock_main.a.dbg
+
+
+#############################################
+# Utility command for test
+
+build _deps/googletest-build/googlemock/CMakeFiles/test.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googlemock && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\ctest.exe" --force-new-ctest-process "
+  DESC = Running tests...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googlemock/test: phony _deps/googletest-build/googlemock/CMakeFiles/test.util
+
+
+#############################################
+# Utility command for edit_cache
+
+build _deps/googletest-build/googlemock/CMakeFiles/edit_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googlemock && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -E echo "No interactive CMake dialog available.""
+  DESC = No interactive CMake dialog available...
+  restat = 1
+
+build _deps/googletest-build/googlemock/edit_cache: phony _deps/googletest-build/googlemock/CMakeFiles/edit_cache.util
+
+
+#############################################
+# Utility command for rebuild_cache
+
+build _deps/googletest-build/googlemock/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googlemock && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" --regenerate-during-build -SC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna -BC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug"
+  DESC = Running CMake to regenerate build system...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googlemock/rebuild_cache: phony _deps/googletest-build/googlemock/CMakeFiles/rebuild_cache.util
+
+
+#############################################
+# Utility command for list_install_components
+
+build _deps/googletest-build/googlemock/list_install_components: phony
+
+
+#############################################
+# Utility command for install
+
+build _deps/googletest-build/googlemock/CMakeFiles/install.util: CUSTOM_COMMAND _deps/googletest-build/googlemock/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googlemock && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -P cmake_install.cmake"
+  DESC = Install the project...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googlemock/install: phony _deps/googletest-build/googlemock/CMakeFiles/install.util
+
+
+#############################################
+# Utility command for install/local
+
+build _deps/googletest-build/googlemock/CMakeFiles/install/local.util: CUSTOM_COMMAND _deps/googletest-build/googlemock/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googlemock && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake"
+  DESC = Installing only the local directory...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googlemock/install/local: phony _deps/googletest-build/googlemock/CMakeFiles/install/local.util
+
+
+#############################################
+# Utility command for install/strip
+
+build _deps/googletest-build/googlemock/CMakeFiles/install/strip.util: CUSTOM_COMMAND _deps/googletest-build/googlemock/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googlemock && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake"
+  DESC = Installing the project stripped...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googlemock/install/strip: phony _deps/googletest-build/googlemock/CMakeFiles/install/strip.util
+
+# =============================================================================
+# Write statements declared in CMakeLists.txt:
+# C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/CMakeLists.txt
+# =============================================================================
+
+# =============================================================================
+# Object build statements for STATIC_LIBRARY target gtest
+
+
+#############################################
+# Order-only phony target for gtest
+
+build cmake_object_order_depends_target_gtest: phony || .
+
+build _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.obj: CXX_COMPILER__gtest_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/src/gtest-all.cc || cmake_object_order_depends_target_gtest
+  DEP_FILE = _deps\googletest-build\googletest\CMakeFiles\gtest.dir\src\gtest-all.cc.obj.d
+  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
+  OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest.dir
+  OBJECT_FILE_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest.dir\src
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target gtest
+
+
+#############################################
+# Link the static library lib\libgtest.a
+
+build lib/libgtest.a: CXX_STATIC_LIBRARY_LINKER__gtest_Debug _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.obj
+  LANGUAGE_COMPILE_FLAGS = -g
+  OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = lib\libgtest.a
+  TARGET_PDB = gtest.a.dbg
+
+# =============================================================================
+# Object build statements for STATIC_LIBRARY target gtest_main
+
+
+#############################################
+# Order-only phony target for gtest_main
+
+build cmake_object_order_depends_target_gtest_main: phony || cmake_object_order_depends_target_gtest
+
+build _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.obj: CXX_COMPILER__gtest_main_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/src/gtest_main.cc || cmake_object_order_depends_target_gtest_main
+  DEP_FILE = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir\src\gtest_main.cc.obj.d
+  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  INCLUDES = -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
+  OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir
+  OBJECT_FILE_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir\src
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target gtest_main
+
+
+#############################################
+# Link the static library lib\libgtest_main.a
+
+build lib/libgtest_main.a: CXX_STATIC_LIBRARY_LINKER__gtest_main_Debug _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.obj || lib/libgtest.a
+  LANGUAGE_COMPILE_FLAGS = -g
+  OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = lib\libgtest_main.a
+  TARGET_PDB = gtest_main.a.dbg
+
+
+#############################################
+# Utility command for test
+
+build _deps/googletest-build/googletest/CMakeFiles/test.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googletest && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\ctest.exe" --force-new-ctest-process "
+  DESC = Running tests...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googletest/test: phony _deps/googletest-build/googletest/CMakeFiles/test.util
+
+
+#############################################
+# Utility command for edit_cache
+
+build _deps/googletest-build/googletest/CMakeFiles/edit_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googletest && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -E echo "No interactive CMake dialog available.""
+  DESC = No interactive CMake dialog available...
+  restat = 1
+
+build _deps/googletest-build/googletest/edit_cache: phony _deps/googletest-build/googletest/CMakeFiles/edit_cache.util
+
+
+#############################################
+# Utility command for rebuild_cache
+
+build _deps/googletest-build/googletest/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googletest && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" --regenerate-during-build -SC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna -BC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug"
+  DESC = Running CMake to regenerate build system...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googletest/rebuild_cache: phony _deps/googletest-build/googletest/CMakeFiles/rebuild_cache.util
+
+
+#############################################
+# Utility command for list_install_components
+
+build _deps/googletest-build/googletest/list_install_components: phony
+
+
+#############################################
+# Utility command for install
+
+build _deps/googletest-build/googletest/CMakeFiles/install.util: CUSTOM_COMMAND _deps/googletest-build/googletest/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googletest && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -P cmake_install.cmake"
+  DESC = Install the project...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googletest/install: phony _deps/googletest-build/googletest/CMakeFiles/install.util
+
+
+#############################################
+# Utility command for install/local
+
+build _deps/googletest-build/googletest/CMakeFiles/install/local.util: CUSTOM_COMMAND _deps/googletest-build/googletest/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googletest && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake"
+  DESC = Installing only the local directory...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googletest/install/local: phony _deps/googletest-build/googletest/CMakeFiles/install/local.util
+
+
+#############################################
+# Utility command for install/strip
+
+build _deps/googletest-build/googletest/CMakeFiles/install/strip.util: CUSTOM_COMMAND _deps/googletest-build/googletest/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\_deps\googletest-build\googletest && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake"
+  DESC = Installing the project stripped...
+  pool = console
+  restat = 1
+
+build _deps/googletest-build/googletest/install/strip: phony _deps/googletest-build/googletest/CMakeFiles/install/strip.util
+
+# =============================================================================
+# Write statements declared in CMakeLists.txt:
+# C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/CMakeLists.txt
+# =============================================================================
+
+# =============================================================================
+# Object build statements for EXECUTABLE target Google_Tests_run
+
+
+#############################################
+# Order-only phony target for Google_Tests_run
+
+build cmake_object_order_depends_target_Google_Tests_run: phony || cmake_object_order_depends_target_gtest cmake_object_order_depends_target_gtest_main cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
+
+build google_tests/CMakeFiles/Google_Tests_run.dir/tests/test_main.cpp.obj: CXX_COMPILER__Google_Tests_run_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests/tests/test_main.cpp || cmake_object_order_depends_target_Google_Tests_run
+  DEP_FILE = google_tests\CMakeFiles\Google_Tests_run.dir\tests\test_main.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
+  OBJECT_DIR = google_tests\CMakeFiles\Google_Tests_run.dir
+  OBJECT_FILE_DIR = google_tests\CMakeFiles\Google_Tests_run.dir\tests
+
+build google_tests/CMakeFiles/Google_Tests_run.dir/tests/your_tests.cpp.obj: CXX_COMPILER__Google_Tests_run_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests/tests/your_tests.cpp || cmake_object_order_depends_target_Google_Tests_run
+  DEP_FILE = google_tests\CMakeFiles\Google_Tests_run.dir\tests\your_tests.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
+  OBJECT_DIR = google_tests\CMakeFiles\Google_Tests_run.dir
+  OBJECT_FILE_DIR = google_tests\CMakeFiles\Google_Tests_run.dir\tests
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target Google_Tests_run
+
+
+#############################################
+# Link the executable google_tests\Google_Tests_run.exe
+
+build google_tests/Google_Tests_run.exe: CXX_EXECUTABLE_LINKER__Google_Tests_run_Debug google_tests/CMakeFiles/Google_Tests_run.dir/tests/test_main.cpp.obj google_tests/CMakeFiles/Google_Tests_run.dir/tests/your_tests.cpp.obj | lib/libgtest.a lib/libgtest_main.a liboptymalizacja_kombinatoryczna_lib.a lib/libgtest.a || lib/libgtest.a lib/libgtest_main.a liboptymalizacja_kombinatoryczna_lib.a
+  FLAGS = -g
+  LINK_LIBRARIES = lib/libgtest.a  lib/libgtest_main.a  liboptymalizacja_kombinatoryczna_lib.a  lib/libgtest.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = google_tests\CMakeFiles\Google_Tests_run.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = google_tests\Google_Tests_run.exe
+  TARGET_IMPLIB = google_tests\libGoogle_Tests_run.dll.a
+  TARGET_PDB = Google_Tests_run.exe.dbg
+
+
+#############################################
+# Utility command for test
+
+build google_tests/CMakeFiles/test.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\google_tests && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\ctest.exe" --force-new-ctest-process "
+  DESC = Running tests...
+  pool = console
+  restat = 1
+
+build google_tests/test: phony google_tests/CMakeFiles/test.util
+
+
+#############################################
+# Utility command for edit_cache
+
+build google_tests/CMakeFiles/edit_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\google_tests && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -E echo "No interactive CMake dialog available.""
+  DESC = No interactive CMake dialog available...
+  restat = 1
+
+build google_tests/edit_cache: phony google_tests/CMakeFiles/edit_cache.util
+
+
+#############################################
+# Utility command for rebuild_cache
+
+build google_tests/CMakeFiles/rebuild_cache.util: CUSTOM_COMMAND
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\google_tests && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" --regenerate-during-build -SC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna -BC:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug"
+  DESC = Running CMake to regenerate build system...
+  pool = console
+  restat = 1
+
+build google_tests/rebuild_cache: phony google_tests/CMakeFiles/rebuild_cache.util
+
+
+#############################################
+# Utility command for list_install_components
+
+build google_tests/list_install_components: phony
+
+
+#############################################
+# Utility command for install
+
+build google_tests/CMakeFiles/install.util: CUSTOM_COMMAND google_tests/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\google_tests && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -P cmake_install.cmake"
+  DESC = Install the project...
+  pool = console
+  restat = 1
+
+build google_tests/install: phony google_tests/CMakeFiles/install.util
+
+
+#############################################
+# Utility command for install/local
+
+build google_tests/CMakeFiles/install/local.util: CUSTOM_COMMAND google_tests/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\google_tests && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake"
+  DESC = Installing only the local directory...
+  pool = console
+  restat = 1
+
+build google_tests/install/local: phony google_tests/CMakeFiles/install/local.util
+
+
+#############################################
+# Utility command for install/strip
+
+build google_tests/CMakeFiles/install/strip.util: CUSTOM_COMMAND google_tests/all
+  COMMAND = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\cmake-build-debug\google_tests && "C:\Program Files\JetBrains\CLion 2024.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake"
+  DESC = Installing the project stripped...
+  pool = console
+  restat = 1
+
+build google_tests/install/strip: phony google_tests/CMakeFiles/install/strip.util
+
 # =============================================================================
 # Target aliases.
 
+build Google_Tests_run: phony google_tests/Google_Tests_run.exe
+
+build Google_Tests_run.exe: phony google_tests/Google_Tests_run.exe
+
+build gmock: phony lib/libgmock.a
+
+build gmock_main: phony lib/libgmock_main.a
+
+build gtest: phony lib/libgtest.a
+
+build gtest_main: phony lib/libgtest_main.a
+
+build libgmock.a: phony lib/libgmock.a
+
+build libgmock_main.a: phony lib/libgmock_main.a
+
+build libgtest.a: phony lib/libgtest.a
+
+build libgtest_main.a: phony lib/libgtest_main.a
+
 build optymalizacja_kombinatoryczna: phony optymalizacja_kombinatoryczna.exe
+
+build optymalizacja_kombinatoryczna_lib: phony liboptymalizacja_kombinatoryczna_lib.a
 
 # =============================================================================
 # Folder targets.
@@ -222,7 +820,35 @@ build optymalizacja_kombinatoryczna: phony optymalizacja_kombinatoryczna.exe
 #############################################
 # Folder: C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug
 
-build all: phony optymalizacja_kombinatoryczna.exe
+build all: phony liboptymalizacja_kombinatoryczna_lib.a optymalizacja_kombinatoryczna.exe _deps/googletest-build/all google_tests/all
+
+# =============================================================================
+
+#############################################
+# Folder: C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-build
+
+build _deps/googletest-build/all: phony _deps/googletest-build/googlemock/all
+
+# =============================================================================
+
+#############################################
+# Folder: C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-build/googlemock
+
+build _deps/googletest-build/googlemock/all: phony lib/libgmock.a lib/libgmock_main.a _deps/googletest-build/googletest/all
+
+# =============================================================================
+
+#############################################
+# Folder: C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-build/googletest
+
+build _deps/googletest-build/googletest/all: phony lib/libgtest.a lib/libgtest_main.a
+
+# =============================================================================
+
+#############################################
+# Folder: C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/google_tests
+
+build google_tests/all: phony google_tests/Google_Tests_run.exe
 
 # =============================================================================
 # Built-in targets
@@ -231,14 +857,14 @@ build all: phony optymalizacja_kombinatoryczna.exe
 #############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja: RERUN_CMAKE | C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/WindowsPaths.cmake C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/CMakeLists.txt CMakeCache.txt CMakeFiles/3.29.6/CMakeCCompiler.cmake CMakeFiles/3.29.6/CMakeCXXCompiler.cmake CMakeFiles/3.29.6/CMakeRCCompiler.cmake CMakeFiles/3.29.6/CMakeSystem.cmake
+build build.ninja: RERUN_CMAKE | C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDependentOption.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakePackageConfigHelpers.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/ExternalProject/shared_internal_commands.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FetchContent.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FetchContent/CMakeLists.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindGit.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPackageHandleStandardArgs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPackageMessage.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPython.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPython/Support.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/GNUInstallDirs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/WindowsPaths.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/WriteBasicConfigVersionFile.cmake C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/CMakeLists.txt C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests/CMakeLists.txt CMakeCache.txt CMakeFiles/3.29.6/CMakeCCompiler.cmake CMakeFiles/3.29.6/CMakeCXXCompiler.cmake CMakeFiles/3.29.6/CMakeRCCompiler.cmake CMakeFiles/3.29.6/CMakeSystem.cmake _deps/googletest-src/CMakeLists.txt _deps/googletest-src/googlemock/CMakeLists.txt _deps/googletest-src/googlemock/cmake/gmock.pc.in _deps/googletest-src/googlemock/cmake/gmock_main.pc.in _deps/googletest-src/googletest/CMakeLists.txt _deps/googletest-src/googletest/cmake/Config.cmake.in _deps/googletest-src/googletest/cmake/gtest.pc.in _deps/googletest-src/googletest/cmake/gtest_main.pc.in _deps/googletest-src/googletest/cmake/internal_utils.cmake
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/WindowsPaths.cmake C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/CMakeLists.txt CMakeCache.txt CMakeFiles/3.29.6/CMakeCCompiler.cmake CMakeFiles/3.29.6/CMakeCXXCompiler.cmake CMakeFiles/3.29.6/CMakeRCCompiler.cmake CMakeFiles/3.29.6/CMakeSystem.cmake: phony
+build C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeDependentOption.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakePackageConfigHelpers.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeRCInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Compiler/GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/ExternalProject/shared_internal_commands.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FetchContent.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FetchContent/CMakeLists.cmake.in C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindGit.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPackageHandleStandardArgs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPackageMessage.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPython.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/FindPython/Support.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/GNUInstallDirs.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-C.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/Windows.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/Platform/WindowsPaths.cmake C$:/Program$ Files/JetBrains/CLion$ 2024.2.2/bin/cmake/win/x64/share/cmake-3.29/Modules/WriteBasicConfigVersionFile.cmake C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/CMakeLists.txt C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests/CMakeLists.txt CMakeCache.txt CMakeFiles/3.29.6/CMakeCCompiler.cmake CMakeFiles/3.29.6/CMakeCXXCompiler.cmake CMakeFiles/3.29.6/CMakeRCCompiler.cmake CMakeFiles/3.29.6/CMakeSystem.cmake _deps/googletest-src/CMakeLists.txt _deps/googletest-src/googlemock/CMakeLists.txt _deps/googletest-src/googlemock/cmake/gmock.pc.in _deps/googletest-src/googlemock/cmake/gmock_main.pc.in _deps/googletest-src/googletest/CMakeLists.txt _deps/googletest-src/googletest/cmake/Config.cmake.in _deps/googletest-src/googletest/cmake/gtest.pc.in _deps/googletest-src/googletest/cmake/gtest_main.pc.in _deps/googletest-src/googletest/cmake/internal_utils.cmake: phony
 
 
 #############################################
