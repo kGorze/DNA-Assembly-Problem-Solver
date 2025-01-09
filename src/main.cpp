@@ -22,10 +22,9 @@
 void runGeneticAlgorithm(const DNAInstance& instance) {
     // Get the configuration
     auto& config = GAConfig::getInstance();
-    config.setMutationRate(0.15);
-    config.setPopulationSize(100);
-    config.setMaxGenerations(197);
-    config.setPopulationSize(100);  // Keep it consistent
+    config.setMutationRate(0.40);
+    config.setMaxGenerations(50);
+    config.setPopulationSize(30);  // Keep it consistent
     config.setReplacementRatio(0.7);  // Keep 30% of parents
     
 
@@ -62,48 +61,90 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
 
 int main()
 {
-    srand(static_cast<unsigned int>(time(nullptr))); // Seed rand()
-    
+     // Opcjonalnie: seed rand(), jeśli jest gdzieś wykorzystywany
+    srand(static_cast<unsigned int>(time(nullptr)));
+
+    // Ustawiamy parametry zgodnie z nową logiką.
+    // Przyjmijmy przykładowe wartości.
+    // Jeśli wykraczają poza zakres, w DNAInstanceBuilder zostaną skorygowane do domyślnych.
+    int n = 300;         // Długość DNA (300–700)
+    int k = 8;           // Długość oligo (7–10)
+    int deltaK = 1;      // Zakres zmian długości oligo (0–2)
+    int lNeg = 10;       // Błędy negatywne (może być 0 lub >= 10)
+    int lPoz = 10;       // Błędy pozytywne (może być 0 lub >= 10)
+    bool repAllowed = true;   // Czy dozwolone powtórzenia
+    int probablePos = 0;      // 0 - losowe sekwencje, 1 - duplikowanie + modyfikacje
+
+    // Budujemy instancję przy pomocy buildera.
     DNAInstanceBuilder builder;
-    builder.setN(50).setK(4)
+    builder.setN(n)
+           .setK(k)
+           .setDeltaK(deltaK)
+           .setLNeg(lNeg)
+           .setLPoz(lPoz)
+           .setRepAllowed(repAllowed)
+           .setProbablePositive(probablePos)
+
+           // Generujemy DNA i spektrum
            .buildDNA()
            .buildSpectrum();
-    
-    NegativeErrorIntroducer negErr(5.0);
-    builder.applyError(&negErr);
-    
-    PositiveErrorIntroducer posErr(3.0, 0.7);
-    builder.applyError(&posErr);
-    
+
+    // Wprowadzamy błędy negatywne, jeśli lNeg > 0
+    // NegativeErrorIntroducer przyjmuje liczbę int jako lNeg
+    if(lNeg > 0) {
+        NegativeErrorIntroducer negErr(lNeg);
+        builder.applyError(&negErr);
+    }
+
+    // Wprowadzamy błędy pozytywne, jeśli lPoz > 0
+    // PositiveErrorIntroducer przyjmuje liczbę int jako lPoz
+    if(lPoz > 0) {
+        PositiveErrorIntroducer posErr(lPoz);
+        builder.applyError(&posErr);
+    }
+
+    // Pobieramy gotową instancję
     DNAInstance instance = builder.getInstance();
+
+    // Zapisujemy do pliku
     bool saved = InstanceIO::saveInstance(instance, "instance.txt");
     if(!saved) {
-        std::cerr << "Błąd zapisu!\n";
+        std::cerr << "Bład zapisu instancji!\n";
+    }
+    else {
+        std::cout << "Instancja zapisana do pliku 'instance.txt'.\n";
     }
     
+    // Odczytujemy z pliku, by sprawdzić poprawność
     DNAInstance loadedInst;
     bool loaded = InstanceIO::loadInstance("instance.txt", loadedInst);
-    if(loaded) {
-        std::cout << "Wczytano instancje. n=" << loadedInst.getN()
-                  << ", k=" << loadedInst.getK()
-                  << ", dlugosc DNA=" << loadedInst.getDNA().size()
-                  << ", rozmiar spektrum=" << loadedInst.getSpectrum().size() 
-                  << std::endl;
+    if(!loaded) {
+        std::cerr << "Bład odczytu instancji!\n";
+        return 1;
     }
     
-    // NaiveBenchmark nb;
-    // nb.runBenchmark(loadedInst);
-    
-    //CrossoverBenchmark cb;
-    //cb.runBenchmark(loadedInst);
+    std::cout << "Wczytano instancje z pliku. Parametry:\n"
+              << "  n=" << loadedInst.getN()
+              << ", k=" << loadedInst.getK()
+              << ", deltaK=" << loadedInst.getDeltaK()
+              << ", lNeg=" << loadedInst.getLNeg()
+              << ", lPoz=" << loadedInst.getLPoz()
+              << "\nDlugosc DNA=" << loadedInst.getDNA().size()
+              << ", rozmiar spektrum=" << loadedInst.getSpectrum().size() 
+              << std::endl;
 
+    // Przykładowe wywołanie algorytmu genetycznego
     runGeneticAlgorithm(loadedInst);
+    
+    //  NaiveBenchmark nb;
+    //  nb.runBenchmark(loadedInst);
+    //
+    // CrossoverBenchmark cb;
+    // cb.runBenchmark(loadedInst);
+
+    
     Profiler::getInstance().saveReport("profiling_report.csv");
 
     
-
-
-
-    return 0;
 }
 

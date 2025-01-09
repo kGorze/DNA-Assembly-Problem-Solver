@@ -6,8 +6,8 @@
 GAConfig::GAConfig() {
     // Default parameters
     populationSize = 100;
-    tournamentSize = 3;
-    mutationRate = 0.1;
+    tournamentSize = 1;
+    mutationRate = 0.15;
     maxGenerations = 200;
     
 }

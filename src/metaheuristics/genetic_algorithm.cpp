@@ -32,6 +32,7 @@ void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
                                           const DNAInstance &instance,
                                           int generation)
 {
+    
     // Inicjuj zmienne do przechowywania statystyk
     double bestFit    = -std::numeric_limits<double>::infinity();
     double worstFit   =  std::numeric_limits<double>::infinity();
@@ -135,7 +136,7 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
             updateGlobalBest(population, instance);
         }
         
-        if (generation % 25 == 0) {
+        if (generation % 1 == 0) {
             PROFILE_SCOPE("stats");
             logGenerationStats(population, instance, generation);
         }
