@@ -4,7 +4,30 @@
 #include <chrono>
 #include "metaheuristics/stopping_criteria.h"
 
-// ========== MaxGenerationsStopping ==========
+bool NoImprovementStopping::stop(const std::vector<void*>& population,
+                  int generation,
+                  const DNAInstance& instance,
+                  std::shared_ptr<IFitness> fitness,
+                  std::shared_ptr<IRepresentation> representation){
+        
+    // Find best fitness in current population
+    double currentBestFitness = -std::numeric_limits<double>::infinity();
+    for (auto& individual : population) {
+        double fit = fitness->evaluate(individual, instance, representation);
+        currentBestFitness = std::max(currentBestFitness, fit);
+    }
+        
+    // If we found a better solution, reset counter
+    if (currentBestFitness > m_bestFitness) {
+        m_bestFitness = currentBestFitness;
+        m_generationsWithoutImprovement = 0;
+    } else {
+        m_generationsWithoutImprovement++;
+    }
+        
+    // Stop if we haven't improved for 30% of total generations
+    return m_generationsWithoutImprovement >= m_maxGenerationsWithoutImprovement;
+}
 
 // bool MaxGenerationsStopping::stop(const std::vector<void*>         &population,
 //               int                               generation,

@@ -13,35 +13,50 @@ TournamentSelection::TournamentSelection(int tournamentSize)
 {}
 
 std::vector<void*> 
-TournamentSelection::select(const std::vector<void*>        &population,
-                            const DNAInstance               &instance,
-                            std::shared_ptr<IFitness>        fitness,
+TournamentSelection::select(const std::vector<void*> &population,
+                            const DNAInstance &instance,
+                            std::shared_ptr<IFitness> fitness,
                             std::shared_ptr<IRepresentation> representation)
 {
-    // We will produce "parents" the same size as population.
+    // Let's produce as many parents as population.size().
+    // We'll do 2 picks at a time = 2 tournaments.
     std::vector<void*> parents;
     parents.reserve(population.size());
 
     std::mt19937 rng(std::random_device{}());
-    std::uniform_int_distribution<int> dist(0, (int)population.size() - 1);
+    std::uniform_int_distribution<int> dist(0, (int)population.size()-1);
 
-    for(size_t i=0; i<population.size(); i++){
-        double bestVal = -1e9;
-        void* bestInd  = nullptr;
-        // pick m_tournamentSize random individuals
-        for(int t=0; t<m_tournamentSize; t++){
+    // Each iteration picks 2 parents, so we do population.size()/2 iterations
+    for (size_t i = 0; i < population.size()/2; i++) {
+        // Parent 1
+        double bestVal1 = -1e9;
+        void* bestInd1 = nullptr;
+        for(int t=0; t < m_tournamentSize; t++){
             int idx = dist(rng);
-            double fitVal = fitness->evaluate(population[idx], instance, representation);
-            if(fitVal > bestVal) {
-                bestVal = fitVal;
-                bestInd = population[idx];
+            double fv = fitness->evaluate(population[idx], instance, representation);
+            if(fv > bestVal1) {
+                bestVal1 = fv;
+                bestInd1 = population[idx];
             }
         }
-        // bestInd becomes a parent
-        parents.push_back(bestInd);
+        parents.push_back(bestInd1);
+
+        // Parent 2
+        double bestVal2 = -1e9;
+        void* bestInd2 = nullptr;
+        for(int t=0; t < m_tournamentSize; t++){
+            int idx = dist(rng);
+            double fv = fitness->evaluate(population[idx], instance, representation);
+            if(fv > bestVal2) {
+                bestVal2 = fv;
+                bestInd2 = population[idx];
+            }
+        }
+        parents.push_back(bestInd2);
     }
     return parents;
 }
+
 
 // // ============== RouletteSelection ==============
 // std::vector<std::vector<double>> 

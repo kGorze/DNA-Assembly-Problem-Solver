@@ -20,10 +20,16 @@ public:
 // Różne rodzaje mutacji:
 class PointMutation : public IMutation {
 public:
-    void mutate(std::vector<void*>        &offspring,
-                           const DNAInstance         &instance,
-                           std::shared_ptr<IRepresentation> representation) override;
+    PointMutation(double rate = 0.1) : mutationRate(rate) {}
+    void setMutationRate(double rate) { mutationRate = rate; }
+    double getMutationRate() const { return mutationRate; }
+    void mutate(std::vector<void*> &offspring,
+                const DNAInstance &instance,
+                std::shared_ptr<IRepresentation> representation) override;
+private:
+    double mutationRate;
 };
+
 
 
 // class GaussianMutation : public IMutation {

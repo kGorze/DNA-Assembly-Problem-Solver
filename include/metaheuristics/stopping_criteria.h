@@ -39,6 +39,26 @@ private:
     int m_maxGen;
 };
 
+class NoImprovementStopping : public IStopping {
+private:
+    double m_bestFitness;
+    int m_generationsWithoutImprovement;
+    int m_maxGenerationsWithoutImprovement;
+    int m_totalGenerations;
+    
+public:
+    NoImprovementStopping(int maxGenerations) 
+        : m_bestFitness(-std::numeric_limits<double>::infinity())
+        , m_generationsWithoutImprovement(0)
+        , m_totalGenerations(maxGenerations)
+        , m_maxGenerationsWithoutImprovement(maxGenerations * 0.3) // 30% of max generations
+    {}
+    bool stop(const std::vector<void*>& population,
+                  int generation,
+                  const DNAInstance& instance,
+                  std::shared_ptr<IFitness> fitness,
+                  std::shared_ptr<IRepresentation> representation) override;
+};
 // class NoImprovementStopping : public IStopping {
 // public:
 //     NoImprovementStopping(int maxNoImprove);

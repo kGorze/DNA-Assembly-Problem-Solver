@@ -35,14 +35,27 @@ public:
                          std::shared_ptr<IRepresentation> representation) override;
 };
 
-// class PartialReplacement : public IReplacement {
-// public:
-//     std::vector<std::vector<double>> 
-//     replace(const std::vector<std::vector<double>> &oldPop,
-//             const std::vector<std::vector<double>> &offspring,
-//             const IFitness &fitness) override;
-// };
-//
+class PartialReplacement : public IReplacement {
+private:
+    class PopulationCache;
+    std::unique_ptr<PopulationCache> m_cache;
+    double m_replacementRatio;
+
+public:
+    explicit PartialReplacement(double replacementRatio = 0.7);
+    ~PartialReplacement();
+    
+    std::vector<void*> replace(
+        const std::vector<void*>& oldPop,
+        const std::vector<void*>& offspring,
+        const DNAInstance& instance,
+        std::shared_ptr<IFitness> fitness,
+        std::shared_ptr<IRepresentation> representation
+    ) override;
+};
+
+
+
 // class SteadyStateReplacement : public IReplacement {
 // public:
 //     std::vector<std::vector<double>> 
