@@ -9,8 +9,11 @@
 #include "generator/dna_generator.h"
 #include "utils/utility_functions.h"
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <omp.h>
 
 class IFitness {
 public:
@@ -56,35 +59,76 @@ public:
                    std::shared_ptr<IRepresentation> representation) const override;
 };
 
-class GraphBasedFitness : public IFitness {
+class OptimizedGraphBasedFitness : public IFitness {
 private:
-    // Structure to represent graph edges
+    // Struktury pomocnicze
     struct Edge {
         int to;
         int weight;
         Edge(int t, int w) : to(t), weight(w) {}
     };
     
-    // Helper struct to store path analysis results
+    struct PreprocessedEdge {
+        int to;
+        int weight;
+        bool exists;
+        PreprocessedEdge(int t = 0, int w = 0, bool e = false) 
+            : to(t), weight(w), exists(e) {}
+    };
+    
     struct PathAnalysis {
-        int edgesWeight1 = 0;
-        int edgesWeight2or3 = 0;
-        int uniqueNodesUsed = 0;
-        int repeatNodeUsages = 0;
-        std::unordered_map<int, int> nodeUsageCount;
+        int edgesWeight1;
+        int edgesWeight2or3;
+        int uniqueNodesUsed;
+        int repeatNodeUsages;
+        std::vector<int>& nodeUsageCount;
+        
+        PathAnalysis(std::vector<int>& buffer) 
+            : edgesWeight1(0), edgesWeight2or3(0), 
+              uniqueNodesUsed(0), repeatNodeUsages(0),
+              nodeUsageCount(buffer) {}
     };
 
-    // Helper methods
-    std::vector<std::vector<Edge>> buildSpectrumGraph(const std::vector<std::string>& spectrum, int k) const;
-    int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
-    PathAnalysis analyzePath(const std::vector<int>& path, 
-                           const std::vector<std::vector<Edge>>& graph) const;
-    std::vector<int> permutationToPath(void* individual) const;
+    // Bufory i cache
+    mutable std::vector<int> nodeUsageBuffer;
+    mutable std::unordered_map<std::string, std::vector<std::vector<Edge>>> graphCache;
+    mutable std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix;
+
+    // Metody pomocnicze
+    void initBuffers(size_t size) const;
+    void preprocessGraph(const std::vector<std::vector<Edge>>& graph) const;
+    std::string createCacheKey(const std::vector<std::string>& spectrum, int k) const;
+    
+    std::vector<std::vector<Edge>> buildSpectrumGraph(
+        const std::vector<std::string>& spectrum, 
+        int k) const;
+    
+    int calculateEdgeWeight(
+        const std::string& from, 
+        const std::string& to, 
+        int k) const;
+    
+    PathAnalysis analyzePath(
+        const std::vector<int>& path,
+        size_t graphSize) const;
+    
+    const std::vector<int>& permutationToPath(void* individual) const;
 
 public:
-    double evaluate(void* individual,
-                   const DNAInstance& instance,
-                   std::shared_ptr<IRepresentation> representation) const override;
+    OptimizedGraphBasedFitness() = default;
+    
+    double evaluate(
+        void* individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) const override;
+
+    // Czyszczenie cache
+    void clearCache() {
+        graphCache.clear();
+        adjacencyMatrix.clear();
+        nodeUsageBuffer.clear();
+    }
 };
+
 
 #endif //FITNESS_H

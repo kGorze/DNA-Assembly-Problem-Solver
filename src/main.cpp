@@ -23,8 +23,8 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
     // Get the configuration
     auto& config = GAConfig::getInstance();
     config.setMutationRate(0.40);
-    config.setMaxGenerations(50);
-    config.setPopulationSize(30);  // Keep it consistent
+    config.setMaxGenerations(1200);
+    config.setPopulationSize(50);  // Keep it consistent
     config.setReplacementRatio(0.7);  // Keep 30% of parents
     
 
@@ -37,8 +37,8 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
         config.getCrossover("order"),
         config.getMutation(),
         config.getReplacement(),
-        std::make_shared<GraphBasedFitness>(),
-        std::make_shared<NoImprovementStopping>(300),
+        std::make_shared<OptimizedGraphBasedFitness>(),
+        std::make_shared<MaxGenerationsStopping>(1200),
         cache
     );
     
