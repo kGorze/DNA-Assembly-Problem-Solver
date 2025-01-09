@@ -43,3 +43,16 @@
 20217	20301	7581481642883355	lib/libgtest_main.a	bacc755345f13b8c
 17951	20887	7581481620224164	google_tests/CMakeFiles/Google_Tests_run.dir/tests/your_tests.cpp.obj	b8b201080574e1a9
 20887	24378	7581481649583560	google_tests/Google_Tests_run.exe	7625ac66e8b7638
+11	701	7581486069653577	optymalizacja_kombinatoryczna.exe	de3800064bc3e622
+23	3407	7581493364608446	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/selection.cpp.obj	3c516ab6b4c0e40a
+30	3793	7581493364678600	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/replacement.cpp.obj	655e9a34de5a6097
+16	4114	7581493364533208	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/genetic_algorithm.cpp.obj	91cb3280bdb651ed
+37	4180	7581493364743914	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/fitness.cpp.obj	4eeb70783cc43454
+3408	6319	7581493398462412	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/stopping_criteria.cpp.obj	782265c9096a119
+4114	7427	7581493405519497	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/configuration/genetic_algorithm_configuration.cpp.obj	b0dd9a13f6abe0f7
+3794	7827	7581493402310574	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/crossover_benchmark.cpp.obj	8181e2e85ffde81d
+4181	7993	7581493406182317	CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj	c9e796145ff56ba9
+7827	8586	7581493442655910	liboptymalizacja_kombinatoryczna_lib.a	470d90f1a3965473
+8586	9304	7581493450244340	optymalizacja_kombinatoryczna.exe	de3800064bc3e622
+11	2782	7581494010077952	CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj	c9e796145ff56ba9
+2782	3517	7581494037796465	optymalizacja_kombinatoryczna.exe	de3800064bc3e622

@@ -10,6 +10,7 @@
 #include "utils/utility_functions.h"
 
 #include <vector>
+#include <unordered_map>
 
 class IFitness {
 public:
@@ -51,6 +52,37 @@ private:
 
 public:
     double evaluate(void* individual, 
+                   const DNAInstance& instance,
+                   std::shared_ptr<IRepresentation> representation) const override;
+};
+
+class GraphBasedFitness : public IFitness {
+private:
+    // Structure to represent graph edges
+    struct Edge {
+        int to;
+        int weight;
+        Edge(int t, int w) : to(t), weight(w) {}
+    };
+    
+    // Helper struct to store path analysis results
+    struct PathAnalysis {
+        int edgesWeight1 = 0;
+        int edgesWeight2or3 = 0;
+        int uniqueNodesUsed = 0;
+        int repeatNodeUsages = 0;
+        std::unordered_map<int, int> nodeUsageCount;
+    };
+
+    // Helper methods
+    std::vector<std::vector<Edge>> buildSpectrumGraph(const std::vector<std::string>& spectrum, int k) const;
+    int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
+    PathAnalysis analyzePath(const std::vector<int>& path, 
+                           const std::vector<std::vector<Edge>>& graph) const;
+    std::vector<int> permutationToPath(void* individual) const;
+
+public:
+    double evaluate(void* individual,
                    const DNAInstance& instance,
                    std::shared_ptr<IRepresentation> representation) const override;
 };

@@ -37,7 +37,7 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
         config.getCrossover("order"),
         config.getMutation(),
         config.getReplacement(),
-        std::make_shared<SmithWatermanFitness>(),
+        std::make_shared<GraphBasedFitness>(),
         std::make_shared<NoImprovementStopping>(300),
         cache
     );

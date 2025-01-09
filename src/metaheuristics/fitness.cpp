@@ -125,3 +125,118 @@ int SmithWatermanFitness::smithWaterman(const std::string& seq1, const std::stri
     }
     return maxScore;
 }
+
+std::vector<std::vector<GraphBasedFitness::Edge>> GraphBasedFitness::buildSpectrumGraph(
+    const std::vector<std::string>& spectrum, int k) const {
+    int n = spectrum.size();
+    std::vector<std::vector<Edge>> graph(n);
+    
+    // Create edges based on overlap between k-mers
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i == j) continue;
+            
+            int weight = calculateEdgeWeight(spectrum[i], spectrum[j], k);
+            if (weight > 0) {
+                graph[i].emplace_back(j, weight);
+            }
+        }
+    }
+    
+    return graph;
+}
+
+int GraphBasedFitness::calculateEdgeWeight(const std::string& from, const std::string& to, int k) const {
+    // For k-1 overlap, weight = 1 (perfect overlap)
+    // For k-2 overlap, weight = 2 (potential negative error)
+    // For k-3 overlap, weight = 3 (likely error)
+    
+    for (int overlap = k-1; overlap >= k-3; overlap--) {
+        if (overlap <= 0) break;
+        
+        std::string suffix = from.substr(from.length() - overlap);
+        std::string prefix = to.substr(0, overlap);
+        
+        if (suffix == prefix) {
+            return k - overlap;  // Weight increases as overlap decreases
+        }
+    }
+    
+    return 0;  // No valid overlap found
+}
+
+GraphBasedFitness::PathAnalysis GraphBasedFitness::analyzePath(
+    const std::vector<int>& path, 
+    const std::vector<std::vector<Edge>>& graph) const {
+    PathAnalysis analysis;
+    
+    // Analyze edges in path
+    for (size_t i = 0; i < path.size() - 1; i++) {
+        int from = path[i];
+        int to = path[i + 1];
+        
+        // Count node usage
+        analysis.nodeUsageCount[from]++;
+        if (analysis.nodeUsageCount[from] == 1) {
+            analysis.uniqueNodesUsed++;
+        } else {
+            analysis.repeatNodeUsages++;
+        }
+        
+        // Find edge weight
+        for (const Edge& edge : graph[from]) {
+            if (edge.to == to) {
+                if (edge.weight == 1) {
+                    analysis.edgesWeight1++;
+                } else {
+                    analysis.edgesWeight2or3++;
+                }
+                break;
+            }
+        }
+    }
+    
+    // Count last node
+    analysis.nodeUsageCount[path.back()]++;
+    if (analysis.nodeUsageCount[path.back()] == 1) {
+        analysis.uniqueNodesUsed++;
+    } else {
+        analysis.repeatNodeUsages++;
+    }
+    
+    return analysis;
+}
+
+std::vector<int> GraphBasedFitness::permutationToPath(void* individual) const {
+    auto* perm = static_cast<std::vector<int>*>(individual);
+    return *perm;  // Direct conversion as our permutation already represents path
+}
+
+double GraphBasedFitness::evaluate(
+    void* individual,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation) const {
+    const auto& spectrum = instance.getSpectrum();
+    int k = instance.getK();
+    
+    if (spectrum.empty() || k <= 0) return 0.0;
+    
+    // Build spectrum graph
+    auto graph = buildSpectrumGraph(spectrum, k);
+    
+    // Get path from individual
+    std::vector<int> path = permutationToPath(individual);
+    
+    // Analyze path
+    PathAnalysis analysis = analyzePath(path, graph);
+    
+    // Calculate fitness components
+    double edgeScore = analysis.edgesWeight1 - (2.0 * analysis.edgesWeight2or3);
+    double coverageScore = analysis.uniqueNodesUsed - (0.5 * analysis.repeatNodeUsages);
+    
+    // Combine scores with weights
+    double alpha = 0.7;  // Weight for edge score
+    double beta = 0.3;   // Weight for coverage score
+    
+    return (alpha * edgeScore) + (beta * coverageScore);
+}
