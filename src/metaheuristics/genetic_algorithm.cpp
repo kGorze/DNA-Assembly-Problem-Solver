@@ -33,10 +33,14 @@ void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
                                          int generation) {
     if (generation % 10 != 0) return;
 
+    // Calculate theoretical max fitness if not done yet
+    if (m_theoreticalMaxFitness == 0.0) {
+        calculateTheoreticalMaxFitness(instance);
+    }
+
     double bestFit = -std::numeric_limits<double>::infinity();
     double worstFit = std::numeric_limits<double>::infinity();
     double sumFit = 0.0;
-    void* bestInd = nullptr;
 
 #pragma omp parallel for reduction(max:bestFit) reduction(min:worstFit) reduction(+:sumFit)
     for (size_t i = 0; i < pop.size(); i++) {
@@ -46,13 +50,17 @@ void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
         sumFit += fitVal;
     }
 
-    double avgFit = sumFit / pop.size();  // Use pop.size() directly instead of count
+    double avgFit = sumFit / pop.size();
+    double relativeBestFit = (m_theoreticalMaxFitness > 0) ? 
+        (bestFit / m_theoreticalMaxFitness) * 100.0 : 0.0;
 
     std::cout << "[Gen " << generation << "] "
-              << "BestFit = "   << bestFit
+              << "BestFit = " << bestFit 
+              << " (" << std::fixed << std::setprecision(2) << relativeBestFit << "% of max "
+              << m_theoreticalMaxFitness << ")"
               << ", WorstFit = " << worstFit
-              << ", AvgFit = "   << avgFit
-              << ", PopSize = "  << pop.size()
+              << ", AvgFit = " << avgFit
+              << ", PopSize = " << pop.size()
               << "\n";
 }
 
@@ -137,4 +145,41 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
                   << ", length of best DNA = " << m_bestDNA.size() << "\n"
                   << "Cache size: " << m_cache->size() << "\n";
     }
+}
+
+void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instance) {
+    const auto& spectrum = instance.getSpectrum();
+    int k = instance.getK();
+    
+    if (spectrum.empty() || k <= 0) {
+        m_theoreticalMaxFitness = 0.0;
+        return;
+    }
+
+    // For OptimizedGraphBasedFitness, the theoretical maximum would be:
+    // 1. Every edge in the path has weight 1 (best case)
+    // 2. Every node is visited exactly once (perfect coverage)
+    
+    size_t n = spectrum.size();
+    
+    // Best possible edge score:
+    // - In a path visiting all nodes once, we have (n-1) edges
+    // - Best case: all edges have weight 1
+    double bestEdgeScore = (n - 1);  // Each weight-1 edge contributes +1
+    
+    // Best possible coverage score:
+    // - All nodes used exactly once (n unique nodes)
+    // - No repeat usages
+    double bestCoverageScore = n;  // n unique nodes, 0 repeats
+    
+    // Apply the weights from OptimizedGraphBasedFitness
+    const double alpha = 0.7;  // Weight for edge score
+    const double beta = 0.3;   // Weight for coverage score
+    
+    m_theoreticalMaxFitness = (alpha * bestEdgeScore) + (beta * bestCoverageScore);
+    
+    std::cout << "[MaxFitness] Theoretical maximum calculated:\n"
+              << "- Best edge score: " << bestEdgeScore << " (weight: " << alpha << ")\n"
+              << "- Best coverage score: " << bestCoverageScore << " (weight: " << beta << ")\n"
+              << "- Total theoretical maximum: " << m_theoreticalMaxFitness << "\n";
 }

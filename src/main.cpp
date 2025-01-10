@@ -22,7 +22,7 @@
 void runGeneticAlgorithm(const DNAInstance& instance) {
     // Get the configuration
     auto& config = GAConfig::getInstance();
-    config.setMutationRate(0.40);
+    config.setMutationRate(0.8);
     config.setMaxGenerations(1200);
     config.setPopulationSize(50);  // Keep it consistent
     config.setReplacementRatio(0.7);  // Keep 30% of parents

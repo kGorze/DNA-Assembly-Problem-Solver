@@ -48,7 +48,8 @@ private:
     // new method to track global best
     void updateGlobalBest(const std::vector<void*> &pop,
                           const DNAInstance &instance);
-
+    void calculateTheoreticalMaxFitness(const DNAInstance &instance);
+    
     // fields
     std::vector<void*> population;
     std::shared_ptr<IRepresentation> m_representation;
@@ -64,6 +65,7 @@ private:
     std::string m_bestDNA;
 
     // best ever found
+    double m_theoreticalMaxFitness = 0.0;
     double m_globalBestFit = -std::numeric_limits<double>::infinity();
     void*  m_globalBestInd = nullptr;
 };
