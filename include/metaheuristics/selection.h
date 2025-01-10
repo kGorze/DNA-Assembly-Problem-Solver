@@ -7,6 +7,7 @@
 #include <vector>
 #include "metaheuristics/fitness.h"
 #include "metaheuristics/representation.h"
+#include "metaheuristics/population_cache.h"
 
 /**
  * Interfejs selekcji – przyjmuje populację, zwraca osobniki-rodziców.
@@ -29,7 +30,7 @@ public:
 
 class TournamentSelection : public ISelection {
 public:
-    TournamentSelection(int tournamentSize);
+    TournamentSelection(int tournamentSize, std::shared_ptr<IPopulationCache> cache);
     std::vector<void*>
     select(const std::vector<void*>                         &population,
                             const DNAInstance               &instance,
@@ -37,6 +38,7 @@ public:
                             std::shared_ptr<IRepresentation> representation) override;
 private:
     int m_tournamentSize;
+    std::shared_ptr<IPopulationCache> m_cache;
 };
 
 

@@ -18,32 +18,9 @@ FullReplacement::replace(const std::vector<void*>        &oldPop,
 }
 
 // =========== PartialReplacement ===========
-class PartialReplacement::PopulationCache {
-public:
-    struct Individual {
-        void* ptr;
-        double fitness;
-        
-        Individual(void* p = nullptr, double f = -std::numeric_limits<double>::infinity()) 
-            : ptr(p), fitness(f) {}
-        
-        bool operator<(const Individual& other) const {
-            return fitness > other.fitness; // Sort in descending order
-        }
-    };
-    
-    std::vector<Individual> sorted;
-    bool needsSort = true;
-    
-    void clear() {
-        sorted.clear();
-        needsSort = true;
-    }
-};
-
-PartialReplacement::PartialReplacement(double replacementRatio) 
+PartialReplacement::PartialReplacement(double replacementRatio, std::shared_ptr<IPopulationCache> cache) 
     : m_replacementRatio(replacementRatio)
-    , m_cache(std::make_unique<PopulationCache>()) {}
+    , m_fitnessCache(cache) {}
 
 PartialReplacement::~PartialReplacement() = default;
 
@@ -63,20 +40,25 @@ PartialReplacement::replace(const std::vector<void*>        &oldPop,
     const size_t offSize = offspring.size();
     const size_t targetSize = std::max(oldSize, offSize); // Maintain population size
     
-    // Calculate how many parents to keep
-    const size_t desiredParents = static_cast<size_t>(targetSize * (1.0 - m_replacementRatio));
+    struct Individual {
+        void* ptr;
+        double fitness;
+        
+        Individual(void* p = nullptr, double f = -std::numeric_limits<double>::infinity()) 
+            : ptr(p), fitness(f) {}
+        
+        bool operator<(const Individual& other) const {
+            return fitness > other.fitness; // Sort in descending order
+        }
+    };
     
-    std::vector<void*> newPop;
-    newPop.reserve(targetSize);
-    
-    // First, evaluate and sort old population
-    std::vector<PopulationCache::Individual> allIndividuals;
+    std::vector<Individual> allIndividuals;
     allIndividuals.reserve(oldSize + offSize);
     
     // Add old population individuals
     for (auto* ind : oldPop) {
         if (ind != nullptr) {
-            double fit = fitness->evaluate(ind, instance, representation);
+            double fit = m_fitnessCache->getOrCalculateFitness(ind, instance, fitness, representation);
             allIndividuals.emplace_back(ind, fit);
         }
     }
@@ -84,7 +66,7 @@ PartialReplacement::replace(const std::vector<void*>        &oldPop,
     // Add offspring individuals
     for (auto* ind : offspring) {
         if (ind != nullptr) {
-            double fit = fitness->evaluate(ind, instance, representation);
+            double fit = m_fitnessCache->getOrCalculateFitness(ind, instance, fitness, representation);
             allIndividuals.emplace_back(ind, fit);
         }
     }
@@ -93,6 +75,9 @@ PartialReplacement::replace(const std::vector<void*>        &oldPop,
     std::sort(allIndividuals.begin(), allIndividuals.end());
     
     // Take the best individuals up to target size
+    std::vector<void*> newPop;
+    newPop.reserve(targetSize);
+    
     size_t individualsToTake = std::min(targetSize, allIndividuals.size());
     
     for (size_t i = 0; i < individualsToTake; ++i) {

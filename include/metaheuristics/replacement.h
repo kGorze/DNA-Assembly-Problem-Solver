@@ -7,6 +7,7 @@
 
 #include <vector>
 #include "metaheuristics/fitness.h"
+#include "metaheuristics/population_cache.h"
 
 /**
  * Strategia zastępowania pokoleń:
@@ -19,30 +20,30 @@ public:
     virtual ~IReplacement() = default;
     virtual std::vector<void*>
     replace(const std::vector<void*>        &oldPop,
-                         const std::vector<void*>        &offspring,
-                         const DNAInstance               &instance,
-                         std::shared_ptr<IFitness>        fitness,
-                         std::shared_ptr<IRepresentation> representation) = 0;
+            const std::vector<void*>        &offspring,
+            const DNAInstance               &instance,
+            std::shared_ptr<IFitness>        fitness,
+            std::shared_ptr<IRepresentation> representation) = 0;
 };
 
 class FullReplacement : public IReplacement {
 public:
-    virtual std::vector<void*>
+    std::vector<void*>
     replace(const std::vector<void*>        &oldPop,
-                         const std::vector<void*>        &offspring,
-                         const DNAInstance               &instance,
-                         std::shared_ptr<IFitness>        fitness,
-                         std::shared_ptr<IRepresentation> representation) override;
+            const std::vector<void*>        &offspring,
+            const DNAInstance               &instance,
+            std::shared_ptr<IFitness>        fitness,
+            std::shared_ptr<IRepresentation> representation) override;
 };
 
 class PartialReplacement : public IReplacement {
 private:
-    class PopulationCache;
-    std::unique_ptr<PopulationCache> m_cache;
     double m_replacementRatio;
+    std::shared_ptr<IPopulationCache> m_fitnessCache;
 
 public:
-    explicit PartialReplacement(double replacementRatio = 0.7);
+    explicit PartialReplacement(double replacementRatio = 0.7, 
+                               std::shared_ptr<IPopulationCache> cache = nullptr);
     ~PartialReplacement();
     
     std::vector<void*> replace(

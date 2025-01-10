@@ -22,21 +22,22 @@
 void runGeneticAlgorithm(const DNAInstance& instance) {
     // Get the configuration
     auto& config = GAConfig::getInstance();
-    config.setMutationRate(0.8);
-    config.setMaxGenerations(1200);
-    config.setPopulationSize(50);  // Keep it consistent
+    config.setMutationRate(0.45);
+    config.setMaxGenerations(10000);
+    config.setPopulationSize(100);  // Keep it consistent
     config.setReplacementRatio(0.7);  // Keep 30% of parents
     
-
+    // Create and set the cache
+    auto cache = std::make_shared<CachedPopulation>();
+    config.setCache(cache);  // This ensures cache is used in selection and replacement
     
     // Create GA with configuration
-    auto cache = std::make_shared<CachedPopulation>();
     GeneticAlgorithm ga(
         config.getRepresentation(),
-        config.getSelection(),
+        config.getSelection(),      // Will now use cache
         config.getCrossover("order"),
         config.getMutation(),
-        config.getReplacement(),
+        config.getReplacement(),    // Will now use cache
         std::make_shared<OptimizedGraphBasedFitness>(),
         std::make_shared<MaxGenerationsStopping>(1200),
         cache
@@ -67,7 +68,7 @@ int main()
     // Ustawiamy parametry zgodnie z nową logiką.
     // Przyjmijmy przykładowe wartości.
     // Jeśli wykraczają poza zakres, w DNAInstanceBuilder zostaną skorygowane do domyślnych.
-    int n = 300;         // Długość DNA (300–700)
+    int n = 400;         // Długość DNA (300–700)
     int k = 8;           // Długość oligo (7–10)
     int deltaK = 1;      // Zakres zmian długości oligo (0–2)
     int lNeg = 10;       // Błędy negatywne (może być 0 lub >= 10)

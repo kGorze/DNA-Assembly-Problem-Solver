@@ -8,9 +8,8 @@
 #include <random>
 
 // ============== TournamentSelection ==============
-TournamentSelection::TournamentSelection(int tournamentSize)
-    : m_tournamentSize(tournamentSize)
-{}
+TournamentSelection::TournamentSelection(int tournamentSize, std::shared_ptr<IPopulationCache> cache) 
+        : m_tournamentSize(tournamentSize), m_cache(cache) {}
 
 std::vector<void*> 
 TournamentSelection::select(const std::vector<void*> &population,
@@ -18,14 +17,6 @@ TournamentSelection::select(const std::vector<void*> &population,
                             std::shared_ptr<IFitness> fitness,
                             std::shared_ptr<IRepresentation> representation)
 {
-    std::vector<double> fitnessValues(population.size());
-    #pragma omp parallel for
-    for(size_t i = 0; i < population.size(); i++) {
-        fitnessValues[i] = fitness->evaluate(population[i], instance, representation);
-    }
-    
-    // Let's produce as many parents as population.size().
-    // We'll do 2 picks at a time = 2 tournaments.
     std::vector<void*> parents;
     parents.reserve(population.size());
 
@@ -39,7 +30,8 @@ TournamentSelection::select(const std::vector<void*> &population,
         void* bestInd1 = nullptr;
         for(int t=0; t < m_tournamentSize; t++){
             int idx = dist(rng);
-            double fv = fitness->evaluate(population[idx], instance, representation);
+            // Use cache instead of direct calculation
+            double fv = m_cache->getOrCalculateFitness(population[idx], instance, fitness, representation);
             if(fv > bestVal1) {
                 bestVal1 = fv;
                 bestInd1 = population[idx];
@@ -52,7 +44,8 @@ TournamentSelection::select(const std::vector<void*> &population,
         void* bestInd2 = nullptr;
         for(int t=0; t < m_tournamentSize; t++){
             int idx = dist(rng);
-            double fv = fitness->evaluate(population[idx], instance, representation);
+            // Use cache instead of direct calculation
+            double fv = m_cache->getOrCalculateFitness(population[idx], instance, fitness, representation);
             if(fv > bestVal2) {
                 bestVal2 = fv;
                 bestInd2 = population[idx];

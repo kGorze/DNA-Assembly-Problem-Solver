@@ -44,7 +44,8 @@ void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
 
 #pragma omp parallel for reduction(max:bestFit) reduction(min:worstFit) reduction(+:sumFit)
     for (size_t i = 0; i < pop.size(); i++) {
-        double fitVal = m_fitness->evaluate(pop[i], instance, m_representation);
+        // Use cache instead of direct calculation
+        double fitVal = m_cache->getOrCalculateFitness(pop[i], instance, m_fitness, m_representation);
         bestFit = std::max(bestFit, fitVal);
         worstFit = std::min(worstFit, fitVal);
         sumFit += fitVal;
@@ -73,11 +74,11 @@ void GeneticAlgorithm::updateGlobalBest(const std::vector<void*> &pop,
                                         const DNAInstance &instance)
 {
     for (auto &ind : pop) {
-        double fitVal = m_fitness->evaluate(ind, instance, m_representation);
+        // Use cache instead of direct calculation
+        double fitVal = m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation);
         if (fitVal > m_globalBestFit) {
             m_globalBestFit = fitVal;
 
-            // SKOPIUJ osobnika, by uniknąć problemu z usuwaniem oryginalnego w replacement
             if(m_globalBestInd) {
                 delete static_cast<std::vector<int>*>(m_globalBestInd);
             }

@@ -13,6 +13,7 @@
 #include "metaheuristics/replacement.h"
 #include "metaheuristics/fitness.h"
 #include "metaheuristics/stopping_criteria.h"
+#include "metaheuristics/population_cache.h"  // Added this include
 
 class GAConfig {
 public:
@@ -28,6 +29,7 @@ public:
     int getTournamentSize() const { return tournamentSize; }
     double getMutationRate() const { return mutationRate; }
     int getMaxGenerations() const { return maxGenerations; }
+    double getReplacementRatio() const { return m_replacementRatio; }
     
     // Component getters
     std::shared_ptr<IRepresentation> getRepresentation() const;
@@ -44,11 +46,8 @@ public:
     void setMutationRate(double rate) { mutationRate = rate; }
     void setMaxGenerations(int gens) { maxGenerations = gens; }
     void setReplacementRatio(double ratio);
-
-    double getReplacementRatio() const { return m_replacementRatio; }
-    std::shared_ptr<IReplacement> getReplacement() {
-        return std::make_shared<PartialReplacement>(m_replacementRatio);
-    }
+    void setCache(std::shared_ptr<IPopulationCache> cache) { m_cache = cache; }
+    std::shared_ptr<IPopulationCache> getCache() const { return m_cache; }
 
 private:
     // Private constructor for singleton
@@ -60,7 +59,7 @@ private:
     int maxGenerations;
     double mutationRate = 0.1;
     double m_replacementRatio = 0.7; // default value
-
+    std::shared_ptr<IPopulationCache> m_cache;
 };
 
 #endif //GENETIC_ALGORITHM_CONFIGURATION_H

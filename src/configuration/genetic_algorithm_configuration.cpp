@@ -9,7 +9,7 @@ GAConfig::GAConfig() {
     tournamentSize = 1;
     mutationRate = 0.15;
     maxGenerations = 200;
-    
+    m_replacementRatio = 0.7;
 }
 
 GAConfig& GAConfig::getInstance() {
@@ -22,7 +22,7 @@ std::shared_ptr<IRepresentation> GAConfig::getRepresentation() const {
 }
 
 std::shared_ptr<ISelection> GAConfig::getSelection() const {
-    return std::make_shared<TournamentSelection>(tournamentSize);
+    return std::make_shared<TournamentSelection>(3, m_cache);
 }
 
 std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& type) const {
@@ -40,12 +40,11 @@ std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& type) cons
 }
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const {
-    auto mutation = std::make_shared<PointMutation>(mutationRate);
-    return mutation;
+    return std::make_shared<PointMutation>(mutationRate);
 }
 
 std::shared_ptr<IReplacement> GAConfig::getReplacement() const {
-    return std::make_shared<PartialReplacement>();
+    return std::make_shared<PartialReplacement>(m_replacementRatio, m_cache);
 }
 
 std::shared_ptr<IFitness> GAConfig::getFitness() const {
