@@ -1,6 +1,8 @@
 //
 // Created by konrad_guest on 08/01/2025.
-//
+// SMART
+
+
 #include "configuration/genetic_algorithm_configuration.h"
 
 GAConfig::GAConfig() {
@@ -9,7 +11,6 @@ GAConfig::GAConfig() {
     tournamentSize = 1;
     mutationRate = 0.15;
     maxGenerations = 200;
-    m_replacementRatio = 0.7;
 }
 
 GAConfig& GAConfig::getInstance() {
@@ -21,6 +22,8 @@ std::shared_ptr<IRepresentation> GAConfig::getRepresentation() const {
     return std::make_shared<PermutationRepresentation>();
 }
 
+// UWAGA: W oryginalnym kodzie tutaj był błąd składniowy w definicji getSelection(). 
+// Poprawiamy, żeby było spójne:
 std::shared_ptr<ISelection> GAConfig::getSelection() const {
     return std::make_shared<TournamentSelection>(3, m_cache);
 }
@@ -40,9 +43,11 @@ std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& type) cons
 }
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const {
-    return std::make_shared<PointMutation>(mutationRate);
+    auto mutation = std::make_shared<PointMutation>(mutationRate);
+    return mutation;
 }
 
+// Także poprawiamy ewentualny błąd składni:
 std::shared_ptr<IReplacement> GAConfig::getReplacement() const {
     return std::make_shared<PartialReplacement>(m_replacementRatio, m_cache);
 }

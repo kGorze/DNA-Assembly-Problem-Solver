@@ -1,13 +1,12 @@
 //
 // Created by konrad_guest on 09/01/2025.
-//
+// SMART
 #include "metaheuristics/population_cache.h"
 #include <algorithm>
 #include <chrono>
 
-uint64_t CachedPopulation::computeHash(void* individual) {
-    auto* perm = static_cast<std::vector<int>*>(individual);
-    return ZobristHasher::getInstance().hashPermutation(*perm);
+uint64_t CachedPopulation::computeHash(std::shared_ptr<std::vector<int>> individual) {
+    return ZobristHasher::getInstance().hashPermutation(*individual);
 }
 
 void CachedPopulation::evictOldEntries() {
@@ -20,21 +19,19 @@ void CachedPopulation::evictOldEntries() {
         entries.emplace_back(entry.first, entry.second.lastAccess);
     }
     
-    // Sort by time, oldest first
     std::sort(entries.begin(), entries.end(),
              [](const auto& a, const auto& b) {
                  return a.second < b.second;
              });
     
-    // Remove oldest 20% of entries
-    size_t toRemove = cache.size() / 5;
+    size_t toRemove = cache.size() / 5; // remove 20% oldest
     for (size_t i = 0; i < toRemove; ++i) {
         cache.erase(entries[i].first);
     }
 }
 
 double CachedPopulation::getOrCalculateFitness(
-    void* individual,
+    std::shared_ptr<std::vector<int>> individual,
     const DNAInstance& instance,
     std::shared_ptr<IFitness> fitness,
     std::shared_ptr<IRepresentation> representation) 
@@ -61,12 +58,12 @@ double CachedPopulation::getOrCalculateFitness(
 }
 
 void CachedPopulation::updatePopulation(
-    const std::vector<void*>& population,
+    const std::vector<std::shared_ptr<std::vector<int>>>& population,
     const DNAInstance& instance,
     std::shared_ptr<IFitness> fitness,
     std::shared_ptr<IRepresentation> representation) 
 {
-    for (auto* individual : population) {
+    for (auto& individual : population) {
         getOrCalculateFitness(individual, instance, fitness, representation);
     }
 }

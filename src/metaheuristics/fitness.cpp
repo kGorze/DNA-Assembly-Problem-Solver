@@ -1,17 +1,15 @@
 //
 // Created by konrad_guest on 07/01/2025.
-//
+// SMART
 
 
-
-// ================== SimpleFitness ==================
 #include <unordered_set>
 #include <iostream>
 
 #include "metaheuristics/fitness.h"
 
-
-double SimpleFitness::evaluate(void* individual,
+// ================== SimpleFitness ==================
+double SimpleFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
                                const DNAInstance &instance,
                                std::shared_ptr<IRepresentation> representation) const
 {
@@ -26,13 +24,11 @@ double SimpleFitness::evaluate(void* individual,
         kmerSet.insert(dna.substr(i, k));
     }
 
-    // compare with original instance's spectrum
     const auto &spec = instance.getSpectrum();
     std::unordered_set<std::string> spectrumSet(spec.begin(), spec.end());
 
-    // count how many from kmerSet are in spectrum
     int matches = 0;
-    for(auto &ss : kmerSet) {
+    for(const auto &ss : kmerSet) {
         if(spectrumSet.count(ss)) {
             matches++;
         }
@@ -41,14 +37,12 @@ double SimpleFitness::evaluate(void* individual,
     return (double)matches;
 }
 
-double BetterFitness::evaluate(void* individual,
+double BetterFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
                                const DNAInstance &instance,
                                std::shared_ptr<IRepresentation> representation) const
 {
-    // decode
     std::string dna = representation->decodeToDNA(individual, instance);
 
-    // count matched k-mers
     int k = instance.getK();
     if (k <= 0) return 0.0;
 
@@ -67,7 +61,6 @@ double BetterFitness::evaluate(void* individual,
         }
     }
 
-    // let's incorporate Levenshtein
     std::string originalDNA = instance.getDNA();
     if (originalDNA.empty()) {
         return (double)matches;
@@ -75,17 +68,15 @@ double BetterFitness::evaluate(void* individual,
 
     int distance = levenshteinDistance(originalDNA, dna);
 
-    // synergy measure
-    double alpha = 0.5; // adjust as needed
+    double alpha = 0.5; 
     double fitnessVal = matches - alpha * distance;
     return fitnessVal;
 }
 
-double SmithWatermanFitness::evaluate(void* individual,
-                               const DNAInstance &instance,
-                               std::shared_ptr<IRepresentation> representation) const
+double SmithWatermanFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
+                                      const DNAInstance& instance,
+                                      std::shared_ptr<IRepresentation> representation) const
 {
-    // Get the DNA sequences
     std::string reconstructed = representation->decodeToDNA(individual, instance);
     std::string original = instance.getDNA();
         
@@ -93,21 +84,17 @@ double SmithWatermanFitness::evaluate(void* individual,
         return 0.0;
     }
         
-    // Calculate Smith-Waterman score
     int swScore = smithWaterman(original, reconstructed);
-        
-    // Divide by 5 as mentioned in the paper for comparison purposes
-    double normalizedScore = swScore / 5.0;
-        
+    double normalizedScore = swScore / 5.0; // Wzmianka w komentarzu
+    
     return normalizedScore;
 }
 
 int SmithWatermanFitness::smithWaterman(const std::string& seq1, const std::string& seq2) const {
-    int m = seq1.length();
-    int n = seq2.length();
+    int m = (int)seq1.length();
+    int n = (int)seq2.length();
     
-    // Use single vector instead of 2D
-    std::vector<int> score((m+1), 0);
+    std::vector<int> score(m+1, 0);
     int maxScore = 0;
     
     for (int j = 1; j <= n; j++) {
@@ -132,9 +119,8 @@ void OptimizedGraphBasedFitness::initBuffers(size_t size) const {
     }
 }
 
-void OptimizedGraphBasedFitness::preprocessGraph(
-    const std::vector<std::vector<Edge>>& graph) const {
-    int n = graph.size();
+void OptimizedGraphBasedFitness::preprocessGraph(const std::vector<std::vector<Edge>>& graph) const {
+    int n = (int)graph.size();
     adjacencyMatrix.resize(n, std::vector<PreprocessedEdge>(n));
     
     for (int i = 0; i < n; i++) {
@@ -144,9 +130,7 @@ void OptimizedGraphBasedFitness::preprocessGraph(
     }
 }
 
-std::string OptimizedGraphBasedFitness::createCacheKey(
-    const std::vector<std::string>& spectrum, 
-    int k) const {
+std::string OptimizedGraphBasedFitness::createCacheKey(const std::vector<std::string>& spectrum, int k) const {
     std::string key = std::to_string(k) + ":";
     for (const auto& s : spectrum) {
         key += s + ",";
@@ -157,48 +141,45 @@ std::string OptimizedGraphBasedFitness::createCacheKey(
 std::vector<std::vector<OptimizedGraphBasedFitness::Edge>> 
 OptimizedGraphBasedFitness::buildSpectrumGraph(
     const std::vector<std::string>& spectrum, 
-    int k) const {
-    // Sprawdź cache
+    int k) const 
+{
     std::string cacheKey = createCacheKey(spectrum, k);
     auto it = graphCache.find(cacheKey);
     if (it != graphCache.end()) {
         return it->second;
     }
     
-    // Buduj nowy graf
-    int n = spectrum.size();
+    int n = (int)spectrum.size();
     std::vector<std::vector<Edge>> graph(n);
     
-    #pragma omp parallel for collapse(2) schedule(dynamic)
+#pragma omp parallel for collapse(2) schedule(dynamic)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             if (i != j) {
                 int weight = calculateEdgeWeight(spectrum[i], spectrum[j], k);
                 if (weight > 0) {
-                    #pragma omp critical
+#pragma omp critical
                     graph[i].emplace_back(j, weight);
                 }
             }
         }
     }
     
-    // Zapisz do cache i preprocessuj
     graphCache[cacheKey] = graph;
     preprocessGraph(graph);
     
     return graph;
 }
 
-int OptimizedGraphBasedFitness::calculateEdgeWeight(
-    const std::string& from, 
-    const std::string& to, 
-    int k) const {
-    const char* fromEnd = from.data() + from.length() - (k-1);
+int OptimizedGraphBasedFitness::calculateEdgeWeight(const std::string& from, 
+                                                    const std::string& to, 
+                                                    int k) const 
+{
+    const char* fromEnd = from.data() + from.size() - (k - 1);
     const char* toStart = to.data();
     
-    // Sprawdź k-1 nachodzenie
     bool match = true;
-    for (int i = 0; i < k-1; i++) {
+    for (int i = 0; i < k - 1; i++) {
         if (fromEnd[i] != toStart[i]) {
             match = false;
             break;
@@ -206,10 +187,9 @@ int OptimizedGraphBasedFitness::calculateEdgeWeight(
     }
     if (match) return 1;
     
-    // Sprawdź k-2 nachodzenie
     match = true;
     fromEnd++;
-    for (int i = 0; i < k-2; i++) {
+    for (int i = 0; i < k - 2; i++) {
         if (fromEnd[i] != toStart[i]) {
             match = false;
             break;
@@ -217,7 +197,6 @@ int OptimizedGraphBasedFitness::calculateEdgeWeight(
     }
     if (match) return 2;
     
-    // Sprawdź k-3 nachodzenie
     fromEnd++;
     if (fromEnd[0] == toStart[0]) return 3;
     
@@ -225,11 +204,8 @@ int OptimizedGraphBasedFitness::calculateEdgeWeight(
 }
 
 OptimizedGraphBasedFitness::PathAnalysis 
-OptimizedGraphBasedFitness::analyzePath(
-    const std::vector<int>& path,
-    size_t graphSize) const {
-    std::fill(nodeUsageBuffer.begin(), 
-              nodeUsageBuffer.begin() + graphSize, 0);
+OptimizedGraphBasedFitness::analyzePath(const std::vector<int>& path, size_t graphSize) const {
+    std::fill(nodeUsageBuffer.begin(), nodeUsageBuffer.begin() + graphSize, 0);
     
     PathAnalysis analysis(nodeUsageBuffer);
     
@@ -237,7 +213,6 @@ OptimizedGraphBasedFitness::analyzePath(
         int from = path[i];
         int to = path[i + 1];
         
-        // Zlicz użycie wierzchołka
         analysis.nodeUsageCount[from]++;
         if (analysis.nodeUsageCount[from] == 1) {
             analysis.uniqueNodesUsed++;
@@ -245,7 +220,6 @@ OptimizedGraphBasedFitness::analyzePath(
             analysis.repeatNodeUsages++;
         }
         
-        // Sprawdź krawędź w macierzy sąsiedztwa
         const auto& edge = adjacencyMatrix[from][to];
         if (edge.exists) {
             if (edge.weight == 1) {
@@ -256,7 +230,6 @@ OptimizedGraphBasedFitness::analyzePath(
         }
     }
     
-    // Obsłuż ostatni wierzchołek
     analysis.nodeUsageCount[path.back()]++;
     if (analysis.nodeUsageCount[path.back()] == 1) {
         analysis.uniqueNodesUsed++;
@@ -267,36 +240,30 @@ OptimizedGraphBasedFitness::analyzePath(
     return analysis;
 }
 
-const std::vector<int>& OptimizedGraphBasedFitness::permutationToPath(
-    void* individual) const {
-    return *static_cast<std::vector<int>*>(individual);
+const std::vector<int>& 
+OptimizedGraphBasedFitness::permutationToPath(std::shared_ptr<std::vector<int>> individual) const {
+    return *individual;
 }
 
-double OptimizedGraphBasedFitness::evaluate(
-    void* individual,
-    const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation) const {
+double OptimizedGraphBasedFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
+                                            const DNAInstance& instance,
+                                            std::shared_ptr<IRepresentation> representation) const 
+{
     const auto& spectrum = instance.getSpectrum();
     int k = instance.getK();
-    
     if (spectrum.empty() || k <= 0) return 0.0;
     
-    // Inicjalizacja buforów
     initBuffers(spectrum.size());
-    
-    // Buduj/pobierz graf z cache
     auto graph = buildSpectrumGraph(spectrum, k);
     
-    // Analizuj ścieżkę
     const auto& path = permutationToPath(individual);
     auto analysis = analyzePath(path, graph.size());
     
-    // Oblicz wynik
     double edgeScore = analysis.edgesWeight1 - (2.0 * analysis.edgesWeight2or3);
     double coverageScore = analysis.uniqueNodesUsed - (0.5 * analysis.repeatNodeUsages);
     
-    const double alpha = 0.7;  // Waga dla edge score
-    const double beta = 0.3;   // Waga dla coverage score
+    const double alpha = 0.7;
+    const double beta = 0.3;
     
     return (alpha * edgeScore) + (beta * coverageScore);
 }

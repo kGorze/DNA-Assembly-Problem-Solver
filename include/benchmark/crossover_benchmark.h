@@ -1,6 +1,6 @@
 //
 // Created by konrad_guest on 08/01/2025.
-//
+// SMART
 
 #ifndef CROSSOVER_BENCHMARK_H
 #define CROSSOVER_BENCHMARK_H
@@ -32,6 +32,5 @@ private:
                  std::shared_ptr<ICrossover> crossover, 
                  const std::string &crossoverName);
 };
-
 
 #endif //CROSSOVER_BENCHMARK_H

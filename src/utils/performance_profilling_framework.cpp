@@ -1,9 +1,7 @@
 //
 // Created by konrad_guest on 09/01/2025.
-//
-
+// SMART
 #include "utils/performance_profilling_framework.h"
-
 
 // Initialize static member
 Profiler* Profiler::instance = nullptr;
@@ -47,24 +45,20 @@ void Profiler::saveReport(const std::string& filename) {
         return;
     }
 
-    // CSV header
     file << "Function Name,Total Time (ms),Calls,Avg Time per Call (ms),Percentage of Total Time\n";
 
-    // Convert stats to vector for sorting
     std::vector<FunctionStats> sortedStats;
     for (const auto& pair : stats) {
         sortedStats.push_back(pair.second);
     }
 
-    // Sort by total time (descending)
     std::sort(sortedStats.begin(), sortedStats.end(),
         [](const FunctionStats& a, const FunctionStats& b) {
             return a.totalTime > b.totalTime;
         });
 
-    // Write stats
     for (const auto& stat : sortedStats) {
-        double totalMs = stat.totalTime.count() / 1e6; // Convert ns to ms
+        double totalMs = stat.totalTime.count() / 1e6;
         double avgMs = totalMs / stat.callCount;
         double percentage = (stat.totalTime.count() * 100.0) / totalProgramTime;
         

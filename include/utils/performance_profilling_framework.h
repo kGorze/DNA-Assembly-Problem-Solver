@@ -1,6 +1,6 @@
 //
 // Created by konrad_guest on 09/01/2025.
-//
+// SMART
 
 #ifndef PERFORMANCE_PROFILLING_FRAMEWORK_H
 #define PERFORMANCE_PROFILLING_FRAMEWORK_H
@@ -12,7 +12,6 @@
 #include <fstream>
 #include <mutex>
 #include <iostream>
-
 
 class Profiler {
 private:
@@ -27,7 +26,6 @@ private:
     std::mutex statsMutex;
     static Profiler* instance;
     
-    // Private constructor for singleton
     Profiler();
 
 public:
@@ -49,9 +47,7 @@ public:
     ~Profiler();
 };
 
-// Macros for easy profiling
 #define PROFILE_FUNCTION() Profiler::ScopedTimer timer(__FUNCTION__)
 #define PROFILE_SCOPE(name) Profiler::ScopedTimer timer(name)
-
 
 #endif //PERFORMANCE_PROFILLING_FRAMEWORK_H

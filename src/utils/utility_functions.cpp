@@ -1,9 +1,7 @@
 //
 // Created by konrad_guest on 08/01/2025.
-//
-
+// SMART
 #include "utils/utility_functions.h"
-
 
 int levenshteinDistance(const std::string &s1, const std::string &s2) {
     int len1 = (int)s1.size();

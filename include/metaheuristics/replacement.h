@@ -1,38 +1,33 @@
 //
 // Created by konrad_guest on 07/01/2025.
-//
+// SMART
 
 #ifndef REPLACEMENT_H
 #define REPLACEMENT_H
 
 #include <vector>
+#include <memory>
 #include "metaheuristics/fitness.h"
 #include "metaheuristics/population_cache.h"
 
-/**
- * Strategia zastępowania pokoleń:
- * - całościowe zastępowanie
- * - częściowe zastępowanie
- * - steady-state
- */
 class IReplacement {
 public:
     virtual ~IReplacement() = default;
-    virtual std::vector<void*>
-    replace(const std::vector<void*>        &oldPop,
-            const std::vector<void*>        &offspring,
-            const DNAInstance               &instance,
-            std::shared_ptr<IFitness>        fitness,
+    virtual std::vector<std::shared_ptr<std::vector<int>>>
+    replace(const std::vector<std::shared_ptr<std::vector<int>>> &oldPop,
+            const std::vector<std::shared_ptr<std::vector<int>>> &offspring,
+            const DNAInstance &instance,
+            std::shared_ptr<IFitness> fitness,
             std::shared_ptr<IRepresentation> representation) = 0;
 };
 
 class FullReplacement : public IReplacement {
 public:
-    std::vector<void*>
-    replace(const std::vector<void*>        &oldPop,
-            const std::vector<void*>        &offspring,
-            const DNAInstance               &instance,
-            std::shared_ptr<IFitness>        fitness,
+    std::vector<std::shared_ptr<std::vector<int>>>
+    replace(const std::vector<std::shared_ptr<std::vector<int>>> &oldPop,
+            const std::vector<std::shared_ptr<std::vector<int>>> &offspring,
+            const DNAInstance &instance,
+            std::shared_ptr<IFitness> fitness,
             std::shared_ptr<IRepresentation> representation) override;
 };
 
@@ -43,26 +38,16 @@ private:
 
 public:
     explicit PartialReplacement(double replacementRatio = 0.7, 
-                               std::shared_ptr<IPopulationCache> cache = nullptr);
+                                std::shared_ptr<IPopulationCache> cache = nullptr);
     ~PartialReplacement();
     
-    std::vector<void*> replace(
-        const std::vector<void*>& oldPop,
-        const std::vector<void*>& offspring,
+    std::vector<std::shared_ptr<std::vector<int>>> replace(
+        const std::vector<std::shared_ptr<std::vector<int>>>& oldPop,
+        const std::vector<std::shared_ptr<std::vector<int>>>& offspring,
         const DNAInstance& instance,
         std::shared_ptr<IFitness> fitness,
         std::shared_ptr<IRepresentation> representation
     ) override;
 };
-
-
-
-// class SteadyStateReplacement : public IReplacement {
-// public:
-//     std::vector<std::vector<double>> 
-//     replace(const std::vector<std::vector<double>> &oldPop,
-//             const std::vector<std::vector<double>> &offspring,
-//             const IFitness &fitness) override;
-// };
 
 #endif //REPLACEMENT_H

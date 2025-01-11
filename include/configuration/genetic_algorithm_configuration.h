@@ -1,6 +1,6 @@
 //
 // Created by konrad_guest on 08/01/2025.
-//
+// SMART
 
 #ifndef GENETIC_ALGORITHM_CONFIGURATION_H
 #define GENETIC_ALGORITHM_CONFIGURATION_H

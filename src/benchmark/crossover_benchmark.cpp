@@ -1,6 +1,8 @@
 //
 // Created by konrad_guest on 08/01/2025.
-//
+// SMART
+
+
 #include "benchmark/crossover_benchmark.h"
 
 void CrossoverBenchmark::runBenchmark(const DNAInstance &instance)
@@ -43,7 +45,6 @@ int CrossoverBenchmark::runOneGA(const DNAInstance &instance,
 
     auto cache = std::make_shared<CachedPopulation>();
 
-    
     // Create GA with configuration, but use the provided crossover
     GeneticAlgorithm ga(
         config.getRepresentation(),
@@ -64,4 +65,3 @@ int CrossoverBenchmark::runOneGA(const DNAInstance &instance,
     std::string originalDNA = instance.getDNA();
     return levenshteinDistance(originalDNA, reconstructedDNA);
 }
-

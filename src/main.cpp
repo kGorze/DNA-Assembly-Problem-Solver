@@ -1,3 +1,8 @@
+//
+// Created by konrad_guest on 5/01/2025.
+// SMART
+
+
 #include <iostream>
 #include <random>
 #include <chrono>
@@ -17,14 +22,20 @@
 #include "benchmark/crossover_benchmark.h"
 
 #include "configuration/genetic_algorithm_configuration.h"
+#include "metaheuristics/adaptive_crossover.h"
+#include "benchmark/adaptive_crossover_benchmark.h"
 
+void runAdaptiveCrossoverBenchmark(const DNAInstance& instance) {
+    AdaptiveCrossoverBenchmark benchmark("adaptive_crossover_results.csv");
+    benchmark.runBenchmark(instance);
+}
 
 void runGeneticAlgorithm(const DNAInstance& instance) {
     // Get the configuration
     auto& config = GAConfig::getInstance();
-    config.setMutationRate(0.45);
+    config.setMutationRate(0.7);
     config.setMaxGenerations(10000);
-    config.setPopulationSize(100);  // Keep it consistent
+    config.setPopulationSize(200);  // Keep it consistent
     config.setReplacementRatio(0.7);  // Keep 30% of parents
     
     // Create and set the cache
@@ -34,10 +45,10 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
     // Create GA with configuration
     GeneticAlgorithm ga(
         config.getRepresentation(),
-        config.getSelection(),      // Will now use cache
-        config.getCrossover("order"),
+        config.getSelection(),
+        std::make_shared<AdaptiveCrossover>(),  // Use adaptive crossover
         config.getMutation(),
-        config.getReplacement(),    // Will now use cache
+        config.getReplacement(),
         std::make_shared<OptimizedGraphBasedFitness>(),
         std::make_shared<MaxGenerationsStopping>(1200),
         cache
@@ -62,7 +73,7 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
 
 int main()
 {
-     // Opcjonalnie: seed rand(), jeśli jest gdzieś wykorzystywany
+    // Opcjonalnie: seed rand(), jeśli jest gdzieś wykorzystywany
     srand(static_cast<unsigned int>(time(nullptr)));
 
     // Ustawiamy parametry zgodnie z nową logiką.
@@ -135,17 +146,16 @@ int main()
               << std::endl;
 
     // Przykładowe wywołanie algorytmu genetycznego
-    runGeneticAlgorithm(loadedInst);
-    
+    //runGeneticAlgorithm(loadedInst);
+    //Profiler::getInstance().saveReport("profiling_report.csv");
+
+    runAdaptiveCrossoverBenchmark(loadedInst);
+
     //  NaiveBenchmark nb;
     //  nb.runBenchmark(loadedInst);
     //
     // CrossoverBenchmark cb;
     // cb.runBenchmark(loadedInst);
 
-    
-    Profiler::getInstance().saveReport("profiling_report.csv");
-
-    
+    return 0;
 }
-

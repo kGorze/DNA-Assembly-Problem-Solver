@@ -25,7 +25,11 @@ add_library(${PROJECT_NAME}_lib
 target_include_directories(${PROJECT_NAME}_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # Main executable
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp
+        include/metaheuristics/adaptive_crossover.h
+        src/metaheuristics/adaptive_crossover.cpp
+        include/benchmark/adaptive_crossover_benchmark.h
+        src/benchmark/adaptive_crossover_benchmark.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 
 # Google Test

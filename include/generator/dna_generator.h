@@ -1,6 +1,6 @@
 //
 // Created by konrad_guest on 28/12/2024.
-//
+// SMART
 
 #ifndef DNA_GENERATOR_H
 #define DNA_GENERATOR_H
@@ -202,7 +202,5 @@ public:
     PositiveErrorIntroducer(int numPoz) : lPoz(numPoz) {}
     void introduceErrors(DNAInstance &instance) override;
 };
-
-
 
 #endif //DNA_GENERATOR_H

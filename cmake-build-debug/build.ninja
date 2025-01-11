@@ -193,6 +193,20 @@ build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj: CXX_COMPILE
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src
 
+build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/adaptive_crossover.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/adaptive_crossover.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\adaptive_crossover.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
+
+build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crossover_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/adaptive_crossover_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
+  DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark\adaptive_crossover_benchmark.cpp.obj.d
+  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
+  OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
+  OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target optymalizacja_kombinatoryczna
@@ -201,7 +215,7 @@ build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj: CXX_COMPILE
 #############################################
 # Link the executable optymalizacja_kombinatoryczna.exe
 
-build optymalizacja_kombinatoryczna.exe: CXX_EXECUTABLE_LINKER__optymalizacja_kombinatoryczna_Debug CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj | liboptymalizacja_kombinatoryczna_lib.a || liboptymalizacja_kombinatoryczna_lib.a
+build optymalizacja_kombinatoryczna.exe: CXX_EXECUTABLE_LINKER__optymalizacja_kombinatoryczna_Debug CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/adaptive_crossover.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crossover_benchmark.cpp.obj | liboptymalizacja_kombinatoryczna_lib.a || liboptymalizacja_kombinatoryczna_lib.a
   FLAGS = -g
   LINK_LIBRARIES = liboptymalizacja_kombinatoryczna_lib.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir

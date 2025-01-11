@@ -1,13 +1,11 @@
 //
 // Created by konrad_guest on 29/12/2024.
-//
+// SMART
 
 #ifndef NAIVE_BENCHMARK_H
 #define NAIVE_BENCHMARK_H
 #include "naive/naive_reconstruction.h"
 #include <chrono>
-
-
 
 class NaiveBenchmark {
 public:
@@ -20,7 +18,5 @@ public:
      */
     void runBenchmark(const DNAInstance &instance);
 };
-
-
 
 #endif //NAIVE_BENCHMARK_H

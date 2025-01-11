@@ -1,7 +1,6 @@
 //
 // Created by konrad_guest on 07/01/2025.
-//
-
+// SMART
 #include "metaheuristics/selection.h"
 
 #include <algorithm>
@@ -11,13 +10,13 @@
 TournamentSelection::TournamentSelection(int tournamentSize, std::shared_ptr<IPopulationCache> cache) 
         : m_tournamentSize(tournamentSize), m_cache(cache) {}
 
-std::vector<void*> 
-TournamentSelection::select(const std::vector<void*> &population,
+std::vector<std::shared_ptr<std::vector<int>>> 
+TournamentSelection::select(const std::vector<std::shared_ptr<std::vector<int>>> &population,
                             const DNAInstance &instance,
                             std::shared_ptr<IFitness> fitness,
                             std::shared_ptr<IRepresentation> representation)
 {
-    std::vector<void*> parents;
+    std::vector<std::shared_ptr<std::vector<int>>> parents;
     parents.reserve(population.size());
 
     std::mt19937 rng(std::random_device{}());
@@ -25,12 +24,10 @@ TournamentSelection::select(const std::vector<void*> &population,
 
     // Each iteration picks 2 parents, so we do population.size()/2 iterations
     for (size_t i = 0; i < population.size()/2; i++) {
-        // Parent 1
         double bestVal1 = -1e9;
-        void* bestInd1 = nullptr;
-        for(int t=0; t < m_tournamentSize; t++){
+        std::shared_ptr<std::vector<int>> bestInd1 = nullptr;
+        for(int t = 0; t < m_tournamentSize; t++){
             int idx = dist(rng);
-            // Use cache instead of direct calculation
             double fv = m_cache->getOrCalculateFitness(population[idx], instance, fitness, representation);
             if(fv > bestVal1) {
                 bestVal1 = fv;
@@ -39,12 +36,10 @@ TournamentSelection::select(const std::vector<void*> &population,
         }
         parents.push_back(bestInd1);
 
-        // Parent 2
         double bestVal2 = -1e9;
-        void* bestInd2 = nullptr;
-        for(int t=0; t < m_tournamentSize; t++){
+        std::shared_ptr<std::vector<int>> bestInd2 = nullptr;
+        for(int t = 0; t < m_tournamentSize; t++){
             int idx = dist(rng);
-            // Use cache instead of direct calculation
             double fv = m_cache->getOrCalculateFitness(population[idx], instance, fitness, representation);
             if(fv > bestVal2) {
                 bestVal2 = fv;
@@ -55,35 +50,3 @@ TournamentSelection::select(const std::vector<void*> &population,
     }
     return parents;
 }
-
-
-// // ============== RouletteSelection ==============
-// std::vector<std::vector<double>> 
-// RouletteSelection::select(const std::vector<std::vector<double>> &population,
-//                           const IFitness &fitness)
-// {
-//     // ...
-//     return {};
-// }
-//
-// // ============== RankingSelection ==============
-// std::vector<std::vector<double>> 
-// RankingSelection::select(const std::vector<std::vector<double>> &population,
-//                          const IFitness &fitness)
-// {
-//     // ...
-//     return {};
-// }
-//
-// // ============== ElitistSelection ==============
-// ElitistSelection::ElitistSelection(int eliteCount)
-//     : m_eliteCount(eliteCount)
-// {}
-//
-// std::vector<std::vector<double>> 
-// ElitistSelection::select(const std::vector<std::vector<double>> &population,
-//                          const IFitness &fitness)
-// {
-//     // ...
-//     return {};
-// }

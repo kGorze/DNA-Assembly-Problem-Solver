@@ -1,6 +1,6 @@
 //
 // Created by konrad_guest on 29/12/2024.
-//
+// SMART
 
 #include "benchmark/naive_benchmark.h"
 

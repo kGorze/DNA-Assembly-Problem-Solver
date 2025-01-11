@@ -1,6 +1,7 @@
 //
 // Created by konrad_guest on 07/01/2025.
-//
+// SMART
+
 
 #include "metaheuristics/genetic_algorithm.h"
 #include <iostream>
@@ -26,14 +27,22 @@ GeneticAlgorithm::GeneticAlgorithm(
     , m_cache(cache)
     , m_globalBestInd(nullptr)
     , m_globalBestFit(-std::numeric_limits<double>::infinity())
-{}
+{ }
 
-void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
-                                         const DNAInstance &instance,
-                                         int generation) {
+GeneticAlgorithm::~GeneticAlgorithm() {
+    // Shared pointers automatycznie zwolnią pamięć,
+    // więc nie ma potrzeby wywoływania `delete`.
+    population.clear();
+    m_globalBestInd.reset();
+}
+
+void GeneticAlgorithm::logGenerationStats(
+    const std::vector<std::shared_ptr<std::vector<int>>> &pop,
+    const DNAInstance &instance,
+    int generation)
+{
     if (generation % 10 != 0) return;
 
-    // Calculate theoretical max fitness if not done yet
     if (m_theoreticalMaxFitness == 0.0) {
         calculateTheoreticalMaxFitness(instance);
     }
@@ -44,10 +53,9 @@ void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
 
 #pragma omp parallel for reduction(max:bestFit) reduction(min:worstFit) reduction(+:sumFit)
     for (size_t i = 0; i < pop.size(); i++) {
-        // Use cache instead of direct calculation
         double fitVal = m_cache->getOrCalculateFitness(pop[i], instance, m_fitness, m_representation);
-        bestFit = std::max(bestFit, fitVal);
-        worstFit = std::min(worstFit, fitVal);
+        if (fitVal > bestFit) bestFit = fitVal;
+        if (fitVal < worstFit) worstFit = fitVal;
         sumFit += fitVal;
     }
 
@@ -57,7 +65,8 @@ void GeneticAlgorithm::logGenerationStats(const std::vector<void*> &pop,
 
     std::cout << "[Gen " << generation << "] "
               << "BestFit = " << bestFit 
-              << " (" << std::fixed << std::setprecision(2) << relativeBestFit << "% of max "
+              << " (" << std::fixed << std::setprecision(2) 
+              << relativeBestFit << "% of max "
               << m_theoreticalMaxFitness << ")"
               << ", WorstFit = " << worstFit
               << ", AvgFit = " << avgFit
@@ -70,24 +79,19 @@ void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance &inst
     population = m_representation->initializePopulation(popSize, instance);
 }
 
-void GeneticAlgorithm::updateGlobalBest(const std::vector<void*> &pop,
-                                        const DNAInstance &instance)
+void GeneticAlgorithm::updateGlobalBest(
+    const std::vector<std::shared_ptr<std::vector<int>>> &pop,
+    const DNAInstance &instance)
 {
-    for (auto &ind : pop) {
-        // Use cache instead of direct calculation
+    for (const auto &ind : pop) {
+        if (!ind) continue;
         double fitVal = m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation);
         if (fitVal > m_globalBestFit) {
             m_globalBestFit = fitVal;
-
-            if(m_globalBestInd) {
-                delete static_cast<std::vector<int>*>(m_globalBestInd);
-            }
-            auto orig = static_cast<std::vector<int>*>(ind);
-            m_globalBestInd = new std::vector<int>(*orig);
+            m_globalBestInd = std::make_shared<std::vector<int>>(*ind);
         }
     }
 }
-
 
 void GeneticAlgorithm::run(const DNAInstance &instance)
 {
@@ -96,33 +100,54 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
     m_cache->updatePopulation(population, instance, m_fitness, m_representation);
 
     int generation = 0;
-    std::vector<void*> offspring;
-    std::vector<void*> parents;
+    std::vector<std::shared_ptr<std::vector<int>>> offspring;
+    std::vector<std::shared_ptr<std::vector<int>>> parents;
     
     while (!m_stopping->stop(population, generation, instance, m_fitness, m_representation)) {
+        
+        // 1) Selection
         {
             PROFILE_SCOPE("selection");
             parents = m_selection->select(population, instance, m_fitness, m_representation);
         }
         
+        // 2) Crossover
         {
             PROFILE_SCOPE("crossover"); 
             offspring = m_crossover->crossover(parents, instance, m_representation);
         }
         
+        // 3) Mutation
         {
             PROFILE_SCOPE("mutation");
             m_mutation->mutate(offspring, instance, m_representation);
         }
         
+        // 4) Cache update
         {
             PROFILE_SCOPE("cache_update");
             m_cache->updatePopulation(offspring, instance, m_fitness, m_representation);
         }
         
+        // 5) Replacement
         {
             PROFILE_SCOPE("replacement");
             population = m_replacement->replace(population, offspring, instance, m_fitness, m_representation);
+        }
+
+        {
+            double currentBestFitness = -std::numeric_limits<double>::infinity();
+            for (auto& ind : population) {
+                double fitnessVal = m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation);
+                if (fitnessVal > currentBestFitness) {
+                    currentBestFitness = fitnessVal;
+                }
+            }
+            
+            auto adaptiveCrossover = std::dynamic_pointer_cast<AdaptiveCrossover>(m_crossover);
+            if (adaptiveCrossover) {
+                adaptiveCrossover->updateFeedback(currentBestFitness);
+            }
         }
         
         if (generation % 5 == 0) {
@@ -138,7 +163,6 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
         generation++;
     }
 
-    // Po zakończeniu pętli - używamy m_globalBestInd
     if (m_globalBestInd) {
         m_bestDNA = m_representation->decodeToDNA(m_globalBestInd, instance);
         std::cout << "[GA] End after generation " << generation 
@@ -157,25 +181,12 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instanc
         return;
     }
 
-    // For OptimizedGraphBasedFitness, the theoretical maximum would be:
-    // 1. Every edge in the path has weight 1 (best case)
-    // 2. Every node is visited exactly once (perfect coverage)
-    
     size_t n = spectrum.size();
+    double bestEdgeScore = (n - 1);  
+    double bestCoverageScore = n;  
     
-    // Best possible edge score:
-    // - In a path visiting all nodes once, we have (n-1) edges
-    // - Best case: all edges have weight 1
-    double bestEdgeScore = (n - 1);  // Each weight-1 edge contributes +1
-    
-    // Best possible coverage score:
-    // - All nodes used exactly once (n unique nodes)
-    // - No repeat usages
-    double bestCoverageScore = n;  // n unique nodes, 0 repeats
-    
-    // Apply the weights from OptimizedGraphBasedFitness
-    const double alpha = 0.7;  // Weight for edge score
-    const double beta = 0.3;   // Weight for coverage score
+    const double alpha = 0.7;  
+    const double beta = 0.3;   
     
     m_theoreticalMaxFitness = (alpha * bestEdgeScore) + (beta * bestCoverageScore);
     
