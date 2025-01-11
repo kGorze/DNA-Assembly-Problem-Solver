@@ -1,13 +1,11 @@
-//
-// Created by konrad_guest on 07/01/2025.
-// SMART
-
 #ifndef REPRESENTATION_H
 #define REPRESENTATION_H
 
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm>
+#include <iostream>
 #include "generator/dna_generator.h"
 
 enum class RepresentationType {

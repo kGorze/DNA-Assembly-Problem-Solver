@@ -3,7 +3,7 @@
 // SMART
 
 
-#include <iostream>
+#include <iostream> 
 #include <random>
 #include <chrono>
 
@@ -146,10 +146,10 @@ int main()
               << std::endl;
 
     // Przykładowe wywołanie algorytmu genetycznego
-    //runGeneticAlgorithm(loadedInst);
-    //Profiler::getInstance().saveReport("profiling_report.csv");
+    runGeneticAlgorithm(loadedInst);
+    Profiler::getInstance().saveReport("profiling_report.csv");
 
-    runAdaptiveCrossoverBenchmark(loadedInst);
+    //runAdaptiveCrossoverBenchmark(loadedInst);
 
     //  NaiveBenchmark nb;
     //  nb.runBenchmark(loadedInst);

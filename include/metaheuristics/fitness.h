@@ -15,6 +15,9 @@
 #include <algorithm>
 #include <omp.h>
 
+/**
+ * Interfejs fitness
+ */
 class IFitness {
 public:
     virtual ~IFitness() = default;
@@ -26,6 +29,10 @@ public:
                             std::shared_ptr<IRepresentation> representation) const = 0;
 };
 
+/**
+ * Bardzo prosta funkcja fitness – liczy liczbę k-merów
+ * wspólnych z oryginalnym spektrum DNA.
+ */
 class SimpleFitness : public IFitness {
 public:
     double evaluate(std::shared_ptr<std::vector<int>> individual,
@@ -33,6 +40,10 @@ public:
                     std::shared_ptr<IRepresentation> representation) const override;
 };
 
+/**
+ * Ulepszona wersja fitness – oprócz liczby trafionych k-merów
+ * uwzględnia odległość Levenshteina do oryginalnego DNA.
+ */
 class BetterFitness : public IFitness {
 public:
     double evaluate(std::shared_ptr<std::vector<int>> individual,
@@ -40,6 +51,9 @@ public:
                     std::shared_ptr<IRepresentation> representation) const override;
 };
 
+/**
+ * Przykład użycia algorytmu Smith-Waterman do oceny podobieństwa.
+ */
 class SmithWatermanFitness : public IFitness {
 private:
     static constexpr int MATCH_SCORE = 5;
@@ -55,6 +69,13 @@ public:
                     std::shared_ptr<IRepresentation> representation) const override;
 };
 
+/**
+ * Bardziej zaawansowana wersja fitness, wykorzystująca "graf" k-merów
+ * i analizę ścieżki w tym grafie.
+ *
+ * Poprawiona wersja, w której macierz adjacencyMatrix tworzona jest
+ * lokalnie w metodzie evaluate(...) aby uniknąć błędów wątkowych.
+ */
 class OptimizedGraphBasedFitness : public IFitness {
 private:
     struct Edge {
@@ -84,24 +105,35 @@ private:
               nodeUsageCount(buffer) {}
     };
 
+    // Bufor na liczbę użyć węzłów, by nie alokować za każdym razem
     mutable std::vector<int> nodeUsageBuffer;
+
+    // Keszowanie wyników budowy grafu (by nie przeliczać 2x) 
+    // Key: "k + ':' + posklejane_kmery", Value: tablica list sąsiedztwa
     mutable std::unordered_map<std::string, std::vector<std::vector<Edge>>> graphCache;
-    mutable std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix;
+
+    // Usuwamy 'mutable std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix;'
+    // bo powoduje problem we współbieżności i mamy teraz lokalną alokację w evaluate().
 
     void initBuffers(size_t size) const;
-    void preprocessGraph(const std::vector<std::vector<Edge>>& graph) const;
     std::string createCacheKey(const std::vector<std::string>& spectrum, int k) const;
     
+    // Główna funkcja budująca graf (z ewentualnym keszowaniem).
     std::vector<std::vector<Edge>> buildSpectrumGraph(
         const std::vector<std::string>& spectrum, 
         int k) const;
     
+    // Pomocnicza funkcja do ustalania wagi krawędzi
     int calculateEdgeWeight(
         const std::string& from, 
         const std::string& to, 
         int k) const;
     
-    PathAnalysis analyzePath(const std::vector<int>& path, size_t graphSize) const;
+    // Analiza ścieżki w grafie – zliczamy wagi i liczbę użyć węzłów
+    PathAnalysis analyzePath(const std::vector<int>& path,
+                             const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix) const;
+    
+    // Konwersja permutacji na "ścieżkę"
     const std::vector<int>& permutationToPath(std::shared_ptr<std::vector<int>> individual) const;
 
 public:
@@ -111,9 +143,9 @@ public:
                     const DNAInstance& instance,
                     std::shared_ptr<IRepresentation> representation) const override;
 
+    // Gdybyśmy chcieli wyczyścić kesz
     void clearCache() {
         graphCache.clear();
-        adjacencyMatrix.clear();
         nodeUsageBuffer.clear();
     }
 };

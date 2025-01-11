@@ -2,13 +2,11 @@
 // Created by konrad_guest on 07/01/2025.
 // SMART
 
-
 #include <unordered_set>
 #include <iostream>
-
 #include "metaheuristics/fitness.h"
 
-// ================== SimpleFitness ==================
+/* ================== SimpleFitness ================== */
 double SimpleFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
                                const DNAInstance &instance,
                                std::shared_ptr<IRepresentation> representation) const
@@ -37,6 +35,7 @@ double SimpleFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
     return (double)matches;
 }
 
+/* ================== BetterFitness ================== */
 double BetterFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
                                const DNAInstance &instance,
                                std::shared_ptr<IRepresentation> representation) const
@@ -61,6 +60,7 @@ double BetterFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
         }
     }
 
+    // Dodajmy wpływ odległości Levenshteina
     std::string originalDNA = instance.getDNA();
     if (originalDNA.empty()) {
         return (double)matches;
@@ -73,6 +73,7 @@ double BetterFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
     return fitnessVal;
 }
 
+/* ================== SmithWatermanFitness ================== */
 double SmithWatermanFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
                                       const DNAInstance& instance,
                                       std::shared_ptr<IRepresentation> representation) const
@@ -85,8 +86,7 @@ double SmithWatermanFitness::evaluate(std::shared_ptr<std::vector<int>> individu
     }
         
     int swScore = smithWaterman(original, reconstructed);
-    double normalizedScore = swScore / 5.0; // Wzmianka w komentarzu
-    
+    double normalizedScore = swScore / 5.0; // np. dzielimy przez MATCH_SCORE
     return normalizedScore;
 }
 
@@ -113,23 +113,16 @@ int SmithWatermanFitness::smithWaterman(const std::string& seq1, const std::stri
     return maxScore;
 }
 
+/* ================== OptimizedGraphBasedFitness ================== */
+
+// Pomocnicza inicjalizacja bufora
 void OptimizedGraphBasedFitness::initBuffers(size_t size) const {
     if (nodeUsageBuffer.size() < size) {
         nodeUsageBuffer.resize(size);
     }
 }
 
-void OptimizedGraphBasedFitness::preprocessGraph(const std::vector<std::vector<Edge>>& graph) const {
-    int n = (int)graph.size();
-    adjacencyMatrix.resize(n, std::vector<PreprocessedEdge>(n));
-    
-    for (int i = 0; i < n; i++) {
-        for (const auto& edge : graph[i]) {
-            adjacencyMatrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
-        }
-    }
-}
-
+// Generowanie klucza do kesza
 std::string OptimizedGraphBasedFitness::createCacheKey(const std::vector<std::string>& spectrum, int k) const {
     std::string key = std::to_string(k) + ":";
     for (const auto& s : spectrum) {
@@ -138,6 +131,7 @@ std::string OptimizedGraphBasedFitness::createCacheKey(const std::vector<std::st
     return key;
 }
 
+// Właściwe budowanie grafu (lub użycie z kesza)
 std::vector<std::vector<OptimizedGraphBasedFitness::Edge>> 
 OptimizedGraphBasedFitness::buildSpectrumGraph(
     const std::vector<std::string>& spectrum, 
@@ -152,29 +146,34 @@ OptimizedGraphBasedFitness::buildSpectrumGraph(
     int n = (int)spectrum.size();
     std::vector<std::vector<Edge>> graph(n);
     
-#pragma omp parallel for collapse(2) schedule(dynamic)
+    // Równoległe wypełnianie list sąsiedztwa
+    #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < n; i++) {
+        graph[i].reserve(n/4); // np. heurystycznie
         for (int j = 0; j < n; j++) {
             if (i != j) {
                 int weight = calculateEdgeWeight(spectrum[i], spectrum[j], k);
                 if (weight > 0) {
-#pragma omp critical
+                    // W sekcji równoległej dostęp do graph[i] jest bezpieczny,
+                    // bo i jest unikalne w każdej iteracji i.
                     graph[i].emplace_back(j, weight);
                 }
             }
         }
     }
     
+    // Zapamiętujemy w keszu
     graphCache[cacheKey] = graph;
-    preprocessGraph(graph);
-    
     return graph;
 }
 
-int OptimizedGraphBasedFitness::calculateEdgeWeight(const std::string& from, 
-                                                    const std::string& to, 
-                                                    int k) const 
+// Wyznaczenie wagi krawędzi między dwoma k-merami
+int OptimizedGraphBasedFitness::calculateEdgeWeight(
+    const std::string& from, 
+    const std::string& to, 
+    int k) const 
 {
+    // Podobna logika co wcześniej
     const char* fromEnd = from.data() + from.size() - (k - 1);
     const char* toStart = to.data();
     
@@ -187,8 +186,9 @@ int OptimizedGraphBasedFitness::calculateEdgeWeight(const std::string& from,
     }
     if (match) return 1;
     
-    match = true;
+    // sprawdzamy jeszcze "kolejne" przesunięcia ...
     fromEnd++;
+    match = true;
     for (int i = 0; i < k - 2; i++) {
         if (fromEnd[i] != toStart[i]) {
             match = false;
@@ -198,48 +198,65 @@ int OptimizedGraphBasedFitness::calculateEdgeWeight(const std::string& from,
     if (match) return 2;
     
     fromEnd++;
+    // Jeszcze minimalna zbieżność – 1 znak
     if (fromEnd[0] == toStart[0]) return 3;
     
     return 0;
 }
 
+// Analiza ścieżki w grafie: w tej nowej wersji adjacencyMatrix budujemy lokalnie.
 OptimizedGraphBasedFitness::PathAnalysis 
-OptimizedGraphBasedFitness::analyzePath(const std::vector<int>& path, size_t graphSize) const {
-    std::fill(nodeUsageBuffer.begin(), nodeUsageBuffer.begin() + graphSize, 0);
-    
+OptimizedGraphBasedFitness::analyzePath(const std::vector<int>& path,
+                                        const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix) const 
+{
+    // Wyzerowanie bufora
+    std::fill(nodeUsageBuffer.begin(), nodeUsageBuffer.end(), 0);
+
     PathAnalysis analysis(nodeUsageBuffer);
-    
+
     for (size_t i = 0; i < path.size() - 1; i++) {
         int from = path[i];
         int to = path[i + 1];
         
-        analysis.nodeUsageCount[from]++;
-        if (analysis.nodeUsageCount[from] == 1) {
-            analysis.uniqueNodesUsed++;
-        } else {
-            analysis.repeatNodeUsages++;
-        }
-        
-        const auto& edge = adjacencyMatrix[from][to];
-        if (edge.exists) {
-            if (edge.weight == 1) {
-                analysis.edgesWeight1++;
+        if (from >= 0 && from < (int)adjacencyMatrix.size() &&
+            to   >= 0 && to   < (int)adjacencyMatrix.size())
+        {
+            // zliczamy użycie węzła
+            analysis.nodeUsageCount[from]++;
+            if (analysis.nodeUsageCount[from] == 1) {
+                analysis.uniqueNodesUsed++;
             } else {
-                analysis.edgesWeight2or3++;
+                analysis.repeatNodeUsages++;
+            }
+
+            // sprawdzamy krawędź
+            const auto& edge = adjacencyMatrix[from][to];
+            if (edge.exists) {
+                if (edge.weight == 1) {
+                    analysis.edgesWeight1++;
+                } else {
+                    analysis.edgesWeight2or3++;
+                }
             }
         }
     }
-    
-    analysis.nodeUsageCount[path.back()]++;
-    if (analysis.nodeUsageCount[path.back()] == 1) {
-        analysis.uniqueNodesUsed++;
-    } else {
-        analysis.repeatNodeUsages++;
+    // Ostatni węzeł
+    if (!path.empty()) {
+        int last = path.back();
+        if (last >= 0 && last < (int)adjacencyMatrix.size()) {
+            analysis.nodeUsageCount[last]++;
+            if (analysis.nodeUsageCount[last] == 1) {
+                analysis.uniqueNodesUsed++;
+            } else {
+                analysis.repeatNodeUsages++;
+            }
+        }
     }
-    
+
     return analysis;
 }
 
+// Prosta funkcja – w permutacji 1:1 to nasza ścieżka.
 const std::vector<int>& 
 OptimizedGraphBasedFitness::permutationToPath(std::shared_ptr<std::vector<int>> individual) const {
     return *individual;
@@ -254,11 +271,31 @@ double OptimizedGraphBasedFitness::evaluate(std::shared_ptr<std::vector<int>> in
     if (spectrum.empty() || k <= 0) return 0.0;
     
     initBuffers(spectrum.size());
+    // Budujemy (albo wczytujemy z kesza) listę sąsiedztwa:
     auto graph = buildSpectrumGraph(spectrum, k);
-    
+
+    // Aby analizować ścieżkę, potrzebujemy "macierzy" adjacencyMatrix, 
+    // ale zrobimy ją tymczasowo w kontekście TYLKO TEGO wywołania evaluate().
+    // Nie zapisujemy do pola globalnego klasy!
+    int n = (int)graph.size();
+    std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(n, std::vector<PreprocessedEdge>(n));
+
+    // Lokalnie wypełniamy adjacencyMatrix
+    // (to jest zamiast poprzedniego preprocessGraph(...) które modyfikowało pole klasy)
+    #pragma omp parallel for schedule(dynamic)
+    for (int i = 0; i < n; i++) {
+        for (auto &edge : graph[i]) {
+            adjacencyMatrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
+        }
+    }
+
+    // Konwersja osobnika na ścieżkę
     const auto& path = permutationToPath(individual);
-    auto analysis = analyzePath(path, graph.size());
+
+    // Analiza ścieżki
+    auto analysis = analyzePath(path, adjacencyMatrix);
     
+    // Wyliczenie finalnej oceny fitness
     double edgeScore = analysis.edgesWeight1 - (2.0 * analysis.edgesWeight2or3);
     double coverageScore = analysis.uniqueNodesUsed - (0.5 * analysis.repeatNodeUsages);
     

@@ -1,7 +1,3 @@
-//
-// Created by konrad_guest on 07/01/2025.
-// SMART
-
 #ifndef REPLACEMENT_H
 #define REPLACEMENT_H
 

@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <memory>
+#include <algorithm>
+#include <iostream>
 #include "metaheuristics/representation.h"
 #include "generator/dna_generator.h"
 
@@ -32,7 +34,6 @@ public:
               std::shared_ptr<IRepresentation> representation) override;
 };
 
-// Order Crossover (OX)
 class OrderCrossover : public ICrossover {
 public:
     std::vector<std::shared_ptr<std::vector<int>>> 
@@ -41,7 +42,6 @@ public:
               std::shared_ptr<IRepresentation> representation) override;
 };
 
-// Edge Recombination Crossover (ERX)
 class EdgeRecombination : public ICrossover {
 public:
     std::vector<std::shared_ptr<std::vector<int>>> 
@@ -50,7 +50,6 @@ public:
               std::shared_ptr<IRepresentation> representation) override;
 };
 
-// Partially Mapped Crossover (PMX)
 class PMXCrossover : public ICrossover {
 public:
     std::vector<std::shared_ptr<std::vector<int>>> 
@@ -58,5 +57,8 @@ public:
               const DNAInstance &instance,
               std::shared_ptr<IRepresentation> representation) override;
 };
+
+
+
 
 #endif //CROSSOVER_H

@@ -1,6 +1,7 @@
 //
 // Created by konrad_guest on 07/01/2025.
 // SMART
+
 #include "metaheuristics/representation.h"
 #include <random>
 #include <algorithm>
@@ -26,7 +27,7 @@ DirectDNARepresentation::initializePopulation(int popSize, const DNAInstance &in
         individual->reserve(n);
 
         for (int j = 0; j < n; j++) {
-            int base = rng() % 4;
+            int base = rng() % 4; // 0..3
             individual->push_back(base);
         }
         population.push_back(individual);
@@ -97,9 +98,16 @@ PermutationRepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individ
         return "";
     }
 
+    // Sprawdzamy, czy rozmiar permutacji zgadza się z rozmiarem spektrum
+    if ((int)individual->size() != (int)spec.size()) {
+        // np. ostrzeżenie
+        //std::cerr << "[PermutationRepresentation] Warning: mismatch sizes.\n";
+        // i wczytujemy minimalnie
+    }
+
     int firstIndex = (*individual)[0];
     if (firstIndex < 0 || firstIndex >= (int)spec.size()) {
-        return "";
+        return ""; // błąd
     }
 
     std::string result = spec[firstIndex];
@@ -107,12 +115,14 @@ PermutationRepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individ
     for (size_t i = 1; i < individual->size(); i++) {
         int idx = (*individual)[i];
         if (idx < 0 || idx >= (int)spec.size()) {
+            // pomijamy
             continue;
         }
         const std::string &km = spec[idx];
         if ((int)km.size() < k - 1) {
             continue;
         }
+        // doklejamy last (k-1) znaków
         result += km.substr(k - 1);
     }
 
@@ -128,7 +138,7 @@ GraphPathRepresentation::initializePopulation(int popSize, const DNAInstance &in
     std::vector<std::shared_ptr<std::vector<int>>> population;
     population.reserve(popSize);
 
-    int length = 50;  
+    int length = 50;  // w oryg. stała – do poprawy dla lepszej jakości
     for(int i = 0; i < popSize; i++) {
         auto path = std::make_shared<std::vector<int>>();
         path->reserve(length);
@@ -159,13 +169,13 @@ GraphPathRepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individua
         return "";
     }
 
-    std::string result;
+    // Podobnie jak w PermutationRepresentation
     int firstIndex = (*individual)[0];
     if (firstIndex < 0 || firstIndex >= (int)spec.size()) {
         return "";
     }
 
-    result = spec[firstIndex];
+    std::string result = spec[firstIndex];
 
     for (size_t i = 1; i < individual->size(); i++) {
         int idx = (*individual)[i];

@@ -3,8 +3,7 @@
 // SMART
 #include "metaheuristics/replacement.h"
 #include <algorithm>
-
-// =========== FullReplacement ===========
+#include <iostream>
 
 std::vector<std::shared_ptr<std::vector<int>>>
 FullReplacement::replace(const std::vector<std::shared_ptr<std::vector<int>>> &oldPop,
@@ -39,43 +38,60 @@ PartialReplacement::replace(const std::vector<std::shared_ptr<std::vector<int>>>
     const size_t oldSize = oldPop.size();
     const size_t offSize = offspring.size();
     const size_t targetSize = std::max(oldSize, offSize);
+    int requiredSize = (int)instance.getSpectrum().size();
 
     struct Individual {
         std::shared_ptr<std::vector<int>> ptr;
         double fitnessVal;
         
-        Individual(std::shared_ptr<std::vector<int>> p = nullptr, double f = -std::numeric_limits<double>::infinity()) 
+        Individual(std::shared_ptr<std::vector<int>> p = nullptr, double f = -1e9) 
             : ptr(p), fitnessVal(f) {}
-        
-        bool operator<(const Individual& other) const {
-            return fitnessVal > other.fitnessVal; // descending order
-        }
     };
     
     std::vector<Individual> allIndividuals;
     allIndividuals.reserve(oldSize + offSize);
     
-    for (auto &ind : oldPop) {
-        if (ind) {
+    // Pomocnicza lambda do weryfikacji rozmiaru
+    auto isValidSize = [&](std::shared_ptr<std::vector<int>> ind){
+        return (ind && (int)ind->size() == requiredSize);
+    };
+
+    // 1. Zbieramy stare + nowe
+    // 2. Odfiltrowujemy osobniki z niewłaściwą długością, bo i tak spowodują błąd
+    // 3. Obliczamy fitness
+    auto addWithFitness = [&](const std::vector<std::shared_ptr<std::vector<int>>>& vec) {
+        for (auto &ind : vec) {
+            if (!ind) continue;
+            if (!isValidSize(ind)) {
+                // Możesz logować ostrzeżenie
+                continue;
+            }
             double fit = m_fitnessCache->getOrCalculateFitness(ind, instance, fitness, representation);
-            allIndividuals.emplace_back(ind, fit);
+            allIndividuals.push_back(Individual(ind, fit));
         }
+    };
+
+    addWithFitness(oldPop);
+    addWithFitness(offspring);
+    
+    // Jeśli wszystko odrzucone, zwracamy cokolwiek
+    if (allIndividuals.empty()) {
+        // lub stwórzmy nową populację
+        return representation->initializePopulation(targetSize, instance);
     }
     
-    for (auto &ind : offspring) {
-        if (ind) {
-            double fit = m_fitnessCache->getOrCalculateFitness(ind, instance, fitness, representation);
-            allIndividuals.emplace_back(ind, fit);
+    // Sortujemy malejąco wg fitnessVal
+    std::sort(allIndividuals.begin(), allIndividuals.end(),
+        [](const Individual& a, const Individual& b){
+            return a.fitnessVal > b.fitnessVal;
         }
-    }
+    );
     
-    std::sort(allIndividuals.begin(), allIndividuals.end());
-    
+    // Zostawiamy top N (N=targetSize)
     std::vector<std::shared_ptr<std::vector<int>>> newPop;
     newPop.reserve(targetSize);
-    size_t individualsToTake = std::min(targetSize, allIndividuals.size());
-    
-    for (size_t i = 0; i < individualsToTake; ++i) {
+    size_t take = std::min(targetSize, allIndividuals.size());
+    for (size_t i = 0; i < take; i++) {
         newPop.push_back(allIndividuals[i].ptr);
     }
 
