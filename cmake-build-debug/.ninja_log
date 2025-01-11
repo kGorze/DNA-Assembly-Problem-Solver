@@ -134,3 +134,7 @@
 2838	5504	7583167771760178	CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj	c9e796145ff56ba9
 2914	5599	7583167772510479	CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crossover_benchmark.cpp.obj	818dce1e75bb5905
 5599	6520	7583167799362913	optymalizacja_kombinatoryczna.exe	1526fdcef33ed9ce
+21	2694	7583178305012470	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/genetic_algorithm.cpp.obj	91cb3280bdb651ed
+30	2910	7583178305102470	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/crossover.cpp.obj	350828e43e8ab2d6
+2911	3725	7583178333896404	liboptymalizacja_kombinatoryczna_lib.a	470d90f1a3965473
+3725	4747	7583178342041128	optymalizacja_kombinatoryczna.exe	1526fdcef33ed9ce

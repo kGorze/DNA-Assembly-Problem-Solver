@@ -33,6 +33,16 @@ static bool validateAndClampChromosome(std::shared_ptr<std::vector<int>> indiv, 
     return true;
 }
 
+static bool isValidPermutation(const std::vector<int>& vec, int size) {
+    if ((int)vec.size() != size) return false;
+    std::vector<bool> used(size, false);
+    for (int val : vec) {
+        if (val < 0 || val >= size || used[val]) return false;
+        used[val] = true;
+    }
+    return true;
+}
+
 // ========================================
 // =            ONE POINT                =
 // ========================================
@@ -101,37 +111,34 @@ OrderCrossover::crossover(
 
     int requiredSize = (int)instance.getSpectrum().size();
 
-    // co 2 rodziców
     for (size_t i = 0; i + 1 < parents.size(); i += 2) {
         auto p1 = parents[i];
         auto p2 = parents[i+1];
-        if (!p1 || !p2) {
-            continue;
-        }
-        bool ok1 = validateAndClampChromosome(p1, requiredSize);
-        bool ok2 = validateAndClampChromosome(p2, requiredSize);
-        if (!ok1 || !ok2) {
+        if (!p1 || !p2) continue;
+
+        // Sprawdzamy czy rodzice są poprawnymi permutacjami
+        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
             continue;
         }
 
-        int size = (int)p1->size();
-
-        // Losowanie segmentu
+        int size = requiredSize;
+        
         std::mt19937 gen(std::random_device{}());
         std::uniform_int_distribution<int> distIndex(0, size - 1);
         int start = distIndex(gen);
-        int end   = distIndex(gen);
+        int end = distIndex(gen);
         if (start > end) std::swap(start, end);
 
+        // Inicjalizacja potomków
         auto c1 = std::make_shared<std::vector<int>>(size, -1);
         auto c2 = std::make_shared<std::vector<int>>(size, -1);
 
         std::vector<bool> used1(size, false);
         std::vector<bool> used2(size, false);
 
-        // Kopiujemy segment start..end
+        // Kopiowanie segmentu
         for (int j = start; j <= end; j++) {
             (*c1)[j] = (*p1)[j];
             used1[(*p1)[j]] = true;
@@ -140,34 +147,47 @@ OrderCrossover::crossover(
             used2[(*p2)[j]] = true;
         }
 
-        // wypełniamy resztę c1
+        // Wypełnianie pozostałych pozycji
+        int remainingCount1 = size - (end - start + 1);
+        int remainingCount2 = remainingCount1;
         int curr1 = (end + 1) % size;
-        int pos2  = (end + 1) % size;
-        while (curr1 != start) {
+        int curr2 = (end + 1) % size;
+        int pos1 = (end + 1) % size;
+        int pos2 = (end + 1) % size;
+
+        // Bezpieczne wypełnianie c1
+        while (remainingCount1 > 0) {
             int val = (*p2)[pos2];
             if (!used1[val]) {
                 (*c1)[curr1] = val;
                 used1[val] = true;
+                remainingCount1--;
                 curr1 = (curr1 + 1) % size;
             }
             pos2 = (pos2 + 1) % size;
         }
 
-        // wypełniamy resztę c2
-        int curr2 = (end + 1) % size;
-        int pos1  = (end + 1) % size;
-        while (curr2 != start) {
+        // Bezpieczne wypełnianie c2
+        while (remainingCount2 > 0) {
             int val = (*p1)[pos1];
             if (!used2[val]) {
                 (*c2)[curr2] = val;
                 used2[val] = true;
+                remainingCount2--;
                 curr2 = (curr2 + 1) % size;
             }
             pos1 = (pos1 + 1) % size;
         }
 
-        offspring.push_back(c1);
-        offspring.push_back(c2);
+        // Weryfikacja potomków
+        if (isValidPermutation(*c1, size) && isValidPermutation(*c2, size)) {
+            offspring.push_back(c1);
+            offspring.push_back(c2);
+        } else {
+            // Jeśli coś poszło nie tak, zwracamy kopie rodziców
+            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
+            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+        }
     }
     return offspring;
 }
@@ -186,119 +206,98 @@ EdgeRecombination::crossover(
 
     int requiredSize = (int)instance.getSpectrum().size();
 
-    // parami
     for (size_t i = 0; i + 1 < parents.size(); i += 2) {
         auto p1 = parents[i];
         auto p2 = parents[i+1];
-        if (!p1 || !p2) {
-            continue;
-        }
+        if (!p1 || !p2) continue;
 
-        bool ok1 = validateAndClampChromosome(p1, requiredSize);
-        bool ok2 = validateAndClampChromosome(p2, requiredSize);
-        if (!ok1 || !ok2) {
+        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
             continue;
         }
 
-        int size = (int)p1->size();
-        std::vector<std::vector<int>> edgeMap(size);
+        int size = requiredSize;
+        std::vector<std::unordered_set<int>> edgeMap(size);
 
-        // Funkcja do budowy edge map
-        auto addEdges = [&](std::shared_ptr<std::vector<int>> parent) {
+        // Budowa edge map z użyciem set dla unikatowych wartości
+        for (auto parent : {p1, p2}) {
             for (int idx = 0; idx < size; idx++) {
                 int curr = (*parent)[idx];
                 int next = (*parent)[(idx + 1) % size];
                 int prev = (*parent)[(idx - 1 + size) % size];
-
-                // proste sprawdzenie zakresu
-                if (curr < 0 || curr >= size) continue;
-                if (next < 0 || next >= size) continue;
-                if (prev < 0 || prev >= size) continue;
-
-                edgeMap[curr].push_back(prev);
-                edgeMap[curr].push_back(next);
+                
+                edgeMap[curr].insert(prev);
+                edgeMap[curr].insert(next);
             }
-        };
-
-        addEdges(p1);
-        addEdges(p2);
-
-        // usuwamy duplikaty
-        for (auto &edges : edgeMap) {
-            std::sort(edges.begin(), edges.end());
-            edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
         }
 
-        // budowa childa
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> distStart(0, size - 1);
-
-        // np. start od p1[0] lub losowo:
-        int startGene = (*p1)[0]; 
-        // int startGene = distStart(gen); // alternatywnie
-
+        
+        // Tworzymy pierwszego potomka
+        std::vector<bool> used(size, false);
         std::vector<int> child;
         child.reserve(size);
-        child.push_back(startGene);
+        
+        // Zaczynamy od pierwszego genu pierwszego rodzica
+        int current = (*p1)[0];
+        child.push_back(current);
+        used[current] = true;
 
-        std::vector<bool> used(size, false);
-        used[startGene] = true;
-        int current = startGene;
-
-        while ((int)child.size() < size) {
-            // Weźmy sąsiadów current
-            const auto &neighbors = edgeMap[current];
-            // odfiltrujmy nieużytych
-            std::vector<int> validNbs;
-            for (int nb : neighbors) {
-                if (!used[nb]) {
-                    validNbs.push_back(nb);
+        // Główna pętla budowania potomka
+        while (child.size() < size) {
+            std::vector<std::pair<int, int>> candidates; // para (gen, liczba nieużytych sąsiadów)
+            
+            // Sprawdzamy wszystkich nieużytych sąsiadów
+            for (int neighbor : edgeMap[current]) {
+                if (!used[neighbor]) {
+                    int unusedNeighborCount = 0;
+                    for (int nb : edgeMap[neighbor]) {
+                        if (!used[nb]) unusedNeighborCount++;
+                    }
+                    candidates.push_back({neighbor, unusedNeighborCount});
                 }
             }
 
-            if (validNbs.empty()) {
-                // jeśli brak sąsiadów, wybieramy jakiś nieużyty gen z populacji
-                std::vector<int> unusedGenes;
-                for (int g = 0; g < size; g++) {
-                    if (!used[g]) {
-                        unusedGenes.push_back(g);
+            // Jeśli nie ma kandydatów, wybieramy spośród wszystkich nieużytych
+            if (candidates.empty()) {
+                for (int j = 0; j < size; j++) {
+                    if (!used[j]) {
+                        candidates.push_back({j, 0});
                     }
                 }
-                if (unusedGenes.empty()) {
-                    // gotowe
-                    break;
-                }
-                std::uniform_int_distribution<int> distU(0, (int)unusedGenes.size() - 1);
-                int pick = unusedGenes[distU(gen)];
-                child.push_back(pick);
-                used[pick] = true;
-                current = pick;
-            } else {
-                // losowo z validNbs
-                std::uniform_int_distribution<int> distN(0, (int)validNbs.size() - 1);
-                int pick = validNbs[distN(gen)];
-                child.push_back(pick);
-                used[pick] = true;
-                current = pick;
             }
 
-            // (opcjonalnie) dajmy break awaryjny jeśli cokolwiek idzie źle
-            // np. if (child.size() > 2*size) break; 
-            // – choć normalnie nie powinno się zdarzyć
+            // Wybieramy następny gen
+            if (!candidates.empty()) {
+                // Sortujemy po liczbie nieużytych sąsiadów (heurystyka)
+                std::sort(candidates.begin(), candidates.end(),
+                    [](const auto& a, const auto& b) { return a.second < b.second; });
+                
+                current = candidates[0].first;
+                child.push_back(current);
+                used[current] = true;
+            } else {
+                break; // Zabezpieczenie przed nieskończoną pętlą
+            }
         }
 
-        // Mamy jednego potomka. W ERX często robi się 1 lub 2 potomków.
-        // Stwórzmy jeszcze drugiego – np. odwrotnego:
-        auto childPtr1 = std::make_shared<std::vector<int>>(child);
-        auto revChild = child;
-        std::reverse(revChild.begin(), revChild.end());
-        auto childPtr2 = std::make_shared<std::vector<int>>(revChild);
-
-        offspring.push_back(childPtr1);
-        offspring.push_back(childPtr2);
+        // Weryfikacja i dodanie potomków
+        if (isValidPermutation(child, size)) {
+            auto childPtr1 = std::make_shared<std::vector<int>>(child);
+            // Drugi potomek jako odwrócona kopia pierwszego
+            auto revChild = child;
+            std::reverse(revChild.begin(), revChild.end());
+            auto childPtr2 = std::make_shared<std::vector<int>>(revChild);
+            
+            offspring.push_back(childPtr1);
+            offspring.push_back(childPtr2);
+        } else {
+            // Fallback do kopii rodziców
+            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
+            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+        }
     }
 
     return offspring;
@@ -321,51 +320,59 @@ PMXCrossover::crossover(
     for (size_t i = 0; i + 1 < parents.size(); i += 2) {
         auto p1 = parents[i];
         auto p2 = parents[i+1];
-        if (!p1 || !p2) {
-            continue;
-        }
-        bool ok1 = validateAndClampChromosome(p1, requiredSize);
-        bool ok2 = validateAndClampChromosome(p2, requiredSize);
-        if (!ok1 || !ok2) {
+        if (!p1 || !p2) continue;
+
+        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
             continue;
         }
 
-        int size = (int)p1->size();
+        int size = requiredSize;
+
+        // Tworzymy mapy pozycji dla obu rodziców
+        std::vector<int> pos1(size), pos2(size);
+        for (int j = 0; j < size; j++) {
+            pos1[(*p1)[j]] = j;
+            pos2[(*p2)[j]] = j;
+        }
 
         auto c1 = std::make_shared<std::vector<int>>(*p1);
         auto c2 = std::make_shared<std::vector<int>>(*p2);
 
+        // Losowanie punktów cięcia
         std::mt19937 gen(std::random_device{}());
         std::uniform_int_distribution<int> dist(0, size - 1);
         int start = dist(gen);
-        int end   = dist(gen);
+        int end = dist(gen);
         if (start > end) std::swap(start, end);
 
-        // PMX mapowanie
-        for (int pos = start; pos <= end; pos++) {
-            int val1 = (*c1)[pos];
-            int val2 = (*c2)[pos];
-            // Szukamy pozycji val1 w c2
-            // i pozycji val2 w c1
-            // i zamieniamy
-            for (int j = 0; j < size; j++) {
-                if ((*c2)[j] == val1) {
-                    (*c2)[j] = val2;
-                    break;
-                }
-            }
-            for (int j = 0; j < size; j++) {
-                if ((*c1)[j] == val2) {
-                    (*c1)[j] = val1;
-                    break;
-                }
-            }
+        // Wykonujemy mapowanie PMX
+        for (int j = start; j <= end; j++) {
+            int val1 = (*c1)[j];
+            int val2 = (*c2)[j];
+            
+            std::swap((*c1)[j], (*c2)[j]);
+            std::swap((*c1)[pos1[val2]], (*c2)[pos2[val1]]);
+            
+            // Aktualizujemy mapy pozycji
+            int tempPos = pos1[val1];
+            pos1[val1] = pos1[val2];
+            pos1[val2] = tempPos;
+            
+            tempPos = pos2[val1];
+            pos2[val1] = pos2[val2];
+            pos2[val2] = tempPos;
         }
 
-        offspring.push_back(c1);
-        offspring.push_back(c2);
+        // Weryfikacja potomków
+        if (isValidPermutation(*c1, size) && isValidPermutation(*c2, size)) {
+            offspring.push_back(c1);
+            offspring.push_back(c2);
+        } else {
+            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
+            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+        }
     }
 
     return offspring;
