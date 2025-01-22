@@ -51,112 +51,112 @@ build cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib: phony
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/generator/dna_generator.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/generator/dna_generator.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\generator\dna_generator.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\generator
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/naive/naive_reconstruction.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/naive/naive_reconstruction.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\naive\naive_reconstruction.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\naive
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/naive_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/naive_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark\naive_benchmark.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/genetic_algorithm.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\genetic_algorithm.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/selection.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/selection.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\selection.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/crossover.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/crossover.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\crossover.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/mutation.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/mutation.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\mutation.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/replacement.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/replacement.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\replacement.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/fitness.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\fitness.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/stopping_criteria.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/stopping_criteria.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\stopping_criteria.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/representation.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/representation.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\representation.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/crossover_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/crossover_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark\crossover_benchmark.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\benchmark
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/utility_functions.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/utils/utility_functions.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils\utility_functions.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/configuration/genetic_algorithm_configuration.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/configuration/genetic_algorithm_configuration.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\configuration\genetic_algorithm_configuration.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\configuration
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/performance_profilling_framework.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/utils/performance_profilling_framework.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils\performance_profilling_framework.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\utils
 
 build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/population_cache.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_lib_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/population_cache.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna_lib
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics\population_cache.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir\src\metaheuristics
@@ -170,7 +170,7 @@ build CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/popula
 # Link the static library liboptymalizacja_kombinatoryczna_lib.a
 
 build liboptymalizacja_kombinatoryczna_lib.a: CXX_STATIC_LIBRARY_LINKER__optymalizacja_kombinatoryczna_lib_Debug CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/generator/dna_generator.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/naive/naive_reconstruction.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/naive_benchmark.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/genetic_algorithm.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/selection.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/crossover.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/mutation.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/replacement.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/fitness.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/stopping_criteria.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/representation.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/benchmark/crossover_benchmark.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/utility_functions.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/configuration/genetic_algorithm_configuration.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/utils/performance_profilling_framework.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/population_cache.cpp.obj
-  LANGUAGE_COMPILE_FLAGS = -g
+  LANGUAGE_COMPILE_FLAGS = -O3 -g
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna_lib.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -188,21 +188,21 @@ build cmake_object_order_depends_target_optymalizacja_kombinatoryczna: phony || 
 
 build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\main.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src
 
 build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/adaptive_crossover.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/adaptive_crossover.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics\adaptive_crossover.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\metaheuristics
 
 build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crossover_benchmark.cpp.obj: CXX_COMPILER__optymalizacja_kombinatoryczna_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/benchmark/adaptive_crossover_benchmark.cpp || cmake_object_order_depends_target_optymalizacja_kombinatoryczna
   DEP_FILE = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark\adaptive_crossover_benchmark.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   OBJECT_FILE_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir\src\benchmark
@@ -216,7 +216,8 @@ build CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crosso
 # Link the executable optymalizacja_kombinatoryczna.exe
 
 build optymalizacja_kombinatoryczna.exe: CXX_EXECUTABLE_LINKER__optymalizacja_kombinatoryczna_Debug CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/metaheuristics/adaptive_crossover.cpp.obj CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crossover_benchmark.cpp.obj | liboptymalizacja_kombinatoryczna_lib.a || liboptymalizacja_kombinatoryczna_lib.a
-  FLAGS = -g
+  FLAGS = -O3 -g
+  LINK_FLAGS = -static-libgcc -static-libstdc++ -static
   LINK_LIBRARIES = liboptymalizacja_kombinatoryczna_lib.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\optymalizacja_kombinatoryczna.dir
   POST_BUILD = cd .
@@ -400,7 +401,7 @@ build cmake_object_order_depends_target_gmock: phony || cmake_object_order_depen
 
 build _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.obj: CXX_COMPILER__gmock_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/src/gmock-all.cc || cmake_object_order_depends_target_gmock
   DEP_FILE = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir\src\gmock-all.cc.obj.d
-  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/include -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
   OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir
   OBJECT_FILE_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir\src
@@ -414,7 +415,7 @@ build _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.ob
 # Link the static library lib\libgmock.a
 
 build lib/libgmock.a: CXX_STATIC_LIBRARY_LINKER__gmock_Debug _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/src/gmock-all.cc.obj || lib/libgtest.a
-  LANGUAGE_COMPILE_FLAGS = -g
+  LANGUAGE_COMPILE_FLAGS = -O3 -g
   OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -432,7 +433,7 @@ build cmake_object_order_depends_target_gmock_main: phony || cmake_object_order_
 
 build _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.obj: CXX_COMPILER__gmock_main_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/src/gmock_main.cc || cmake_object_order_depends_target_gmock_main
   DEP_FILE = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir\src\gmock_main.cc.obj.d
-  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
   INCLUDES = -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googlemock -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
   OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir
   OBJECT_FILE_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir\src
@@ -446,7 +447,7 @@ build _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main
 # Link the static library lib\libgmock_main.a
 
 build lib/libgmock_main.a: CXX_STATIC_LIBRARY_LINKER__gmock_main_Debug _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/src/gmock_main.cc.obj || lib/libgmock.a lib/libgtest.a
-  LANGUAGE_COMPILE_FLAGS = -g
+  LANGUAGE_COMPILE_FLAGS = -O3 -g
   OBJECT_DIR = _deps\googletest-build\googlemock\CMakeFiles\gmock_main.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -546,7 +547,7 @@ build cmake_object_order_depends_target_gtest: phony || .
 
 build _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.obj: CXX_COMPILER__gtest_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/src/gtest-all.cc || cmake_object_order_depends_target_gtest
   DEP_FILE = _deps\googletest-build\googletest\CMakeFiles\gtest.dir\src\gtest-all.cc.obj.d
-  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
   OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest.dir
   OBJECT_FILE_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest.dir\src
@@ -560,7 +561,7 @@ build _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.ob
 # Link the static library lib\libgtest.a
 
 build lib/libgtest.a: CXX_STATIC_LIBRARY_LINKER__gtest_Debug _deps/googletest-build/googletest/CMakeFiles/gtest.dir/src/gtest-all.cc.obj
-  LANGUAGE_COMPILE_FLAGS = -g
+  LANGUAGE_COMPILE_FLAGS = -O3 -g
   OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -578,7 +579,7 @@ build cmake_object_order_depends_target_gtest_main: phony || cmake_object_order_
 
 build _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.obj: CXX_COMPILER__gtest_main_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/src/gtest_main.cc || cmake_object_order_depends_target_gtest_main
   DEP_FILE = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir\src\gtest_main.cc.obj.d
-  FLAGS = -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always -Wall -Wshadow -Wno-error=dangling-else -DGTEST_HAS_PTHREAD=0 -fexceptions -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
   INCLUDES = -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
   OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir
   OBJECT_FILE_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir\src
@@ -592,7 +593,7 @@ build _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main
 # Link the static library lib\libgtest_main.a
 
 build lib/libgtest_main.a: CXX_STATIC_LIBRARY_LINKER__gtest_main_Debug _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/src/gtest_main.cc.obj || lib/libgtest.a
-  LANGUAGE_COMPILE_FLAGS = -g
+  LANGUAGE_COMPILE_FLAGS = -O3 -g
   OBJECT_DIR = _deps\googletest-build\googletest\CMakeFiles\gtest_main.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
@@ -692,14 +693,14 @@ build cmake_object_order_depends_target_Google_Tests_run: phony || cmake_object_
 
 build google_tests/CMakeFiles/Google_Tests_run.dir/tests/test_main.cpp.obj: CXX_COMPILER__Google_Tests_run_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests/tests/test_main.cpp || cmake_object_order_depends_target_Google_Tests_run
   DEP_FILE = google_tests\CMakeFiles\Google_Tests_run.dir\tests\test_main.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
   OBJECT_DIR = google_tests\CMakeFiles\Google_Tests_run.dir
   OBJECT_FILE_DIR = google_tests\CMakeFiles\Google_Tests_run.dir\tests
 
 build google_tests/CMakeFiles/Google_Tests_run.dir/tests/your_tests.cpp.obj: CXX_COMPILER__Google_Tests_run_unscanned_Debug C$:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests/tests/your_tests.cpp || cmake_object_order_depends_target_Google_Tests_run
   DEP_FILE = google_tests\CMakeFiles\Google_Tests_run.dir\tests\your_tests.cpp.obj.d
-  FLAGS = -g -std=gnu++20 -fdiagnostics-color=always
+  FLAGS = -O3 -g -std=c++20 -fdiagnostics-color=always
   INCLUDES = -IC:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest/include -isystem C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-src/googletest
   OBJECT_DIR = google_tests\CMakeFiles\Google_Tests_run.dir
   OBJECT_FILE_DIR = google_tests\CMakeFiles\Google_Tests_run.dir\tests
@@ -713,7 +714,8 @@ build google_tests/CMakeFiles/Google_Tests_run.dir/tests/your_tests.cpp.obj: CXX
 # Link the executable google_tests\Google_Tests_run.exe
 
 build google_tests/Google_Tests_run.exe: CXX_EXECUTABLE_LINKER__Google_Tests_run_Debug google_tests/CMakeFiles/Google_Tests_run.dir/tests/test_main.cpp.obj google_tests/CMakeFiles/Google_Tests_run.dir/tests/your_tests.cpp.obj | lib/libgtest.a lib/libgtest_main.a liboptymalizacja_kombinatoryczna_lib.a lib/libgtest.a || lib/libgtest.a lib/libgtest_main.a liboptymalizacja_kombinatoryczna_lib.a
-  FLAGS = -g
+  FLAGS = -O3 -g
+  LINK_FLAGS = -static-libgcc -static-libstdc++ -static
   LINK_LIBRARIES = lib/libgtest.a  lib/libgtest_main.a  liboptymalizacja_kombinatoryczna_lib.a  lib/libgtest.a  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = google_tests\CMakeFiles\Google_Tests_run.dir
   POST_BUILD = cd .

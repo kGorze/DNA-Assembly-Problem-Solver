@@ -331,48 +331,15 @@ FETCHCONTENT_UPDATES_DISCONNECTED_GOOGLETEST:BOOL=OFF
 //Git command line client
 GIT_EXECUTABLE:FILEPATH=C:/Users/konrad_guest/AppData/Local/Programs/Git/cmd/git.exe
 
-//Path to a library.
-GMOCK_LIBRARY:FILEPATH=GMOCK_LIBRARY-NOTFOUND
-
-//Path to a library.
-GMOCK_LIBRARY_DEBUG:FILEPATH=GMOCK_LIBRARY_DEBUG-NOTFOUND
-
-//Path to a library.
-GMOCK_MAIN_LIBRARY:FILEPATH=GMOCK_MAIN_LIBRARY-NOTFOUND
-
-//Path to a library.
-GMOCK_MAIN_LIBRARY_DEBUG:FILEPATH=GMOCK_MAIN_LIBRARY_DEBUG-NOTFOUND
-
-//Path to a file.
-GTEST_INCLUDE_DIR:PATH=GTEST_INCLUDE_DIR-NOTFOUND
-
-//Path to a library.
-GTEST_LIBRARY:FILEPATH=GTEST_LIBRARY-NOTFOUND
-
-//Path to a library.
-GTEST_LIBRARY_DEBUG:FILEPATH=GTEST_LIBRARY_DEBUG-NOTFOUND
-
-//Path to a library.
-GTEST_MAIN_LIBRARY:FILEPATH=GTEST_MAIN_LIBRARY-NOTFOUND
-
-//Path to a library.
-GTEST_MAIN_LIBRARY_DEBUG:FILEPATH=GTEST_MAIN_LIBRARY_DEBUG-NOTFOUND
-
-//The directory containing a CMake configuration file for GTest.
-GTest_DIR:PATH=GTest_DIR-NOTFOUND
-
 //Enable installation of googletest. (Projects embedding googletest
 // may want to turn this OFF.)
 INSTALL_GTEST:BOOL=ON
 
-//Value Computed by CMake
-Optymalizacja_Kombinatoryczna_BINARY_DIR:STATIC=C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/google_tests
+//No help, variable specified on the command line.
+Python3_EXECUTABLE:UNINITIALIZED=C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/venv/Scripts/python.exe
 
-//Value Computed by CMake
-Optymalizacja_Kombinatoryczna_IS_TOP_LEVEL:STATIC=OFF
-
-//Value Computed by CMake
-Optymalizacja_Kombinatoryczna_SOURCE_DIR:STATIC=C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/google_tests
+//No help, variable specified on the command line.
+Python_EXECUTABLE:UNINITIALIZED=C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/venv/Scripts/python.exe
 
 //Value Computed by CMake
 gmock_BINARY_DIR:STATIC=C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/cmake-build-debug/_deps/googletest-build/googlemock
@@ -630,27 +597,9 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
 //Details about finding Python
-FIND_PACKAGE_MESSAGE_DETAILS_Python:INTERNAL=[C:/Users/konrad_guest/AppData/Local/Programs/Python/Python313/python.exe][cfound components: Interpreter ][v3.13.0()]
+FIND_PACKAGE_MESSAGE_DETAILS_Python:INTERNAL=[C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/venv/Scripts/python.exe][cfound components: Interpreter ][v3.13.0()]
 //ADVANCED property for variable: GIT_EXECUTABLE
 GIT_EXECUTABLE-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GMOCK_LIBRARY
-GMOCK_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GMOCK_LIBRARY_DEBUG
-GMOCK_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GMOCK_MAIN_LIBRARY
-GMOCK_MAIN_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GMOCK_MAIN_LIBRARY_DEBUG
-GMOCK_MAIN_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GTEST_INCLUDE_DIR
-GTEST_INCLUDE_DIR-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GTEST_LIBRARY
-GTEST_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GTEST_LIBRARY_DEBUG
-GTEST_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GTEST_MAIN_LIBRARY
-GTEST_MAIN_LIBRARY-ADVANCED:INTERNAL=1
-//ADVANCED property for variable: GTEST_MAIN_LIBRARY_DEBUG
-GTEST_MAIN_LIBRARY_DEBUG-ADVANCED:INTERNAL=1
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
 //CMAKE_INSTALL_PREFIX during last run
@@ -659,11 +608,10 @@ _GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=C:/Program Files (x86)/optyma
 _Python_Compiler_REASON_FAILURE:INTERNAL=
 //Development reason failure
 _Python_Development_REASON_FAILURE:INTERNAL=
-//Path to a program.
-_Python_EXECUTABLE:INTERNAL=C:/Users/konrad_guest/AppData/Local/Programs/Python/Python313/python.exe
+_Python_EXECUTABLE:INTERNAL=C:/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/venv/Scripts/python.exe
 //Python Properties
-_Python_INTERPRETER_PROPERTIES:INTERNAL=Python;3;13;0;64;32;;cp313-win_amd64;;C:\Users\konrad_guest\AppData\Local\Programs\Python\Python313\Lib;C:\Users\konrad_guest\AppData\Local\Programs\Python\Python313\Lib;C:\Users\konrad_guest\AppData\Local\Programs\Python\Python313\Lib\site-packages;C:\Users\konrad_guest\AppData\Local\Programs\Python\Python313\Lib\site-packages
-_Python_INTERPRETER_SIGNATURE:INTERNAL=69dda3b85bdde2e7ec0c4512c15e6a77
+_Python_INTERPRETER_PROPERTIES:INTERNAL=Python;3;13;0;64;32;;cp313-win_amd64;;C:\Users\konrad_guest\AppData\Local\Programs\Python\Python313\Lib;C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\venv\Lib;C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\venv\Lib\site-packages;C:\Users\konrad_guest\CLionProjects\optymalizacja_kombinatoryczna\venv\Lib\site-packages
+_Python_INTERPRETER_SIGNATURE:INTERNAL=bf1026a4019079ad3fa8e8e71a8505d6
 //NumPy reason failure
 _Python_NumPy_REASON_FAILURE:INTERNAL=
 cmake_package_name:INTERNAL=GTest

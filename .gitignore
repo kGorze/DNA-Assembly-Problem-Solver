@@ -1,2 +1,7 @@
 google_tests/lib/
 cmake-build-debug/
+cmake-build-release-wsl/
+build/
+results.db
+venv/
+ 

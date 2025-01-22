@@ -1,11 +1,8 @@
-//
-// Created by konrad_guest on 5/01/2025.
-// SMART
-
-
 #include <iostream> 
 #include <random>
 #include <chrono>
+#include <string>
+#include <cstring>
 
 #include "generator/dna_generator.h"
 #include "naive/naive_reconstruction.h"
@@ -25,28 +22,38 @@
 #include "metaheuristics/adaptive_crossover.h"
 #include "benchmark/adaptive_crossover_benchmark.h"
 
-void runAdaptiveCrossoverBenchmark(const DNAInstance& instance) {
-    AdaptiveCrossoverBenchmark benchmark("adaptive_crossover_results.csv");
-    benchmark.runBenchmark(instance);
+void printUsage() {
+    std::cout << "Usage: dna_reconstruction <mode> [options]\n\n"
+              << "Modes:\n"
+              << "  debug            - Run in debug mode with default settings\n"
+              << "  generate_instance - Generate test instances\n"
+              << "  test_instance    - Solve DNA reconstruction from input file\n\n"
+              << "Options for generate_instance:\n"
+              << "  -n <value>       - DNA length (300-700)\n"
+              << "  -k <value>       - Oligo length (7-10)\n"
+              << "  -dk <value>      - Delta K range (0-2)\n"
+              << "  -ln <value>      - Negative errors (0 or >=10)\n"
+              << "  -lp <value>      - Positive errors (0 or >=10)\n"
+              << "  -o <filename>    - Output filename\n\n"
+              << "Options for test_instance:\n"
+              << "  -i <filename>    - Input instance file\n"
+              << "  -o <filename>    - Output results file\n";
 }
 
-void runGeneticAlgorithm(const DNAInstance& instance) {
-    // Get the configuration
+void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile = "") {
     auto& config = GAConfig::getInstance();
     config.setMutationRate(0.7);
     config.setMaxGenerations(10000);
-    config.setPopulationSize(200);  // Keep it consistent
-    config.setReplacementRatio(0.7);  // Keep 30% of parents
+    config.setPopulationSize(100);
+    config.setReplacementRatio(0.7);
     
-    // Create and set the cache
     auto cache = std::make_shared<CachedPopulation>();
-    config.setCache(cache);  // This ensures cache is used in selection and replacement
+    config.setCache(cache);
     
-    // Create GA with configuration
     GeneticAlgorithm ga(
         config.getRepresentation(),
         config.getSelection(),
-        std::make_shared<AdaptiveCrossover>(),  // Use adaptive crossover
+        std::make_shared<AdaptiveCrossover>(),
         config.getMutation(),
         config.getReplacement(),
         std::make_shared<OptimizedGraphBasedFitness>(),
@@ -54,108 +61,153 @@ void runGeneticAlgorithm(const DNAInstance& instance) {
         cache
     );
     
-    // Run the GA
     ga.run(instance);
     
-    // Get and print results
     std::string reconstructedDNA = ga.getBestDNA();
     std::string originalDNA = instance.getDNA();
     
-    std::cout << "\nOriginal DNA (first 100 bases): " 
-              << originalDNA.substr(0, 100) << "...\n";
-    std::cout << "Reconstructed DNA (first 100 bases): " 
-              << reconstructedDNA.substr(0, 100) << "...\n";
-    
     int distance = levenshteinDistance(originalDNA, reconstructedDNA);
-    std::cout << "Levenshtein distance: " << distance << "\n";
+    
+    if (outputFile.empty()) {
+        std::cout << "\nOriginal DNA (first 100 bases): " 
+                  << originalDNA.substr(0, 100) << "...\n";
+        std::cout << "Reconstructed DNA (first 100 bases): " 
+                  << reconstructedDNA.substr(0, 100) << "...\n";
+        std::cout << "Levenshtein distance: " << distance << "\n";
+    } else {
+        std::ofstream outFile(outputFile);
+        outFile << "Original DNA: " << originalDNA << "\n";
+        outFile << "Reconstructed DNA: " << reconstructedDNA << "\n";
+        outFile << "Levenshtein distance: " << distance << "\n";
+        outFile.close();
+    }
 }
 
-
-int main()
-{
-    // Opcjonalnie: seed rand(), jeśli jest gdzieś wykorzystywany
-    srand(static_cast<unsigned int>(time(nullptr)));
-
-    // Ustawiamy parametry zgodnie z nową logiką.
-    // Przyjmijmy przykładowe wartości.
-    // Jeśli wykraczają poza zakres, w DNAInstanceBuilder zostaną skorygowane do domyślnych.
-    int n = 400;         // Długość DNA (300–700)
-    int k = 8;           // Długość oligo (7–10)
-    int deltaK = 1;      // Zakres zmian długości oligo (0–2)
-    int lNeg = 10;       // Błędy negatywne (może być 0 lub >= 10)
-    int lPoz = 10;       // Błędy pozytywne (może być 0 lub >= 10)
-    bool repAllowed = true;   // Czy dozwolone powtórzenia
-    int probablePos = 0;      // 0 - losowe sekwencje, 1 - duplikowanie + modyfikacje
-
-    // Budujemy instancję przy pomocy buildera.
+bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::string& outputFile) {
     DNAInstanceBuilder builder;
     builder.setN(n)
            .setK(k)
            .setDeltaK(deltaK)
            .setLNeg(lNeg)
            .setLPoz(lPoz)
-           .setRepAllowed(repAllowed)
-           .setProbablePositive(probablePos)
-
-           // Generujemy DNA i spektrum
+           .setRepAllowed(true)
+           .setProbablePositive(0)
            .buildDNA()
            .buildSpectrum();
 
-    // Wprowadzamy błędy negatywne, jeśli lNeg > 0
-    // NegativeErrorIntroducer przyjmuje liczbę int jako lNeg
     if(lNeg > 0) {
         NegativeErrorIntroducer negErr(lNeg);
         builder.applyError(&negErr);
     }
 
-    // Wprowadzamy błędy pozytywne, jeśli lPoz > 0
-    // PositiveErrorIntroducer przyjmuje liczbę int jako lPoz
     if(lPoz > 0) {
         PositiveErrorIntroducer posErr(lPoz);
         builder.applyError(&posErr);
     }
 
-    // Pobieramy gotową instancję
     DNAInstance instance = builder.getInstance();
+    return InstanceIO::saveInstance(instance, outputFile);
+}
 
-    // Zapisujemy do pliku
-    bool saved = InstanceIO::saveInstance(instance, "instance.txt");
-    if(!saved) {
-        std::cerr << "Bład zapisu instancji!\n";
-    }
-    else {
-        std::cout << "Instancja zapisana do pliku 'instance.txt'.\n";
-    }
-    
-    // Odczytujemy z pliku, by sprawdzić poprawność
-    DNAInstance loadedInst;
-    bool loaded = InstanceIO::loadInstance("instance.txt", loadedInst);
-    if(!loaded) {
-        std::cerr << "Bład odczytu instancji!\n";
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        printUsage();
         return 1;
     }
-    
-    std::cout << "Wczytano instancje z pliku. Parametry:\n"
-              << "  n=" << loadedInst.getN()
-              << ", k=" << loadedInst.getK()
-              << ", deltaK=" << loadedInst.getDeltaK()
-              << ", lNeg=" << loadedInst.getLNeg()
-              << ", lPoz=" << loadedInst.getLPoz()
-              << "\nDlugosc DNA=" << loadedInst.getDNA().size()
-              << ", rozmiar spektrum=" << loadedInst.getSpectrum().size() 
-              << std::endl;
 
-    // Przykładowe wywołanie algorytmu genetycznego
-    runGeneticAlgorithm(loadedInst);
-    Profiler::getInstance().saveReport("profiling_report.csv");
+    std::string mode = argv[1];
 
-    //runAdaptiveCrossoverBenchmark(loadedInst);
+    if (mode == "debug") {
+        // Default debug parameters
+        int n = 400;
+        int k = 8;
+        int deltaK = 1;
+        int lNeg = 10;
+        int lPoz = 10;
+        
+        DNAInstanceBuilder builder;
+        builder.setN(n)
+               .setK(k)
+               .setDeltaK(deltaK)
+               .setLNeg(lNeg)
+               .setLPoz(lPoz)
+               .setRepAllowed(true)
+               .setProbablePositive(0)
+               .buildDNA()
+               .buildSpectrum();
 
-    //  NaiveBenchmark nb;
-    //  nb.runBenchmark(loadedInst);
-    //
-    // CrossoverBenchmark cb;
-    // cb.runBenchmark(loadedInst);
+        if(lNeg > 0) {
+            NegativeErrorIntroducer negErr(lNeg);
+            builder.applyError(&negErr);
+        }
+
+        if(lPoz > 0) {
+            PositiveErrorIntroducer posErr(lPoz);
+            builder.applyError(&posErr);
+        }
+
+        DNAInstance instance = builder.getInstance();
+        bool saved = InstanceIO::saveInstance(instance, "debug_instance.txt");
+        
+        if(!saved) {
+            std::cerr << "Failed to save debug instance!\n";
+            return 1;
+        }
+
+        runGeneticAlgorithm(instance);
+        Profiler::getInstance().saveReport("debug_profiling_report.csv");
+        
+    } else if (mode == "generate_instance") {
+        int n = 400, k = 8, deltaK = 1, lNeg = 10, lPoz = 10;
+        std::string outputFile = "generated_instance.txt";
+        
+        for (int i = 2; i < argc; i += 2) {
+            if (i + 1 >= argc) break;
+            
+            if (strcmp(argv[i], "-n") == 0) n = std::stoi(argv[i+1]);
+            else if (strcmp(argv[i], "-k") == 0) k = std::stoi(argv[i+1]);
+            else if (strcmp(argv[i], "-dk") == 0) deltaK = std::stoi(argv[i+1]);
+            else if (strcmp(argv[i], "-ln") == 0) lNeg = std::stoi(argv[i+1]);
+            else if (strcmp(argv[i], "-lp") == 0) lPoz = std::stoi(argv[i+1]);
+            else if (strcmp(argv[i], "-o") == 0) outputFile = argv[i+1];
+        }
+        
+        if (!generateInstance(n, k, deltaK, lNeg, lPoz, outputFile)) {
+            std::cerr << "Failed to generate instance!\n";
+            return 1;
+        }
+        std::cout << "Instance generated successfully: " << outputFile << std::endl;
+        
+    } else if (mode == "test_instance") {
+        std::string inputFile;
+        std::string outputFile = "results.txt";
+        
+        for (int i = 2; i < argc; i += 2) {
+            if (i + 1 >= argc) break;
+            
+            if (strcmp(argv[i], "-i") == 0) inputFile = argv[i+1];
+            else if (strcmp(argv[i], "-o") == 0) outputFile = argv[i+1];
+        }
+        
+        if (inputFile.empty()) {
+            std::cerr << "Input file must be specified for test_instance mode!\n";
+            printUsage();
+            return 1;
+        }
+        
+        DNAInstance instance;
+        if (!InstanceIO::loadInstance(inputFile, instance)) {
+            std::cerr << "Failed to load instance from " << inputFile << std::endl;
+            return 1;
+        }
+        
+        runGeneticAlgorithm(instance, outputFile);
+        
+    } else {
+        std::cerr << "Unknown mode: " << mode << std::endl;
+        printUsage();
+        return 1;
+    }
 
     return 0;
 }
