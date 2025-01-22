@@ -43,7 +43,7 @@ void printUsage() {
 void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile = "") {
     auto& config = GAConfig::getInstance();
     config.setMutationRate(0.7);
-    config.setMaxGenerations(10000);
+    config.setMaxGenerations(100);
     config.setPopulationSize(100);
     config.setReplacementRatio(0.7);
     
@@ -57,7 +57,7 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
         config.getMutation(),
         config.getReplacement(),
         std::make_shared<OptimizedGraphBasedFitness>(),
-        std::make_shared<MaxGenerationsStopping>(1200),
+        config.getStopping(),
         cache
     );
     
