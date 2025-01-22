@@ -9,8 +9,10 @@
 #include <memory>
 #include <iomanip>
 #include <vector>
+#include <regex>
 #include <mutex>
 #include <omp.h>
+#include <functional>
 #include "metaheuristics/selection.h"
 #include "metaheuristics/crossover.h"
 #include "metaheuristics/mutation.h"
@@ -28,6 +30,9 @@
  */
 class GeneticAlgorithm {
 public:
+
+    static std::mutex outputMutex;
+    
     GeneticAlgorithm(std::shared_ptr<IRepresentation> representation,
                      std::shared_ptr<ISelection> selection,
                      std::shared_ptr<ICrossover> crossover,
@@ -39,10 +44,27 @@ public:
 
     ~GeneticAlgorithm();
 
+    void setTestInfo(int processId) {
+        m_processId = processId;
+    }
+    void setProgressCallback(std::function<void(int, int, double)> callback) {
+        progressCallback = callback;
+    }
+    void setProcessId(int pid) {
+        m_processId = pid;
+    }
+    int getProcessId() const {
+        return m_processId;
+    }
+
     void run(const DNAInstance &instance);
     std::string getBestDNA() const { return m_bestDNA; }
 
 private:
+
+    std::function<void(int, int, double)> progressCallback;
+    std::string m_testName;
+    int m_processId;
     void initializePopulation(int popSize, const DNAInstance &instance);
     void logGenerationStats(const std::vector<std::shared_ptr<std::vector<int>>> &pop,
                             const DNAInstance &instance,

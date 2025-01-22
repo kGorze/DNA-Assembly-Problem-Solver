@@ -8,6 +8,8 @@
 #include <random>
 #include <chrono>
 
+std::mutex GeneticAlgorithm::outputMutex;
+
 GeneticAlgorithm::GeneticAlgorithm(
     std::shared_ptr<IRepresentation> representation,
     std::shared_ptr<ISelection> selection,
@@ -37,8 +39,8 @@ GeneticAlgorithm::~GeneticAlgorithm() {
 }
 
 void GeneticAlgorithm::logGenerationStats(
-    const std::vector<std::shared_ptr<std::vector<int>>> &pop,
-    const DNAInstance &instance,
+    const std::vector<std::shared_ptr<std::vector<int>>>& pop,
+    const DNAInstance& instance,
     int generation)
 {
     if (generation % 10 != 0) return;
@@ -48,30 +50,31 @@ void GeneticAlgorithm::logGenerationStats(
     }
 
     double bestFit = -std::numeric_limits<double>::infinity();
-    double worstFit = std::numeric_limits<double>::infinity();
-    double sumFit = 0.0;
-
-#pragma omp parallel for reduction(max:bestFit) reduction(min:worstFit) reduction(+:sumFit)
+    double avgFit = 0.0;
+    
+#pragma omp parallel for reduction(max:bestFit) reduction(+:avgFit)
     for (size_t i = 0; i < pop.size(); i++) {
         double fitVal = m_cache->getOrCalculateFitness(pop[i], instance, m_fitness, m_representation);
         if (fitVal > bestFit) bestFit = fitVal;
-        if (fitVal < worstFit) worstFit = fitVal;
-        sumFit += fitVal;
+        avgFit += fitVal;
     }
-
-    double avgFit = sumFit / pop.size();
+    
+    avgFit /= pop.size();
+    double progress = (generation * 100.0) / GAConfig::getInstance().getMaxGenerations();
     double relativeBestFit = (m_theoreticalMaxFitness > 0) ? 
         (bestFit / m_theoreticalMaxFitness) * 100.0 : 0.0;
 
-    std::cout << "[Gen " << generation << "] "
-              << "BestFit = " << bestFit 
-              << " (" << std::fixed << std::setprecision(2) 
-              << relativeBestFit << "% of max "
-              << m_theoreticalMaxFitness << ")"
-              << ", WorstFit = " << worstFit
-              << ", AvgFit = " << avgFit
-              << ", PopSize = " << pop.size()
-              << "\n";
+    // Format status with underscores instead of colons
+    std::ostringstream status;
+    status << "Best" << "_" << std::fixed << std::setprecision(2) << relativeBestFit 
+           << "% Avg" << "_" << avgFit;
+
+    // Synchronized output
+    std::lock_guard<std::mutex> lock(outputMutex);
+    std::cout << "PROGRESS_UPDATE:" << m_processId << ":" 
+              << progress << ":" << status.str() << ":" 
+              << relativeBestFit << std::endl;
+    std::cout.flush();
 }
 
 void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance &instance)
@@ -100,6 +103,7 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
     m_cache->updatePopulation(population, instance, m_fitness, m_representation);
 
     int generation = 0;
+    int maxGenerations = GAConfig::getInstance().getMaxGenerations();
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     std::vector<std::shared_ptr<std::vector<int>>> parents;
     
@@ -135,8 +139,9 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
             population = m_replacement->replace(population, offspring, instance, m_fitness, m_representation);
         }
 
+        // Update best fitness
+        double currentBestFitness = -std::numeric_limits<double>::infinity();
         {
-            double currentBestFitness = -std::numeric_limits<double>::infinity();
             for (auto& ind : population) {
                 double fitnessVal = m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation);
                 if (fitnessVal > currentBestFitness) {
@@ -160,11 +165,24 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
             logGenerationStats(population, instance, generation);
         }
         
+        // Call progress callback with current status
+        if (progressCallback) {
+            progressCallback(generation, maxGenerations, currentBestFitness);
+        }
+        
         generation++;
     }
 
+    // Final update
+    updateGlobalBest(population, instance);
     if (m_globalBestInd) {
         m_bestDNA = m_representation->decodeToDNA(m_globalBestInd, instance);
+        
+        // Send final progress update
+        if (progressCallback) {
+            progressCallback(generation, maxGenerations, m_globalBestFit);
+        }
+        
         std::cout << "[GA] End after generation " << generation 
                   << ", best-ever fitness = " << m_globalBestFit
                   << ", length of best DNA = " << m_bestDNA.size() << "\n"

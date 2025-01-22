@@ -56,6 +56,7 @@ public:
 
     void setProbablePositive(int val) { probablePositive = val; }
     int getProbablePositive() const { return probablePositive; }
+    
 
     void setSpectrum(const std::vector<std::string> &s) { spectrum = s; }
     std::vector<std::string>& getSpectrum() { return spectrum; }

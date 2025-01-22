@@ -3,6 +3,10 @@
 #include <chrono>
 #include <string>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
+#include <memory>
 
 #include "generator/dna_generator.h"
 #include "naive/naive_reconstruction.h"
@@ -22,25 +26,29 @@
 #include "metaheuristics/adaptive_crossover.h"
 #include "benchmark/adaptive_crossover_benchmark.h"
 
+void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile = "", int processId = 0);
+
 void printUsage() {
     std::cout << "Usage: dna_reconstruction <mode> [options]\n\n"
               << "Modes:\n"
-              << "  debug            - Run in debug mode with default settings\n"
+              << "  debug             - Run in debug mode with default settings\n"
               << "  generate_instance - Generate test instances\n"
-              << "  test_instance    - Solve DNA reconstruction from input file\n\n"
+              << "  test_instance     - Solve DNA reconstruction from input file\n\n"
               << "Options for generate_instance:\n"
-              << "  -n <value>       - DNA length (300-700)\n"
-              << "  -k <value>       - Oligo length (7-10)\n"
-              << "  -dk <value>      - Delta K range (0-2)\n"
-              << "  -ln <value>      - Negative errors (0 or >=10)\n"
-              << "  -lp <value>      - Positive errors (0 or >=10)\n"
-              << "  -o <filename>    - Output filename\n\n"
+              << "  -n <value>        - DNA length (300-700)\n"
+              << "  -k <value>        - Oligo length (7-10)\n"
+              << "  -dk <value>       - Delta K range (0-2)\n"
+              << "  -ln <value>       - Negative errors (0 or >=10)\n"
+              << "  -lp <value>       - Positive errors (0 or >=10)\n"
+              << "  -o <filename>     - Output filename\n\n"
               << "Options for test_instance:\n"
-              << "  -i <filename>    - Input instance file\n"
-              << "  -o <filename>    - Output results file\n";
+              << "  -i <filename>     - Input instance file\n"
+              << "  -o <filename>     - Output results file\n"
+              << "  -pid <value>      - Process ID (unique identifier)\n";
 }
 
-void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile = "") {
+void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile, int processId) {
+    std::cerr << "Starting GA with processId: " << processId << std::endl;
     auto& config = GAConfig::getInstance();
     config.setMutationRate(0.7);
     config.setMaxGenerations(100);
@@ -61,6 +69,25 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
         cache
     );
     
+    
+    // Ustawienie callbacku do aktualizacji postępu
+    ga.setProgressCallback([processId](int generation, int maxGenerations, double bestFitness) {
+        // Format status message do przekazania
+        std::ostringstream status;
+        status << std::fixed << std::setprecision(2) 
+               << "Gen " << generation << "/" << maxGenerations 
+               << " Fit: " << bestFitness;
+               
+        // Wypisanie komunikatu postępu
+        std::cout << "PROGRESS_UPDATE:" << processId << ":" 
+                  << ((double)generation / maxGenerations * 100.0) << ":" 
+                  << status.str() << ":" << bestFitness << std::endl;
+        std::cout.flush();
+    });
+
+    // Ustawienie identyfikatora procesu
+    ga.setProcessId(processId); 
+        
     ga.run(instance);
     
     std::string reconstructedDNA = ga.getBestDNA();
@@ -76,10 +103,18 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
         std::cout << "Levenshtein distance: " << distance << "\n";
     } else {
         std::ofstream outFile(outputFile);
-        outFile << "Original DNA: " << originalDNA << "\n";
-        outFile << "Reconstructed DNA: " << reconstructedDNA << "\n";
-        outFile << "Levenshtein distance: " << distance << "\n";
-        outFile.close();
+        if (outFile.is_open()) {
+            outFile << "Original DNA: " << originalDNA << "\n";
+            outFile << "Reconstructed DNA: " << reconstructedDNA << "\n";
+            outFile << "Levenshtein distance: " << distance << "\n";
+            outFile.close();
+            
+            // Wypisanie finalnego statusu
+            std::cout << "PROGRESS_UPDATE:" << processId << ":100:Completed:0\n";
+            std::cout.flush();
+        } else {
+            std::cerr << "Failed to open output file: " << outputFile << std::endl;
+        }
     }
 }
 
@@ -118,7 +153,7 @@ int main(int argc, char* argv[]) {
     std::string mode = argv[1];
 
     if (mode == "debug") {
-        // Default debug parameters
+        // Domyślne parametry dla trybu debug
         int n = 400;
         int k = 8;
         int deltaK = 1;
@@ -154,7 +189,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        runGeneticAlgorithm(instance);
+        runGeneticAlgorithm(instance, "");
         Profiler::getInstance().saveReport("debug_profiling_report.csv");
         
     } else if (mode == "generate_instance") {
@@ -181,12 +216,14 @@ int main(int argc, char* argv[]) {
     } else if (mode == "test_instance") {
         std::string inputFile;
         std::string outputFile = "results.txt";
-        
+        int processId = 0; // Domyślna wartość
+
         for (int i = 2; i < argc; i += 2) {
             if (i + 1 >= argc) break;
             
             if (strcmp(argv[i], "-i") == 0) inputFile = argv[i+1];
             else if (strcmp(argv[i], "-o") == 0) outputFile = argv[i+1];
+            else if (strcmp(argv[i], "-pid") == 0) processId = std::stoi(argv[i+1]); // Nowy argument
         }
         
         if (inputFile.empty()) {
@@ -201,7 +238,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        runGeneticAlgorithm(instance, outputFile);
+        runGeneticAlgorithm(instance, outputFile, processId); // Przekazanie processId
         
     } else {
         std::cerr << "Unknown mode: " << mode << std::endl;
