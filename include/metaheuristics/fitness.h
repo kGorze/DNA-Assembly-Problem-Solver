@@ -84,13 +84,7 @@ private:
         Edge(int t, int w) : to(t), weight(w) {}
     };
     
-    struct PreprocessedEdge {
-        int to;
-        int weight;
-        bool exists;
-        PreprocessedEdge(int t = 0, int w = 0, bool e = false) 
-            : to(t), weight(w), exists(e) {}
-    };
+    
     
     struct PathAnalysis {
         int edgesWeight1;
@@ -115,13 +109,9 @@ private:
     // Usuwamy 'mutable std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix;'
     // bo powoduje problem we współbieżności i mamy teraz lokalną alokację w evaluate().
 
-    void initBuffers(size_t size) const;
-    std::string createCacheKey(const std::vector<std::string>& spectrum, int k) const;
     
-    // Główna funkcja budująca graf (z ewentualnym keszowaniem).
-    std::vector<std::vector<Edge>> buildSpectrumGraph(
-        const std::vector<std::string>& spectrum, 
-        int k) const;
+    std::string createCacheKey(const std::vector<std::string>& spectrum, int k) const;
+
     
     // Pomocnicza funkcja do ustalania wagi krawędzi
     int calculateEdgeWeight(
@@ -129,14 +119,31 @@ private:
         const std::string& to, 
         int k) const;
     
-    // Analiza ścieżki w grafie – zliczamy wagi i liczbę użyć węzłów
-    PathAnalysis analyzePath(const std::vector<int>& path,
-                             const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix) const;
+ 
     
     // Konwersja permutacji na "ścieżkę"
     const std::vector<int>& permutationToPath(std::shared_ptr<std::vector<int>> individual) const;
 
 public:
+
+        
+    // Główna funkcja budująca graf (z ewentualnym keszowaniem).
+    std::vector<std::vector<Edge>> buildSpectrumGraph(
+        const std::vector<std::string>& spectrum, 
+        int k) const;
+    
+    struct PreprocessedEdge {
+        int to;
+        int weight;
+        bool exists;
+        PreprocessedEdge(int t = 0, int w = 0, bool e = false) 
+            : to(t), weight(w), exists(e) {}
+    };
+    
+    // Analiza ścieżki w grafie – zliczamy wagi i liczbę użyć węzłów
+    PathAnalysis analyzePath(const std::vector<int>& path,
+                             const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix) const;
+    void initBuffers(size_t size) const;
     OptimizedGraphBasedFitness() = default;
     
     double evaluate(std::shared_ptr<std::vector<int>> individual,

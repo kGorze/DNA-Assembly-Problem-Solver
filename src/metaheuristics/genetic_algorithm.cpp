@@ -1,14 +1,12 @@
-//
-// Created by konrad_guest on 07/01/2025.
-// SMART
-
-
 #include "metaheuristics/genetic_algorithm.h"
 #include <iostream>
 #include <random>
 #include <chrono>
+#include <algorithm>
+#include <mutex>
 
 std::mutex GeneticAlgorithm::outputMutex;
+
 
 GeneticAlgorithm::GeneticAlgorithm(
     std::shared_ptr<IRepresentation> representation,
@@ -32,8 +30,6 @@ GeneticAlgorithm::GeneticAlgorithm(
 { }
 
 GeneticAlgorithm::~GeneticAlgorithm() {
-    // Shared pointers automatycznie zwolnią pamięć,
-    // więc nie ma potrzeby wywoływania `delete`.
     population.clear();
     m_globalBestInd.reset();
 }
@@ -61,19 +57,20 @@ void GeneticAlgorithm::logGenerationStats(
     
     avgFit /= pop.size();
     double progress = (generation * 100.0) / GAConfig::getInstance().getMaxGenerations();
-    double relativeBestFit = (m_theoreticalMaxFitness > 0) ? 
-        (bestFit / m_theoreticalMaxFitness) * 100.0 : 0.0;
+    double relativeBestFit = (m_theoreticalMaxFitness > 0) 
+        ? (bestFit / m_theoreticalMaxFitness) * 100.0
+        : 0.0;
 
-    // Format status with underscores instead of colons
     std::ostringstream status;
-    status << "Best" << "_" << std::fixed << std::setprecision(2) << relativeBestFit 
-           << "% Avg" << "_" << avgFit;
+    status << "Best_" << std::fixed << std::setprecision(2) << relativeBestFit
+           << "% Avg_" << avgFit;
 
-    // Synchronized output
     std::lock_guard<std::mutex> lock(outputMutex);
-    std::cout << "PROGRESS_UPDATE:" << m_processId << ":" 
-              << progress << ":" << status.str() << ":" 
-              << relativeBestFit << std::endl;
+    std::cout << "PROGRESS_UPDATE:" << m_processId << ":"
+              << progress << ":"
+              << status.str() << ":"
+              << relativeBestFit
+              << std::endl;
     std::cout.flush();
 }
 
@@ -99,90 +96,137 @@ void GeneticAlgorithm::updateGlobalBest(
 void GeneticAlgorithm::run(const DNAInstance &instance)
 {
     PROFILE_FUNCTION();
+
     population = m_representation->initializePopulation(GAConfig::getInstance().getPopulationSize(), instance);
     m_cache->updatePopulation(population, instance, m_fitness, m_representation);
 
     int generation = 0;
     int maxGenerations = GAConfig::getInstance().getMaxGenerations();
+
+    // Z góry obliczamy teoretyczne maksymalne fitness (np. w oparciu o założenia w OptimizedGraphBasedFitness)
+    calculateTheoreticalMaxFitness(instance);
+
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     std::vector<std::shared_ptr<std::vector<int>>> parents;
     
     while (!m_stopping->stop(population, generation, instance, m_fitness, m_representation)) {
         
-        // 1) Selection
         {
             PROFILE_SCOPE("selection");
             parents = m_selection->select(population, instance, m_fitness, m_representation);
         }
         
-        // 2) Crossover
         {
             PROFILE_SCOPE("crossover"); 
             offspring = m_crossover->crossover(parents, instance, m_representation);
         }
         
-        // 3) Mutation
         {
             PROFILE_SCOPE("mutation");
             m_mutation->mutate(offspring, instance, m_representation);
         }
         
-        // 4) Cache update
         {
             PROFILE_SCOPE("cache_update");
             m_cache->updatePopulation(offspring, instance, m_fitness, m_representation);
         }
         
-        // 5) Replacement
         {
             PROFILE_SCOPE("replacement");
             population = m_replacement->replace(population, offspring, instance, m_fitness, m_representation);
         }
 
-        // Update best fitness
+        // Szukamy najlepszego osobnika w tym pokoleniu:
         double currentBestFitness = -std::numeric_limits<double>::infinity();
-        {
-            for (auto& ind : population) {
-                double fitnessVal = m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation);
-                if (fitnessVal > currentBestFitness) {
-                    currentBestFitness = fitnessVal;
-                }
+        std::shared_ptr<std::vector<int>> bestInd = nullptr;
+        for (auto& ind : population) {
+            double fitVal = m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation);
+            if (fitVal > currentBestFitness) {
+                currentBestFitness = fitVal;
+                bestInd = ind;
             }
-            
+        }
+
+        // Jeśli nasz crossover jest adaptacyjny, przekazujemy info o feedbacku
+        {
             auto adaptiveCrossover = std::dynamic_pointer_cast<AdaptiveCrossover>(m_crossover);
             if (adaptiveCrossover) {
                 adaptiveCrossover->updateFeedback(currentBestFitness);
             }
         }
-        
+
+        // Aktualizacja globalBest co kilka pokoleń
         if (generation % 5 == 0) {
             PROFILE_SCOPE("best");
             updateGlobalBest(population, instance);
         }
-        
-        if (generation % 1 == 0) {
-            PROFILE_SCOPE("stats");
-            logGenerationStats(population, instance, generation);
+
+        // Możemy też zliczać statystyki w logGenerationStats co np. 10 pokoleń
+        // (już w oryginale), ale tutaj zrobimy callback w każdym pokoleniu.
+
+        // Obliczamy coverage i edgeScore dla najlepszego osobnika:
+        double coverageVal = 0.0;
+        double edgeScoreVal = 0.0;
+
+        // Sprawdzamy, czy nasz IFitness to OptimizedGraphBasedFitness
+        auto optFitness = std::dynamic_pointer_cast<OptimizedGraphBasedFitness>(m_fitness);
+        if (optFitness && bestInd) {
+            const auto& spectrum = instance.getSpectrum();
+            int k = instance.getK();
+            // Budujemy (lub z cache) graf
+            auto graph = optFitness->buildSpectrumGraph(spectrum, k);
+
+            // Tworzymy adjacencyMatrix
+            int n = (int)graph.size();
+            std::vector<std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>> adjacencyMatrix(
+                n, std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>(n)
+            );
+
+            for (int i = 0; i < n; i++) {
+                for (auto &edge : graph[i]) {
+                    adjacencyMatrix[i][edge.to] = { edge.to, edge.weight, true };
+                }
+            }
+
+            optFitness->initBuffers(spectrum.size());
+            auto analysis = optFitness->analyzePath(*bestInd, adjacencyMatrix);
+
+            // coverage = unikatowe węzły
+            coverageVal = analysis.uniqueNodesUsed;
+            // edgeScore (w oryginalnym Evaluate to alpha*(edgesWeight1 - 2*edgesWeight2or3) + beta*...) 
+            // Tutaj jedynie np. zsumujemy
+            // Możesz zmienić w zależności od tego, co chcesz wyświetlać:
+            edgeScoreVal = analysis.edgesWeight1 + analysis.edgesWeight2or3;
         }
-        
-        // Call progress callback with current status
+
+        // Wywołujemy callback:
         if (progressCallback) {
-            progressCallback(generation, maxGenerations, currentBestFitness);
+            progressCallback(generation,
+                             maxGenerations,
+                             currentBestFitness,
+                             coverageVal,
+                             edgeScoreVal,
+                             m_theoreticalMaxFitness);
         }
-        
+
         generation++;
     }
 
-    // Final update
+    // Po zakończeniu pętli stop:
     updateGlobalBest(population, instance);
     if (m_globalBestInd) {
         m_bestDNA = m_representation->decodeToDNA(m_globalBestInd, instance);
-        
-        // Send final progress update
+
+        // Jednorazowy callback na koniec (opcjonalnie):
         if (progressCallback) {
-            progressCallback(generation, maxGenerations, m_globalBestFit);
+            progressCallback(generation,
+                             maxGenerations,
+                             m_globalBestFit,
+                             0.0, // coverage
+                             0.0, // edgeScore
+                             m_theoreticalMaxFitness);
         }
-        
+
         std::cout << "[GA] End after generation " << generation 
                   << ", best-ever fitness = " << m_globalBestFit
                   << ", length of best DNA = " << m_bestDNA.size() << "\n"
@@ -193,21 +237,24 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
 void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instance) {
     const auto& spectrum = instance.getSpectrum();
     int k = instance.getK();
-    
+
     if (spectrum.empty() || k <= 0) {
         m_theoreticalMaxFitness = 0.0;
         return;
     }
 
     size_t n = spectrum.size();
-    double bestEdgeScore = (n - 1);  
-    double bestCoverageScore = n;  
-    
-    const double alpha = 0.7;  
-    const double beta = 0.3;   
-    
+
+    // Zakładamy, że "best edge score" to (n-1), a coverage to n
+    double bestEdgeScore = (n - 1);
+    double bestCoverageScore = n;
+
+    // Współczynniki domyślne w OptimizedGraphBasedFitness:
+    double alpha = 0.7; 
+    double beta = 0.3;  
+
     m_theoreticalMaxFitness = (alpha * bestEdgeScore) + (beta * bestCoverageScore);
-    
+
     std::cout << "[MaxFitness] Theoretical maximum calculated:\n"
               << "- Best edge score: " << bestEdgeScore << " (weight: " << alpha << ")\n"
               << "- Best coverage score: " << bestCoverageScore << " (weight: " << beta << ")\n"

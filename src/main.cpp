@@ -26,8 +26,12 @@
 #include "metaheuristics/adaptive_crossover.h"
 #include "benchmark/adaptive_crossover_benchmark.h"
 
-void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile = "", int processId = 0);
+void runGeneticAlgorithm(const DNAInstance& instance,
+                         const std::string& outputFile = "",
+                         int processId = 0,
+                         const std::string& difficulty = "Unknown");
 
+// Funkcja do wypisywania użycia
 void printUsage() {
     std::cout << "Usage: dna_reconstruction <mode> [options]\n\n"
               << "Modes:\n"
@@ -44,11 +48,19 @@ void printUsage() {
               << "Options for test_instance:\n"
               << "  -i <filename>     - Input instance file\n"
               << "  -o <filename>     - Output results file\n"
-              << "  -pid <value>      - Process ID (unique identifier)\n";
+              << "  -pid <value>      - Process ID (unique identifier)\n"
+              << "  -diff <string>    - Difficulty/test name (e.g. Easy, Medium, Hard)\n";
 }
 
-void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputFile, int processId) {
-    std::cerr << "Starting GA with processId: " << processId << std::endl;
+// Funkcja uruchamiająca algorytm genetyczny
+void runGeneticAlgorithm(const DNAInstance& instance,
+                         const std::string& outputFile,
+                         int processId,
+                         const std::string& difficulty)
+{
+    std::cerr << "Starting GA with processId: " << processId
+              << ", difficulty = " << difficulty << std::endl;
+
     auto& config = GAConfig::getInstance();
     config.setMutationRate(0.7);
     config.setMaxGenerations(100);
@@ -58,6 +70,7 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
     auto cache = std::make_shared<CachedPopulation>();
     config.setCache(cache);
     
+    // Tworzymy obiekt GA
     GeneticAlgorithm ga(
         config.getRepresentation(),
         config.getSelection(),
@@ -69,32 +82,50 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
         cache
     );
     
-    
     // Ustawienie callbacku do aktualizacji postępu
-    ga.setProgressCallback([processId](int generation, int maxGenerations, double bestFitness) {
-        // Format status message do przekazania
+    // (NOWA SYGNATURA: (generation, maxGen, bestFitness, coverage, edgeScore, theoreticalMax))
+    ga.setProgressCallback([processId](int generation,
+                                       int maxGenerations,
+                                       double bestFitness,
+                                       double coverage,
+                                       double edgeScore,
+                                       double theoreticalMax)
+    {
+        double progress = (double)generation / maxGenerations * 100.0;
+
+        // Zbudowanie krótkiego statusu
         std::ostringstream status;
-        status << std::fixed << std::setprecision(2) 
-               << "Gen " << generation << "/" << maxGenerations 
-               << " Fit: " << bestFitness;
-               
-        // Wypisanie komunikatu postępu
-        std::cout << "PROGRESS_UPDATE:" << processId << ":" 
-                  << ((double)generation / maxGenerations * 100.0) << ":" 
-                  << status.str() << ":" << bestFitness << std::endl;
+        status << "Gen " << generation << "/" << maxGenerations
+               << " Fit: " << bestFitness
+               << " Cov: " << coverage
+               << " Edge: " << edgeScore;
+
+        // Wypisanie komunikatu postępu z dodatkowymi polami
+        // Format: PROGRESS_UPDATE:PID:progress:status:bestFitness:coverage:edgeScore:theoreticalMax
+        std::cout << "PROGRESS_UPDATE:" << processId << ":"
+                  << progress << ":"
+                  << status.str() << ":"
+                  << bestFitness << ":"
+                  << coverage << ":"
+                  << edgeScore << ":"
+                  << theoreticalMax
+                  << std::endl;
         std::cout.flush();
     });
 
     // Ustawienie identyfikatora procesu
     ga.setProcessId(processId); 
-        
+    
+    // Uruchamiamy GA
     ga.run(instance);
     
+    // Odczytujemy najlepsze znalezione rozwiązanie i wyliczamy distance
     std::string reconstructedDNA = ga.getBestDNA();
     std::string originalDNA = instance.getDNA();
     
     int distance = levenshteinDistance(originalDNA, reconstructedDNA);
     
+    // Zapis do pliku lub wypis w stdout
     if (outputFile.empty()) {
         std::cout << "\nOriginal DNA (first 100 bases): " 
                   << originalDNA.substr(0, 100) << "...\n";
@@ -108,9 +139,9 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
             outFile << "Reconstructed DNA: " << reconstructedDNA << "\n";
             outFile << "Levenshtein distance: " << distance << "\n";
             outFile.close();
-            
+
             // Wypisanie finalnego statusu
-            std::cout << "PROGRESS_UPDATE:" << processId << ":100:Completed:0\n";
+            std::cout << "PROGRESS_UPDATE:" << processId << ":100:Completed:0:0:0:0\n";
             std::cout.flush();
         } else {
             std::cerr << "Failed to open output file: " << outputFile << std::endl;
@@ -118,7 +149,13 @@ void runGeneticAlgorithm(const DNAInstance& instance, const std::string& outputF
     }
 }
 
-bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::string& outputFile) {
+bool generateInstance(int n,
+                      int k,
+                      int deltaK,
+                      int lNeg,
+                      int lPoz,
+                      const std::string& outputFile)
+{
     DNAInstanceBuilder builder;
     builder.setN(n)
            .setK(k)
@@ -217,13 +254,15 @@ int main(int argc, char* argv[]) {
         std::string inputFile;
         std::string outputFile = "results.txt";
         int processId = 0; // Domyślna wartość
+        std::string difficulty = "Unknown"; // Nowe pole
 
         for (int i = 2; i < argc; i += 2) {
             if (i + 1 >= argc) break;
             
             if (strcmp(argv[i], "-i") == 0) inputFile = argv[i+1];
             else if (strcmp(argv[i], "-o") == 0) outputFile = argv[i+1];
-            else if (strcmp(argv[i], "-pid") == 0) processId = std::stoi(argv[i+1]); // Nowy argument
+            else if (strcmp(argv[i], "-pid") == 0) processId = std::stoi(argv[i+1]);
+            else if (strcmp(argv[i], "-diff") == 0) difficulty = argv[i+1]; // Nowy argument
         }
         
         if (inputFile.empty()) {
@@ -238,7 +277,15 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         
-        runGeneticAlgorithm(instance, outputFile, processId); // Przekazanie processId
+        // Komunikat o aktualnym teście:
+        std::cout << "CURRENT_TEST:" 
+                  << processId << ":" 
+                  << difficulty << ":" 
+                  << inputFile 
+                  << std::endl;
+
+        // Wywołanie GA
+        runGeneticAlgorithm(instance, outputFile, processId, difficulty);
         
     } else {
         std::cerr << "Unknown mode: " << mode << std::endl;
