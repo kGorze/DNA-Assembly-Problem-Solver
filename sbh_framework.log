@@ -1,0 +1,300 @@
+2025-01-22 22:18:16,099 - INFO - Determined use_ui: True
+2025-01-22 22:18:16,106 - INFO - Initializing SBH Testing Framework.
+2025-01-22 22:18:16,112 - INFO - Database initialized successfully.
+2025-01-22 22:18:16,113 - INFO - Using solver at path: build/optymalizacja_kombinatoryczna
+2025-01-22 22:18:16,115 - INFO - Validated solver path: build/optymalizacja_kombinatoryczna
+2025-01-22 22:18:16,115 - INFO - Running tests as per --test flag.
+2025-01-22 22:18:16,116 - INFO - Starting tests for solver version: v1.1
+2025-01-22 22:18:16,117 - INFO - Registering solver version 'v1.1' with description 'Updated interface'.
+2025-01-22 22:18:16,123 - INFO - Solver version 'v1.1' has version_id 3.
+2025-01-22 22:18:16,127 - INFO - Total test cases to run: 60
+2025-01-22 22:18:16,128 - INFO - Using 3 parallel processes out of 6 available CPU cores.
+2025-01-22 22:18:16,131 - INFO - Initialized UnifiedDisplayManager.
+2025-01-22 22:18:16,132 - INFO - Enhanced display_manager.add_output to include logging.
+2025-01-22 22:18:16,134 - INFO - Using 3 parallel processes out of 6 available CPU cores.
+2025-01-22 22:18:16,158 - INFO - Created multiprocessing.Queue for inter-process communication.
+2025-01-22 22:18:16,159 - INFO - Prepared list of tests to run.
+2025-01-22 22:18:16,162 - INFO - Started process 0 for test_id 1.
+2025-01-22 22:18:16,164 - INFO - Process 0: Starting solver for test_id 1.
+2025-01-22 22:18:16,164 - INFO - Started process 1 for test_id 2.
+2025-01-22 22:18:16,165 - INFO - Process 0: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/results.txt -pid 0
+2025-01-22 22:18:16,166 - INFO - Process 1: Starting solver for test_id 2.
+2025-01-22 22:18:16,167 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/results.txt -pid 1
+2025-01-22 22:18:16,167 - INFO - Started process 2 for test_id 3.
+2025-01-22 22:18:16,169 - INFO - Process 0: Solver started.
+2025-01-22 22:18:16,169 - INFO - Process 2: Starting solver for test_id 3.
+2025-01-22 22:18:16,170 - INFO - Started queue listener thread.
+2025-01-22 22:18:16,171 - INFO - Process 2: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/results.txt -pid 2
+2025-01-22 22:18:16,172 - INFO - Process 1: Solver started.
+2025-01-22 22:18:16,175 - INFO - Process 2: Solver started.
+2025-01-22 22:18:16,202 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt
+2025-01-22 22:18:16,203 - INFO - CURRENT_TEST:2:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt
+2025-01-22 22:18:16,204 - INFO - Starting GA with processId: 1, difficulty = Unknown
+2025-01-22 22:18:16,205 - INFO - Starting GA with processId: 2, difficulty = Unknown
+2025-01-22 22:18:16,207 - INFO - CURRENT_TEST:0:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt
+2025-01-22 22:18:16,207 - INFO - Starting GA with processId: 0, difficulty = Unknown
+2025-01-22 22:18:16,327 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:16,329 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:16,331 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:16,332 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:16,334 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:16,335 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:16,338 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:16,341 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:16,343 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:16,346 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:16,349 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:16,351 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:23,083 - INFO - [GA] End after generation 100, best-ever fitness = 100.6, length of best DNA = 375
+2025-01-22 22:18:23,085 - INFO - Process 1: Solver exited with code 0.
+2025-01-22 22:18:23,086 - INFO - Cache size: 9989
+2025-01-22 22:18:23,099 - INFO - Process 1: Results - dist=194
+2025-01-22 22:18:23,101 - INFO - Process 1: Execution time: 6934 ms.
+2025-01-22 22:18:23,103 - INFO - Process 1: Sent 'done' message to main process.
+2025-01-22 22:18:23,104 - INFO - Main process: 'done' from PID 1 test_id 2, dist=194, time=6934ms
+2025-01-22 22:18:23,168 - INFO - Saved results for test_id 2 to database.
+2025-01-22 22:18:23,169 - INFO - Test 2 (process 1) finished. dist=194
+2025-01-22 22:18:23,171 - INFO - Started new process 1 for test_id 4.
+2025-01-22 22:18:23,174 - INFO - Process 1: Starting solver for test_id 4.
+2025-01-22 22:18:23,176 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/results.txt -pid 1
+2025-01-22 22:18:23,183 - INFO - Process 1: Solver started.
+2025-01-22 22:18:23,186 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt
+2025-01-22 22:18:23,188 - INFO - Starting GA with processId: 1, difficulty = Unknown
+2025-01-22 22:18:23,230 - INFO - [GA] End after generation 100, best-ever fitness = 100.6, length of best DNA = 375
+2025-01-22 22:18:23,232 - INFO - Cache size: 9965
+2025-01-22 22:18:23,233 - INFO - Process 2: Solver exited with code 0.
+2025-01-22 22:18:23,243 - INFO - Process 2: Results - dist=201
+2025-01-22 22:18:23,245 - INFO - Process 2: Execution time: 7075 ms.
+2025-01-22 22:18:23,247 - INFO - Process 2: Sent 'done' message to main process.
+2025-01-22 22:18:23,247 - INFO - Main process: 'done' from PID 2 test_id 3, dist=201, time=7075ms
+2025-01-22 22:18:23,277 - INFO - Saved results for test_id 3 to database.
+2025-01-22 22:18:23,279 - INFO - Test 3 (process 2) finished. dist=201
+2025-01-22 22:18:23,282 - INFO - Started new process 2 for test_id 5.
+2025-01-22 22:18:23,285 - INFO - Process 2: Starting solver for test_id 5.
+2025-01-22 22:18:23,287 - INFO - Process 2: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/results.txt -pid 2
+2025-01-22 22:18:23,292 - INFO - Process 2: Solver started.
+2025-01-22 22:18:23,296 - INFO - CURRENT_TEST:2:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt
+2025-01-22 22:18:23,298 - INFO - Starting GA with processId: 2, difficulty = Unknown
+2025-01-22 22:18:23,344 - INFO - [GA] End after generation 100, best-ever fitness = 103.4, length of best DNA = 375
+2025-01-22 22:18:23,346 - INFO - Process 0: Solver exited with code 0.
+2025-01-22 22:18:23,346 - INFO - Cache size: 9989
+2025-01-22 22:18:23,357 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:23,358 - INFO - Process 0: Results - dist=197
+2025-01-22 22:18:23,359 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:23,360 - INFO - Process 0: Execution time: 7196 ms.
+2025-01-22 22:18:23,361 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:23,362 - INFO - Process 0: Sent 'done' message to main process.
+2025-01-22 22:18:23,362 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:23,367 - INFO - Main process: 'done' from PID 0 test_id 1, dist=197, time=7196ms
+2025-01-22 22:18:23,393 - INFO - Saved results for test_id 1 to database.
+2025-01-22 22:18:23,394 - INFO - Test 1 (process 0) finished. dist=197
+2025-01-22 22:18:23,397 - INFO - Started new process 0 for test_id 6.
+2025-01-22 22:18:23,399 - INFO - Process 0: Starting solver for test_id 6.
+2025-01-22 22:18:23,401 - INFO - Process 0: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/results.txt -pid 0
+2025-01-22 22:18:23,406 - INFO - Process 0: Solver started.
+2025-01-22 22:18:23,411 - INFO - CURRENT_TEST:0:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt
+2025-01-22 22:18:23,413 - INFO - Starting GA with processId: 0, difficulty = Unknown
+2025-01-22 22:18:23,438 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:23,441 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:23,443 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:23,444 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:23,542 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:23,545 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:23,548 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:23,551 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:33,146 - INFO - [GA] End after generation 100, best-ever fitness = 105.5, length of best DNA = 375
+2025-01-22 22:18:33,148 - INFO - Cache size: 9973
+2025-01-22 22:18:33,149 - INFO - Process 2: Solver exited with code 0.
+2025-01-22 22:18:33,160 - INFO - Process 2: Results - dist=208
+2025-01-22 22:18:33,163 - INFO - Process 2: Execution time: 9878 ms.
+2025-01-22 22:18:33,165 - INFO - Process 2: Sent 'done' message to main process.
+2025-01-22 22:18:33,165 - INFO - Main process: 'done' from PID 2 test_id 5, dist=208, time=9878ms
+2025-01-22 22:18:33,183 - INFO - Process 1: Solver exited with code 0.
+2025-01-22 22:18:33,191 - INFO - Process 1: Results - dist=200
+2025-01-22 22:18:33,193 - INFO - Process 1: Execution time: 10019 ms.
+2025-01-22 22:18:33,194 - INFO - Process 1: Sent 'done' message to main process.
+2025-01-22 22:18:33,226 - INFO - Saved results for test_id 5 to database.
+2025-01-22 22:18:33,227 - INFO - Test 5 (process 2) finished. dist=208
+2025-01-22 22:18:33,230 - INFO - Started new process 2 for test_id 7.
+2025-01-22 22:18:33,232 - INFO - Process 2: Starting solver for test_id 7.
+2025-01-22 22:18:33,233 - INFO - [GA] End after generation 100, best-ever fitness = 108.3, length of best DNA = 375
+2025-01-22 22:18:33,233 - INFO - Process 2: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/results.txt -pid 2
+2025-01-22 22:18:33,234 - INFO - Cache size: 9965
+2025-01-22 22:18:33,236 - INFO - Main process: 'done' from PID 1 test_id 4, dist=200, time=10019ms
+2025-01-22 22:18:33,238 - INFO - Process 2: Solver started.
+2025-01-22 22:18:33,266 - INFO - Saved results for test_id 4 to database.
+2025-01-22 22:18:33,267 - INFO - Test 4 (process 1) finished. dist=200
+2025-01-22 22:18:33,270 - INFO - Started new process 1 for test_id 8.
+2025-01-22 22:18:33,273 - INFO - CURRENT_TEST:2:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt
+2025-01-22 22:18:33,275 - INFO - Process 1: Starting solver for test_id 8.
+2025-01-22 22:18:33,276 - INFO - Starting GA with processId: 2, difficulty = Unknown
+2025-01-22 22:18:33,277 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/results.txt -pid 1
+2025-01-22 22:18:33,283 - INFO - Process 1: Solver started.
+2025-01-22 22:18:33,286 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_2/instance.txt
+2025-01-22 22:18:33,287 - INFO - Starting GA with processId: 1, difficulty = Unknown
+2025-01-22 22:18:33,314 - INFO - [GA] End after generation 100, best-ever fitness = 106.2, length of best DNA = 375
+2025-01-22 22:18:33,316 - INFO - Cache size: 9893
+2025-01-22 22:18:33,317 - INFO - Process 0: Solver exited with code 0.
+2025-01-22 22:18:33,326 - INFO - Process 0: Results - dist=200
+2025-01-22 22:18:33,328 - INFO - Process 0: Execution time: 9929 ms.
+2025-01-22 22:18:33,330 - INFO - Main process: 'done' from PID 0 test_id 6, dist=200, time=9929ms
+2025-01-22 22:18:33,330 - INFO - Process 0: Sent 'done' message to main process.
+2025-01-22 22:18:33,359 - INFO - Saved results for test_id 6 to database.
+2025-01-22 22:18:33,361 - INFO - Test 6 (process 0) finished. dist=200
+2025-01-22 22:18:33,363 - INFO - Started new process 0 for test_id 9.
+2025-01-22 22:18:33,366 - INFO - Process 0: Starting solver for test_id 9.
+2025-01-22 22:18:33,368 - INFO - Process 0: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/results.txt -pid 0
+2025-01-22 22:18:33,373 - INFO - Process 0: Solver started.
+2025-01-22 22:18:33,376 - INFO - CURRENT_TEST:0:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt
+2025-01-22 22:18:33,377 - INFO - Starting GA with processId: 0, difficulty = Unknown
+2025-01-22 22:18:33,393 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:33,395 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:33,396 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:33,399 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:33,421 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:33,424 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:33,425 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:33,427 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:33,520 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:33,522 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:33,524 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:33,526 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:40,202 - INFO - [GA] End after generation 100, best-ever fitness = 95.7, length of best DNA = 375
+2025-01-22 22:18:40,204 - INFO - Process 1: Solver exited with code 0.
+2025-01-22 22:18:40,204 - INFO - Cache size: 8004
+2025-01-22 22:18:40,216 - INFO - Process 1: Results - dist=200
+2025-01-22 22:18:40,219 - INFO - Process 1: Execution time: 6943 ms.
+2025-01-22 22:18:40,220 - INFO - Process 1: Sent 'done' message to main process.
+2025-01-22 22:18:40,220 - INFO - Main process: 'done' from PID 1 test_id 8, dist=200, time=6943ms
+2025-01-22 22:18:40,279 - INFO - Saved results for test_id 8 to database.
+2025-01-22 22:18:40,280 - INFO - Test 8 (process 1) finished. dist=200
+2025-01-22 22:18:40,283 - INFO - Started new process 1 for test_id 10.
+2025-01-22 22:18:40,286 - INFO - Process 1: Starting solver for test_id 10.
+2025-01-22 22:18:40,287 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/results.txt -pid 1
+2025-01-22 22:18:40,293 - INFO - Process 1: Solver started.
+2025-01-22 22:18:40,295 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt
+2025-01-22 22:18:40,297 - INFO - Starting GA with processId: 1, difficulty = Unknown
+2025-01-22 22:18:40,341 - INFO - [GA] End after generation 100, best-ever fitness = 104.1, length of best DNA = 375
+2025-01-22 22:18:40,342 - INFO - Process 0: Solver exited with code 0.
+2025-01-22 22:18:40,343 - INFO - Cache size: 9871
+2025-01-22 22:18:40,352 - INFO - Process 0: Results - dist=210
+2025-01-22 22:18:40,354 - INFO - Process 0: Execution time: 6988 ms.
+2025-01-22 22:18:40,356 - INFO - Process 0: Sent 'done' message to main process.
+2025-01-22 22:18:40,356 - INFO - Main process: 'done' from PID 0 test_id 9, dist=210, time=6988ms
+2025-01-22 22:18:40,384 - INFO - Saved results for test_id 9 to database.
+2025-01-22 22:18:40,386 - INFO - Test 9 (process 0) finished. dist=210
+2025-01-22 22:18:40,388 - INFO - Started new process 0 for test_id 11.
+2025-01-22 22:18:40,391 - INFO - Process 0: Starting solver for test_id 11.
+2025-01-22 22:18:40,393 - INFO - Process 0: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/results.txt -pid 0
+2025-01-22 22:18:40,398 - INFO - Process 0: Solver started.
+2025-01-22 22:18:40,400 - INFO - CURRENT_TEST:0:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt
+2025-01-22 22:18:40,402 - INFO - Starting GA with processId: 0, difficulty = Unknown
+2025-01-22 22:18:40,437 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:40,439 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:40,441 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:40,444 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:40,536 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:40,539 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:40,541 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:40,542 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:40,584 - INFO - [GA] End after generation 100, best-ever fitness = 102, length of best DNA = 375
+2025-01-22 22:18:40,586 - INFO - Cache size: 9962
+2025-01-22 22:18:40,586 - INFO - Process 2: Solver exited with code 0.
+2025-01-22 22:18:40,596 - INFO - Process 2: Results - dist=205
+2025-01-22 22:18:40,598 - INFO - Process 2: Execution time: 7365 ms.
+2025-01-22 22:18:40,599 - INFO - Process 2: Sent 'done' message to main process.
+2025-01-22 22:18:40,599 - INFO - Main process: 'done' from PID 2 test_id 7, dist=205, time=7365ms
+2025-01-22 22:18:40,649 - INFO - Saved results for test_id 7 to database.
+2025-01-22 22:18:40,651 - INFO - Test 7 (process 2) finished. dist=205
+2025-01-22 22:18:40,653 - INFO - Started new process 2 for test_id 12.
+2025-01-22 22:18:40,656 - INFO - Process 2: Starting solver for test_id 12.
+2025-01-22 22:18:40,657 - INFO - Process 2: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/results.txt -pid 2
+2025-01-22 22:18:40,662 - INFO - Process 2: Solver started.
+2025-01-22 22:18:40,665 - INFO - CURRENT_TEST:2:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_3/instance.txt
+2025-01-22 22:18:40,666 - INFO - Starting GA with processId: 2, difficulty = Unknown
+2025-01-22 22:18:40,816 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:40,819 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:40,821 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:40,823 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:48,089 - INFO - [GA] End after generation 100, best-ever fitness = 100.6, length of best DNA = 375
+2025-01-22 22:18:48,091 - INFO - Cache size: 8006
+2025-01-22 22:18:48,091 - INFO - Process 0: Solver exited with code 0.
+2025-01-22 22:18:48,105 - INFO - Process 0: Results - dist=196
+2025-01-22 22:18:48,108 - INFO - Process 0: Execution time: 7716 ms.
+2025-01-22 22:18:48,110 - INFO - Process 0: Sent 'done' message to main process.
+2025-01-22 22:18:48,110 - INFO - Main process: 'done' from PID 0 test_id 11, dist=196, time=7716ms
+2025-01-22 22:18:48,165 - INFO - Saved results for test_id 11 to database.
+2025-01-22 22:18:48,166 - INFO - Test 11 (process 0) finished. dist=196
+2025-01-22 22:18:48,169 - INFO - Started new process 0 for test_id 13.
+2025-01-22 22:18:48,172 - INFO - Process 0: Starting solver for test_id 13.
+2025-01-22 22:18:48,173 - INFO - Process 0: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/results.txt -pid 0
+2025-01-22 22:18:48,178 - INFO - Process 0: Solver started.
+2025-01-22 22:18:48,181 - INFO - CURRENT_TEST:0:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt
+2025-01-22 22:18:48,183 - INFO - Starting GA with processId: 0, difficulty = Unknown
+2025-01-22 22:18:48,319 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:48,322 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:48,324 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:48,326 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:48,444 - INFO - [GA] End after generation 100, best-ever fitness = 104.8, length of best DNA = 375
+2025-01-22 22:18:48,445 - INFO - Cache size: 9922
+2025-01-22 22:18:48,446 - INFO - Process 1: Solver exited with code 0.
+2025-01-22 22:18:48,455 - INFO - Process 1: Results - dist=203
+2025-01-22 22:18:48,457 - INFO - Process 1: Execution time: 8171 ms.
+2025-01-22 22:18:48,459 - INFO - Process 1: Sent 'done' message to main process.
+2025-01-22 22:18:48,459 - INFO - Main process: 'done' from PID 1 test_id 10, dist=203, time=8171ms
+2025-01-22 22:18:48,485 - INFO - Saved results for test_id 10 to database.
+2025-01-22 22:18:48,487 - INFO - Test 10 (process 1) finished. dist=203
+2025-01-22 22:18:48,490 - INFO - Started new process 1 for test_id 14.
+2025-01-22 22:18:48,493 - INFO - Process 1: Starting solver for test_id 14.
+2025-01-22 22:18:48,495 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/results.txt -pid 1
+2025-01-22 22:18:48,500 - INFO - Process 1: Solver started.
+2025-01-22 22:18:48,502 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt
+2025-01-22 22:18:48,504 - INFO - Starting GA with processId: 1, difficulty = Unknown
+2025-01-22 22:18:48,640 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:48,642 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:48,644 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:48,647 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:48,930 - INFO - [GA] End after generation 100, best-ever fitness = 103.4, length of best DNA = 375
+2025-01-22 22:18:48,932 - INFO - Process 2: Solver exited with code 0.
+2025-01-22 22:18:48,932 - INFO - Cache size: 9934
+2025-01-22 22:18:48,943 - INFO - Process 2: Results - dist=196
+2025-01-22 22:18:48,945 - INFO - Process 2: Execution time: 8288 ms.
+2025-01-22 22:18:48,946 - INFO - Process 2: Sent 'done' message to main process.
+2025-01-22 22:18:48,946 - INFO - Main process: 'done' from PID 2 test_id 12, dist=196, time=8288ms
+2025-01-22 22:18:49,011 - INFO - Saved results for test_id 12 to database.
+2025-01-22 22:18:49,012 - INFO - Test 12 (process 2) finished. dist=196
+2025-01-22 22:18:49,015 - INFO - Started new process 2 for test_id 15.
+2025-01-22 22:18:49,017 - INFO - Process 2: Starting solver for test_id 15.
+2025-01-22 22:18:49,019 - INFO - Process 2: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/results.txt -pid 2
+2025-01-22 22:18:49,027 - INFO - Process 2: Solver started.
+2025-01-22 22:18:49,030 - INFO - CURRENT_TEST:2:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt
+2025-01-22 22:18:49,031 - INFO - Starting GA with processId: 2, difficulty = Unknown
+2025-01-22 22:18:49,160 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-22 22:18:49,162 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-22 22:18:49,164 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-22 22:18:49,165 - INFO - - Total theoretical maximum: 367.3
+2025-01-22 22:18:56,656 - INFO - [GA] End after generation 100, best-ever fitness = 102, length of best DNA = 375
+2025-01-22 22:18:56,659 - INFO - Process 0: Solver exited with code 0.
+2025-01-22 22:18:56,661 - INFO - Cache size: 9874
+2025-01-22 22:18:56,865 - INFO - Process 0: Results - dist=205
+2025-01-22 22:18:56,870 - INFO - Process 0: Execution time: 8697 ms.
+2025-01-22 22:18:56,871 - INFO - Process 0: Sent 'done' message to main process.
+2025-01-22 22:18:56,873 - INFO - Main process: 'done' from PID 0 test_id 13, dist=205, time=8697ms
+2025-01-22 22:18:56,972 - INFO - Saved results for test_id 13 to database.
+2025-01-22 22:18:56,973 - INFO - Test 13 (process 0) finished. dist=205
+2025-01-22 22:18:56,976 - INFO - Started new process 0 for test_id 16.
+2025-01-22 22:18:56,979 - INFO - Process 0: Starting solver for test_id 16.
+2025-01-22 22:18:56,981 - INFO - Process 0: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/results.txt -pid 0
+2025-01-22 22:18:57,003 - INFO - Process 0: Solver started.
+2025-01-22 22:18:57,009 - INFO - CURRENT_TEST:0:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_4/instance.txt
+2025-01-22 22:18:57,019 - INFO - Starting GA with processId: 0, difficulty = Unknown
+2025-01-22 22:18:57,135 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,135 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,135 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,136 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,293 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,293 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,293 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,293 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,528 - INFO - Received signal 2. Initiating cleanup.
+2025-01-22 22:18:57,540 - INFO - Queue listener has finished processing all tests.
