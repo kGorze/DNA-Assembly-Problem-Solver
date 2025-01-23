@@ -10398,3 +10398,41 @@ _curses.error: curses function returned NULL
 2025-01-23 11:57:28,926 - INFO - - Best coverage score: 368 (weight: 0.3)
 2025-01-23 11:57:28,929 - INFO - - Total theoretical maximum: 367.3
 2025-01-23 11:57:28,929 - INFO - - Total theoretical maximum: 367.3
+2025-01-23 11:59:12,721 - INFO - [GA] End after generation 453, best-ever fitness = 167.10, length of best DNA = 375
+2025-01-23 11:59:12,723 - INFO - Process 1: Solver exited with code 0.
+2025-01-23 11:59:12,721 - INFO - [GA] End after generation 453, best-ever fitness = 167.10, length of best DNA = 375
+2025-01-23 11:59:12,723 - INFO - Process 1: Solver exited with code 0.
+2025-01-23 11:59:12,736 - INFO - Cache size: 8931
+2025-01-23 11:59:12,736 - INFO - Cache size: 8931
+2025-01-23 11:59:12,755 - INFO - Process 1: Results - dist=199
+2025-01-23 11:59:12,755 - INFO - Process 1: Results - dist=199
+2025-01-23 11:59:12,761 - INFO - Process 1: Execution time: 104183 ms.
+2025-01-23 11:59:12,761 - INFO - Process 1: Execution time: 104183 ms.
+2025-01-23 11:59:12,764 - INFO - Process 1: Sent 'done' message to main process.
+2025-01-23 11:59:12,764 - INFO - Main process: 'done' from PID 1 test_id 2, dist=199, time=104183ms
+2025-01-23 11:59:12,764 - INFO - Process 1: Sent 'done' message to main process.
+2025-01-23 11:59:12,764 - INFO - Main process: 'done' from PID 1 test_id 2, dist=199, time=104183ms
+2025-01-23 11:59:12,817 - INFO - Saved results for test_id 2 to database.
+2025-01-23 11:59:12,817 - INFO - Saved results for test_id 2 to database.
+2025-01-23 11:59:12,818 - INFO - Test 2 (process 1) finished. dist=199
+2025-01-23 11:59:12,818 - INFO - Test 2 (process 1) finished. dist=199
+2025-01-23 11:59:12,823 - INFO - Started new process 1 for test_id 3.
+2025-01-23 11:59:12,826 - INFO - Process 1: Starting solver for test_id 3.
+2025-01-23 11:59:12,823 - INFO - Started new process 1 for test_id 3.
+2025-01-23 11:59:12,826 - INFO - Process 1: Starting solver for test_id 3.
+2025-01-23 11:59:12,831 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/results.txt -pid 1
+2025-01-23 11:59:12,831 - INFO - Process 1: Executing command: build/optymalizacja_kombinatoryczna test_instance -i /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt -o /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/results.txt -pid 1
+2025-01-23 11:59:12,840 - INFO - Process 1: Solver started.
+2025-01-23 11:59:12,840 - INFO - Process 1: Solver started.
+2025-01-23 11:59:12,843 - INFO - [GAConfig] Ładowanie pliku konfiguracyjnego z: ./build/config.cfg
+2025-01-23 11:59:12,843 - INFO - [GAConfig] Ładowanie pliku konfiguracyjnego z: ./build/config.cfg
+2025-01-23 11:59:12,852 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt
+2025-01-23 11:59:12,852 - INFO - CURRENT_TEST:1:Unknown:/mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/test_cases/easy/test_1/instance.txt
+2025-01-23 11:59:13,205 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-23 11:59:13,205 - INFO - [MaxFitness] Theoretical maximum calculated:
+2025-01-23 11:59:13,207 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-23 11:59:13,207 - INFO - - Best edge score: 367 (weight: 0.7)
+2025-01-23 11:59:13,211 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-23 11:59:13,211 - INFO - - Best coverage score: 368 (weight: 0.3)
+2025-01-23 11:59:13,214 - INFO - - Total theoretical maximum: 367.3
+2025-01-23 11:59:13,214 - INFO - - Total theoretical maximum: 367.3
