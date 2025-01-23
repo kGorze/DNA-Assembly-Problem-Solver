@@ -58,7 +58,19 @@ public:
               std::shared_ptr<IRepresentation> representation) override;
 };
 
-
+class DistancePreservingCrossover : public ICrossover {
+public:
+    std::vector<std::shared_ptr<std::vector<int>>> 
+    crossover(const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+              const DNAInstance &instance,
+              std::shared_ptr<IRepresentation> representation) override;
+private:
+    struct DistanceMatrix {
+        std::vector<int> distances; // Zmienione z std::vector<std::vector<int>>
+        explicit DistanceMatrix(const std::vector<int>& perm);
+        int getDistance(int from, int to) const;
+    };
+};
 
 
 #endif //CROSSOVER_H

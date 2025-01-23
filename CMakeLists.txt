@@ -38,7 +38,8 @@ add_executable(${PROJECT_NAME}
         include/metaheuristics/adaptive_crossover.h
         src/metaheuristics/adaptive_crossover.cpp
         include/benchmark/adaptive_crossover_benchmark.h
-        src/benchmark/adaptive_crossover_benchmark.cpp)
+        src/benchmark/adaptive_crossover_benchmark.cpp
+)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 

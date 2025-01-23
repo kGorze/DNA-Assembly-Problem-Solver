@@ -377,3 +377,115 @@ PMXCrossover::crossover(
 
     return offspring;
 }
+
+DistancePreservingCrossover::DistanceMatrix::DistanceMatrix(const std::vector<int>& perm) {
+    int size = perm.size();
+    // Zamiast przechowywać pełną macierz, przechowujemy tylko pozycje elementów
+    distances.resize(size);
+    for (int i = 0; i < size; i++) {
+        distances[perm[i]] = i;
+    }
+}
+
+int DistancePreservingCrossover::DistanceMatrix::getDistance(int from, int to) const {
+    int fromPos = distances[from];
+    int toPos = distances[to];
+    int size = distances.size();
+    
+    // Oblicz najkrótszą odległość w cyklu
+    int dist = (toPos - fromPos + size) % size;
+    int revDist = (fromPos - toPos + size) % size;
+    return std::min(dist, revDist);
+}
+
+std::vector<std::shared_ptr<std::vector<int>>> 
+DistancePreservingCrossover::crossover(
+    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation)
+{
+    std::vector<std::shared_ptr<std::vector<int>>> offspring;
+    offspring.reserve(parents.size());
+
+    int requiredSize = (int)instance.getSpectrum().size();
+
+    std::mt19937 gen(std::random_device{}());
+    std::vector<bool> used(requiredSize);
+    std::vector<std::pair<int, double>> candidates;
+    candidates.reserve(requiredSize);
+
+    for (size_t i = 0; i + 1 < parents.size(); i += 2) {
+        auto p1 = parents[i];
+        auto p2 = parents[i + 1];
+        if (!p1 || !p2) continue;
+
+        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
+            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
+            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+            continue;
+        }
+
+        // Tworzymy macierze odległości dla obu rodziców - teraz O(n) zamiast O(n^2)
+        DistanceMatrix dm1(*p1);
+        DistanceMatrix dm2(*p2);
+
+        // Tworzymy potomka
+        auto child = std::make_shared<std::vector<int>>(requiredSize);
+        std::fill(used.begin(), used.end(), false);
+
+        // Wybierz pierwszy element
+        (*child)[0] = (*p1)[0];
+        used[(*child)[0]] = true;
+
+        // Zoptymalizowana pętla główna
+        for (int pos = 1; pos < requiredSize; pos++) {
+            double bestScore = std::numeric_limits<double>::infinity();
+            int bestCandidate = -1;
+            
+            // Zamiast sprawdzać wszystkie możliwe kombinacje, weźmiemy próbkę
+            int sampleSize = std::min(10, requiredSize - pos); // Sprawdzamy max 10 kandydatów
+            std::vector<int> unusedIndices;
+            for (int j = 0; j < requiredSize; j++) {
+                if (!used[j]) {
+                    unusedIndices.push_back(j);
+                }
+            }
+            std::shuffle(unusedIndices.begin(), unusedIndices.end(), gen);
+            
+            // Sprawdź tylko wybraną próbkę kandydatów
+            for (int idx = 0; idx < sampleSize && idx < (int)unusedIndices.size(); idx++) {
+                int j = unusedIndices[idx];
+                double score = 0.0;
+                
+                // Sprawdź tylko względem kilku ostatnich umieszczonych elementów
+                int checkBack = std::min(5, pos); // Sprawdzamy max 5 poprzednich elementów
+                for (int k = pos - checkBack; k < pos; k++) {
+                    int placedElement = (*child)[k];
+                    score += std::abs(dm1.getDistance(placedElement, j) - (pos - k)) +
+                            std::abs(dm2.getDistance(placedElement, j) - (pos - k));
+                }
+                
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestCandidate = j;
+                }
+            }
+            
+            (*child)[pos] = bestCandidate;
+            used[bestCandidate] = true;
+        }
+
+        if (isValidPermutation(*child, requiredSize)) {
+            offspring.push_back(child);
+            
+            auto child2 = std::make_shared<std::vector<int>>(*child);
+            std::reverse(child2->begin(), child2->end());
+            offspring.push_back(child2);
+        } else {
+            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
+            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+        }
+    }
+
+    return offspring;
+}
