@@ -23,6 +23,13 @@
 #include "naive/naive_reconstruction.h"
 #include "metaheuristics/adaptive_crossover.h"
 
+void runGeneticAlgorithm(const DNAInstance& instance,
+                         const std::string& outputFile = "",
+                         int processId = 0,
+                         const std::string& difficulty = "Unknown");
+
+double runGeneticAlgorithmWrapper(const DNAInstance& instance);
+
 
 // Definicja typu funkcji-callbacku
 // Teraz z dodatkowymi parametrami coverage, edgeScore, theoreticalMax
@@ -64,6 +71,10 @@ private:
     void updateGlobalBest(const std::vector<std::shared_ptr<std::vector<int>>> &pop,
                           const DNAInstance &instance);
     void calculateTheoreticalMaxFitness(const DNAInstance &instance);
+
+    double getGlobalBestFitness() const {
+        return m_globalBestFit;
+    }
 
 private:
     static std::mutex outputMutex;

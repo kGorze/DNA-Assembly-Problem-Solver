@@ -10436,3 +10436,19 @@ _curses.error: curses function returned NULL
 2025-01-23 11:59:13,211 - INFO - - Best coverage score: 368 (weight: 0.3)
 2025-01-23 11:59:13,214 - INFO - - Total theoretical maximum: 367.3
 2025-01-23 11:59:13,214 - INFO - - Total theoretical maximum: 367.3
+2025-01-23 15:48:54,803 - INFO - Determined use_ui: True
+2025-01-23 15:48:54,803 - INFO - Determined use_ui: True
+2025-01-23 15:48:54,808 - INFO - Initializing SBH Testing Framework.
+2025-01-23 15:48:54,808 - INFO - Initializing SBH Testing Framework.
+2025-01-23 15:48:54,832 - INFO - Database initialized successfully.
+2025-01-23 15:48:54,832 - INFO - Database initialized successfully.
+2025-01-23 15:48:54,833 - INFO - Using solver at path: /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/optymalizacja_kombinatoryczna
+2025-01-23 15:48:54,833 - INFO - Using solver at path: /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/optymalizacja_kombinatoryczna
+2025-01-23 15:48:54,835 - INFO - Validated solver path: /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/optymalizacja_kombinatoryczna
+2025-01-23 15:48:54,835 - INFO - Validated solver path: /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/build/optymalizacja_kombinatoryczna
+2025-01-23 15:48:54,836 - INFO - Displaying solver rankings as per --rankings flag.
+2025-01-23 15:48:54,836 - INFO - Displaying solver rankings as per --rankings flag.
+2025-01-23 15:48:54,837 - INFO - Displaying solver rankings.
+2025-01-23 15:48:54,837 - INFO - Displaying solver rankings.
+2025-01-23 15:48:54,916 - INFO - Displayed solver rankings successfully.
+2025-01-23 15:48:54,916 - INFO - Displayed solver rankings successfully.

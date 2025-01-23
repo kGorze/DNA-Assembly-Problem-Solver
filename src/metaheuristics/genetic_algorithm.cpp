@@ -1,4 +1,5 @@
 #include "metaheuristics/genetic_algorithm.h"
+#include "configuration/genetic_algorithm_configuration.h" // żeby mieć dostęp do GAConfig
 #include <iostream>
 #include <random>
 #include <chrono>
@@ -95,6 +96,7 @@ void GeneticAlgorithm::updateGlobalBest(
 
 void GeneticAlgorithm::run(const DNAInstance &instance)
 {
+    auto& config = GAConfig::getInstance();
     PROFILE_FUNCTION();
 
     population = m_representation->initializePopulation(GAConfig::getInstance().getPopulationSize(), instance);
@@ -216,6 +218,7 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
     updateGlobalBest(population, instance);
     if (m_globalBestInd) {
         m_bestDNA = m_representation->decodeToDNA(m_globalBestInd, instance);
+        config.setGlobalBestFitness(m_globalBestFit); // Aktualizacja GAConfig
 
         // Jednorazowy callback na koniec (opcjonalnie):
         if (progressCallback) {
@@ -259,4 +262,104 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instanc
               << "- Best edge score: " << bestEdgeScore << " (weight: " << alpha << ")\n"
               << "- Best coverage score: " << bestCoverageScore << " (weight: " << beta << ")\n"
               << "- Total theoretical maximum: " << m_theoreticalMaxFitness << "\n";
+}
+
+/**
+ * Funkcja uruchamiająca cały Algorytm Genetyczny (wykorzystywana przez
+ * różne tryby, w tym tuning). Jest wywoływana w lambdach `evaluateFunc`.
+ */
+void runGeneticAlgorithm(const DNAInstance& instance,
+                         const std::string& outputFile ,
+                         int processId ,
+                         const std::string& difficulty )
+{
+    // Wyciągamy singleton GAConfig (już wczytany z pliku przez main)
+    auto& config = GAConfig::getInstance();
+
+    // Ustawiamy cache, jeśli chcemy
+    auto cache = std::make_shared<CachedPopulation>();
+    config.setCache(cache);
+
+    // Tworzymy obiekt GA
+    GeneticAlgorithm ga(
+        config.getRepresentation(),
+        config.getSelection(),
+        config.getCrossover(config.crossoverType),
+        config.getMutation(),
+        config.getReplacement(),
+        config.getFitness(),
+        config.getStopping(),
+        cache
+    );
+
+    // Ustawienie callbacku do aktualizacji postępu (opcjonalne)
+    ga.setProgressCallback([processId](int generation,
+                                       int maxGenerations,
+                                       double bestFitness,
+                                       double coverage,
+                                       double edgeScore,
+                                       double theoreticalMax)
+    {
+        double progress = (static_cast<double>(generation) / maxGenerations) * 100.0;
+        std::ostringstream status;
+        status << "Gen " << generation << "/" << maxGenerations
+               << " Fit: " << bestFitness
+               << " Cov: " << coverage
+               << " Edge: " << edgeScore;
+
+        // Format: PROGRESS_UPDATE:PID:progress:status:bestFitness:coverage:edgeScore:theoreticalMax
+        std::cout << "PROGRESS_UPDATE:" << processId << ":"
+                  << std::fixed << std::setprecision(2) << progress << ":"
+                  << status.str() << ":"
+                  << bestFitness << ":"
+                  << coverage << ":"
+                  << edgeScore << ":"
+                  << theoreticalMax
+                  << std::endl;
+        std::cout.flush();
+    });
+
+    // Identyfikator procesu
+    ga.setProcessId(processId);
+
+    // Uruchamiamy GA
+    ga.run(instance);
+
+    // Odczytujemy najlepsze znalezione rozwiązanie
+    std::string reconstructedDNA = ga.getBestDNA();
+    std::string originalDNA = instance.getDNA();
+
+    int distance = levenshteinDistance(originalDNA, reconstructedDNA);
+
+    // Zapis do pliku lub wypis w stdout
+    if (outputFile.empty()) {
+        std::cout << "\nOriginal DNA (first 100 bases): "
+                  << originalDNA.substr(0, 100) << "...\n";
+        std::cout << "Reconstructed DNA (first 100 bases): "
+                  << reconstructedDNA.substr(0, 100) << "...\n";
+        std::cout << "Levenshtein distance: " << distance << "\n";
+    } else {
+        std::ofstream outFile(outputFile);
+        if (outFile.is_open()) {
+            outFile << "Original DNA: " << originalDNA << "\n";
+            outFile << "Reconstructed DNA: " << reconstructedDNA << "\n";
+            outFile << "Levenshtein distance: " << distance << "\n";
+            outFile.close();
+
+            // Wypisanie finalnego statusu
+            std::cout << "PROGRESS_UPDATE:" << processId << ":100:Completed:0:0:0:0\n";
+            std::cout.flush();
+        } else {
+            std::cerr << "Failed to open output file: " << outputFile << std::endl;
+        }
+    }
+}
+
+
+double runGeneticAlgorithmWrapper(const DNAInstance& instance)
+{
+    runGeneticAlgorithm(instance); // Call original function
+    
+    // Get fitness from global config or GA instance
+    return GAConfig::getInstance().getGlobalBestFitness();
 }

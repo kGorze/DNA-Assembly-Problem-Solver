@@ -39,6 +39,14 @@ add_executable(${PROJECT_NAME}
         src/metaheuristics/adaptive_crossover.cpp
         include/benchmark/adaptive_crossover_benchmark.h
         src/benchmark/adaptive_crossover_benchmark.cpp
+        src/tuning/tuning_structures.cpp
+        include/tuning/tuning_structures.h
+        include/tuning/parameters_parser.h
+        include/tuning/racing.h
+        include/tuning/meta_ea.h
+        include/tuning/parameter_tuning_manager.h
+        src/tuning/parameter_tuning_manager.cpp
+        src/tuning/parameter_parser.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)

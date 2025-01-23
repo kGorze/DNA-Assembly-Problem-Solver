@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "generator/dna_generator.h"
+#include "utils/utility_functions.h"
 
 /**
  * Enum z trzema metodami naiwnej rekonstrukcji.

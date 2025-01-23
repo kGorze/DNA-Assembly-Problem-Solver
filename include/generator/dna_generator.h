@@ -32,6 +32,9 @@ private:
     std::vector<std::string> spectrum;
 
 public:
+    std::vector<double> genes;  // Keep the existing implementation
+
+    
     // get/set
     void setDNA(const std::string &d) { dna = d; }
     std::string getDNA() const { return dna; }

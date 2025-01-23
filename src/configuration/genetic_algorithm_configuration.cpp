@@ -40,6 +40,10 @@ GAConfig::GAConfig()
     fitnessType = "optimized_graph";
     alpha = 0.7;
     beta  = 0.3;
+
+    // Najlepszy fitness domyślnie -∞
+
+    m_globalBestFit = -std::numeric_limits<double>::infinity();
 }
 
 GAConfig& GAConfig::getInstance()
@@ -54,6 +58,24 @@ void GAConfig::setReplacementRatio(double ratio) {
     if (ratio > 1.0) ratio = 1.0;
     replacementRatio = ratio;
 }
+
+
+// ---- IMPLEMENTACJA GET/SET GlobalBestFitness ----
+
+double GAConfig::getGlobalBestFitness() const {
+
+    return m_globalBestFit;
+
+}
+
+
+
+void GAConfig::setGlobalBestFitness(double fitness) {
+
+    m_globalBestFit = fitness;
+
+}
+
 
 /*
     Prosty parser pliku konfiguracyjnego w formacie:
@@ -305,3 +327,4 @@ std::shared_ptr<IStopping> GAConfig::getStopping() const
     // Domyślnie:
     return std::make_shared<MaxGenerationsStopping>(maxGenerations);
 }
+
