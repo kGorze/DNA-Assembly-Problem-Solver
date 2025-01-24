@@ -8,6 +8,9 @@ class DNAInstance {
 public:
     DNAInstance() = default;
     
+    DNAInstance(const std::string& originalDNA, int kValue)
+        : m_originalDNA(originalDNA), k(kValue) {}
+    
     // Getters for instance parameters
     int getN() const { return n; }
     int getK() const { return k; }
@@ -24,6 +27,8 @@ public:
     const std::string& getDNA() const { return dna; }
     const std::vector<std::string>& getSpectrum() const { return spectrum; }
     std::vector<std::string>& getSpectrum() { return spectrum; }
+    
+    const std::string& getOriginalDNA() const { return m_originalDNA; }
     
     // Setters
     void setN(int value) { n = value; }
@@ -56,6 +61,8 @@ private:
     std::string dna;
     std::string targetSequence;
     std::vector<std::string> spectrum;
+    
+    std::string m_originalDNA;
 };
 
 #endif // DNA_INSTANCE_H 

@@ -1,11 +1,27 @@
 //
 // Created by konrad_guest on 10/01/2025.
 // SMART
-#include "metaheuristics/adaptive_crossover.h"
-#include "metaheuristics/crossover.h"
+#include "../../include/metaheuristics/adaptive_crossover.h"
+#include "../../include/metaheuristics/crossover_impl.h"
+#include "../../include/interfaces/i_crossover.h"
+#include "../../include/interfaces/i_representation.h"
+#include "../../include/utils/logging.h"
 #include <random>
 #include <iostream>
 #include <algorithm>
+#include <limits>
+
+namespace {
+    bool isValidPermutation(const std::vector<int>& vec, size_t size) {
+        if (vec.size() != size) return false;
+        std::vector<bool> used(size, false);
+        for (int val : vec) {
+            if (val < 0 || val >= static_cast<int>(size) || used[val]) return false;
+            used[val] = true;
+        }
+        return true;
+    }
+}
 
 AdaptiveCrossover::AdaptiveCrossover()
     : previousBestFitness(-std::numeric_limits<double>::infinity())

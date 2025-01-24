@@ -1,79 +1,74 @@
 //
 // Created by konrad_guest on 09/01/2025.
 // SMART
-#include "metaheuristics/population_cache.h"
-#include "metaheuristics/fitness.h"
+#include "../include/metaheuristics/population_cache_impl.h"
+#include "../include/utils/logging.h"
 #include <algorithm>
 #include <chrono>
 #include <mutex>
+#include <sstream>
 
-uint64_t CachedPopulation::computeHash(std::shared_ptr<std::vector<int>> individual) {
-    return ZobristHasher::getInstance().hashPermutation(*individual);
-}
-
-void CachedPopulation::evictOldEntries() {
-    if (cache.size() <= maxCacheSize) return;
-    
-    std::vector<std::pair<uint64_t, std::chrono::steady_clock::time_point>> entries;
-    entries.reserve(cache.size());
-    
-    for (const auto& entry : cache) {
-        entries.emplace_back(entry.first, entry.second.lastAccess);
-    }
-    
-    std::sort(entries.begin(), entries.end(),
-             [](const auto& a, const auto& b) {
-                 return a.second < b.second;
-             });
-    
-    size_t toRemove = cache.size() / 5; // remove 20% oldest
-    for (size_t i = 0; i < toRemove; ++i) {
-        cache.erase(entries[i].first);
-    }
-}
-
-double CachedPopulation::getOrCalculateFitness(
+double SimplePopulationCache::getOrCalculateFitness(
     const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
-    std::shared_ptr<IFitness> fitness,
+    std::shared_ptr<const IFitness> fitness,
     std::shared_ptr<IRepresentation> representation
 ) {
-    std::unique_lock<std::mutex> lock(m_mutex);
-    
-    // Try to find in cache
-    auto it = m_cache.find(solution);
-    if (it != m_cache.end()) {
-        return it->second;
+    if (!solution || solution->empty()) {
+        LOG_WARNING("Attempted to calculate fitness for null or empty solution");
+        return 0.0;
     }
-    
-    // Calculate and cache
-    double value = fitness->calculateFitness(solution, instance, representation);
-    m_cache[solution] = value;
-    return value;
+
+    std::stringstream ss;
+    for (int gene : *solution) {
+        ss << gene << ",";
+    }
+    std::string key = ss.str();
+
+    {
+        std::shared_lock<std::shared_mutex> readLock(m_mutex);
+        auto it = m_cache.find(key);
+        if (it != m_cache.end()) {
+            return it->second;
+        }
+    }
+
+    double calculatedFitness = fitness->calculateFitness(solution, instance, representation);
+
+    {
+        std::unique_lock<std::shared_mutex> writeLock(m_mutex);
+        if (m_cache.size() >= MAX_CACHE_SIZE) {
+            m_cache.clear();
+            LOG_INFO("Cache size limit reached, clearing cache");
+        }
+        m_cache[key] = calculatedFitness;
+    }
+
+    return calculatedFitness;
 }
 
-void CachedPopulation::updatePopulation(
+void SimplePopulationCache::updatePopulation(
     const std::vector<std::shared_ptr<std::vector<int>>>& population,
     const DNAInstance& instance,
     std::shared_ptr<IFitness> fitness,
     std::shared_ptr<IRepresentation> representation
 ) {
-    std::unique_lock<std::mutex> lock(m_mutex);
-    
-    // Clear old entries
+    std::unique_lock<std::shared_mutex> lock(m_mutex);
     m_cache.clear();
     
-    // Cache new population
-    for (const auto& solution : population) {
-        m_cache[solution] = fitness->calculateFitness(solution, instance, representation);
+    for (const auto& individual : population) {
+        if (individual) {
+            std::stringstream ss;
+            for (int gene : *individual) {
+                ss << gene << ",";
+            }
+            m_cache[ss.str()] = fitness->calculateFitness(individual, instance, representation);
+        }
     }
 }
 
-void CachedPopulation::clear() {
-    std::unique_lock<std::mutex> lock(m_mutex);
+void SimplePopulationCache::clear() {
+    std::unique_lock<std::shared_mutex> lock(m_mutex);
     m_cache.clear();
-}
-
-size_t CachedPopulation::size() const {
-    return cache.size();
+    LOG_INFO("Population cache cleared");
 }

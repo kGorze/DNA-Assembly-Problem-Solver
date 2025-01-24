@@ -2,7 +2,16 @@
 // Created by konrad_guest on 11/01/2025.
 // SMART
 
-#include "benchmark/adaptive_crossover_benchmark.h"
+#include "../../include/benchmark/adaptive_crossover_benchmark.h"
+#include "../../include/metaheuristics/representation_impl.h"
+#include "../../include/metaheuristics/selection_impl.h"
+#include "../../include/metaheuristics/crossover_impl.h"
+#include "../../include/metaheuristics/mutation_impl.h"
+#include "../../include/metaheuristics/replacement_impl.h"
+#include "../../include/metaheuristics/fitness_impl.h"
+#include "../../include/metaheuristics/stopping_criteria_impl.h"
+#include "../../include/metaheuristics/population_cache_impl.h"
+#include "../../include/utils/logging.h"
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -56,16 +65,19 @@ void AdaptiveCrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
                         // Run GA with this configuration
                         auto startTime = std::chrono::high_resolution_clock::now();
                         
-                        // Create and run GA
-                        GeneticAlgorithm ga(
-                            config.getRepresentation(),
-                            config.getSelection(),
+                        // Create GA components
+                        auto cache = std::make_shared<SimplePopulationCache>();
+                        config.setCache(cache);
+
+                        auto ga = GeneticAlgorithm(
+                            std::make_shared<PermutationRepresentation>(),
+                            std::make_shared<TournamentSelection>(config, cache),
                             crossover,
-                            config.getMutation(),
-                            config.getReplacement(),
+                            std::make_shared<PointMutation>(config.getMutationRate()),
+                            std::make_shared<PartialReplacement>(config.getReplacementRatio(), cache),
                             std::make_shared<OptimizedGraphBasedFitness>(),
                             std::make_shared<MaxGenerationsStopping>(config),
-                            std::make_shared<CachedPopulation>(),
+                            cache,
                             config
                         );
                         

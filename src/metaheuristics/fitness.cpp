@@ -4,67 +4,81 @@
 
 #include <unordered_set>
 #include <iostream>
-#include "metaheuristics/fitness.h"
-#include "utils/logging.h"
+#include "../include/metaheuristics/fitness.h"
+#include "../include/utils/logging.h"
 #include <algorithm>
 #include <numeric>
 #include <sstream>
 
 /* ================== SimpleFitness ================== */
 double SimpleFitness::calculateFitness(
-    const std::shared_ptr<std::vector<int>>& individual,
+    const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation
 ) const {
-    if (!individual || individual->empty()) {
+    if (!solution || solution->empty()) {
+        LOG_WARNING("Null or empty solution provided to fitness calculation");
         return 0.0;
     }
 
-    // Convert individual to DNA string
-    std::string dna;
-    for (int gene : *individual) {
-        if (gene >= 0 && gene < static_cast<int>(instance.getSpectrum().size())) {
-            dna += instance.getSpectrum()[gene];
-        } else {
-            LOG_ERROR("Invalid gene value: " + std::to_string(gene));
-            return 0.0;
-        }
+    if (!representation) {
+        LOG_ERROR("Null representation provided to fitness calculation");
+        return 0.0;
     }
 
+    // Convert solution to DNA string
+    std::string dna = representation->toString(solution, instance);
+    
     // Count matching k-mers
-    int k = instance.getK();
     int matches = 0;
     const auto& spectrum = instance.getSpectrum();
-    
-    for (size_t i = 0; i <= dna.length() - k; ++i) {
-        std::string kmer = dna.substr(i, k);
-        if (std::find(spectrum.begin(), spectrum.end(), kmer) != spectrum.end()) {
+    for (const auto& kmer : spectrum) {
+        if (dna.find(kmer) != std::string::npos) {
             matches++;
         }
     }
 
-    return static_cast<double>(matches);
+    return static_cast<double>(matches) / spectrum.size();
 }
 
 /* ================== BetterFitness ================== */
 double BetterFitness::calculateFitness(
-    const std::shared_ptr<std::vector<int>>& individual,
+    const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation
 ) const {
-    if (!individual || individual->empty()) {
+    if (!solution || solution->empty()) {
+        LOG_WARNING("Null or empty solution provided to fitness calculation");
         return 0.0;
     }
 
-    // Get base fitness from k-mer matches
-    double baseFitness = SimpleFitness().calculateFitness(individual, instance, representation);
+    if (!representation) {
+        LOG_ERROR("Null representation provided to fitness calculation");
+        return 0.0;
+    }
+
+    // Get DNA string representation
+    std::string dna = representation->toString(solution, instance);
     
-    // Add bonus for sequence length close to expected
-    int expectedLength = instance.getSize();
-    int actualLength = individual->size() * instance.getK();
-    double lengthPenalty = 1.0 - std::abs(expectedLength - actualLength) / static_cast<double>(expectedLength);
-    
-    return baseFitness * (0.8 + 0.2 * lengthPenalty);
+    // Calculate k-mer matches
+    double kmerScore = 0.0;
+    const auto& spectrum = instance.getSpectrum();
+    for (const auto& kmer : spectrum) {
+        if (dna.find(kmer) != std::string::npos) {
+            kmerScore += 1.0;
+        }
+    }
+    kmerScore /= spectrum.size();
+
+    // Calculate Levenshtein distance to original DNA
+    const std::string& originalDNA = instance.getOriginalDNA();
+    int distance = levenshteinDistance(dna, originalDNA);
+    double distanceScore = 1.0 - (static_cast<double>(distance) / std::max(dna.length(), originalDNA.length()));
+
+    // Combine scores with weights
+    constexpr double KMER_WEIGHT = 0.7;
+    constexpr double DISTANCE_WEIGHT = 0.3;
+    return (KMER_WEIGHT * kmerScore) + (DISTANCE_WEIGHT * distanceScore);
 }
 
 /* ================== SmithWatermanFitness ================== */
@@ -87,34 +101,29 @@ int SmithWatermanFitness::smithWaterman(const std::string& seq1, const std::stri
 }
 
 double SmithWatermanFitness::calculateFitness(
-    const std::shared_ptr<std::vector<int>>& individual,
+    const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation
 ) const {
-    if (!individual || individual->empty()) {
+    if (!solution || solution->empty()) {
+        LOG_WARNING("Null or empty solution provided to fitness calculation");
         return 0.0;
     }
 
-    // Convert individual to DNA string
-    std::string dna;
-    for (int gene : *individual) {
-        if (gene >= 0 && gene < static_cast<int>(instance.getSpectrum().size())) {
-            dna += instance.getSpectrum()[gene];
-        } else {
-            LOG_ERROR("Invalid gene value: " + std::to_string(gene));
-            return 0.0;
-        }
+    if (!representation) {
+        LOG_ERROR("Null representation provided to fitness calculation");
+        return 0.0;
     }
 
-    // Calculate Smith-Waterman score against each k-mer
-    double totalScore = 0.0;
-    const auto& spectrum = instance.getSpectrum();
+    // Get DNA string representation
+    std::string dna = representation->toString(solution, instance);
     
-    for (const auto& kmer : spectrum) {
-        totalScore += smithWaterman(dna, kmer);
-    }
-
-    return totalScore;
+    // Calculate Smith-Waterman score
+    int swScore = smithWaterman(dna, instance.getOriginalDNA());
+    
+    // Normalize score
+    double maxPossibleScore = std::min(dna.length(), instance.getOriginalDNA().length()) * MATCH_SCORE;
+    return static_cast<double>(swScore) / maxPossibleScore;
 }
 
 /* ================== OptimizedGraphBasedFitness ================== */
@@ -177,74 +186,43 @@ int OptimizedGraphBasedFitness::calculateEdgeWeight(
     const std::string& to, 
     int k) const 
 {
-    // Podobna logika co wcześniej
-    const char* fromEnd = from.data() + from.size() - (k - 1);
-    const char* toStart = to.data();
-    
-    bool match = true;
-    for (int i = 0; i < k - 1; i++) {
-        if (fromEnd[i] != toStart[i]) {
-            match = false;
+    if (from.length() < k || to.length() < k) {
+        return 0;
+    }
+
+    // Sprawdzamy nakładanie się końca pierwszego k-meru z początkiem drugiego
+    int maxOverlap = 0;
+    for (int overlap = k-1; overlap > 0; overlap--) {
+        if (from.substr(from.length()-overlap) == to.substr(0, overlap)) {
+            maxOverlap = overlap;
             break;
         }
     }
-    if (match) return 1;
-    
-    // sprawdzamy jeszcze "kolejne" przesunięcia ...
-    fromEnd++;
-    match = true;
-    for (int i = 0; i < k - 2; i++) {
-        if (fromEnd[i] != toStart[i]) {
-            match = false;
-            break;
-        }
-    }
-    if (match) return 2;
-    
-    fromEnd++;
-    // Jeszcze minimalna zbieżność – 1 znak
-    if (fromEnd[0] == toStart[0]) return 3;
-    
-    return 0;
+
+    // Waga krawędzi zależy od długości nakładania
+    if (maxOverlap == k-1) return 3;  // Idealne nakładanie
+    if (maxOverlap >= k/2) return 2;  // Dobre nakładanie
+    if (maxOverlap > 0) return 1;     // Słabe nakładanie
+    return 0;                         // Brak nakładania
 }
 
 // Analiza ścieżki w grafie: w tej nowej wersji adjacencyMatrix budujemy lokalnie.
 OptimizedGraphBasedFitness::PathAnalysis 
-OptimizedGraphBasedFitness::analyzePath(const std::vector<int>& path,
-                                        const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix) const 
-{
-    // Wyzerowanie bufora
+OptimizedGraphBasedFitness::analyzePath(
+    const std::vector<int>& path,
+    const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix
+) const {
+    PathAnalysis analysis(0, 0, 0, 0);
     std::fill(nodeUsageBuffer.begin(), nodeUsageBuffer.end(), 0);
 
-    PathAnalysis analysis(nodeUsageBuffer);
+    for (size_t i = 0; i < path.size(); ++i) {
+        int node = path[i];
+        nodeUsageBuffer[node]++;
 
-    for (size_t i = 0; i < path.size() - 1; i++) {
-        int from = path[i];
-        int to = path[i + 1];
-
-        // **Debug Log**: Przed dostępem do adjacencyMatrix
-        std::cout << "[DEBUG analyzePath] Edge from " << from << " to " << to << "\n";
-
-        if (from < 0 || from >= (int)adjacencyMatrix.size() ||
-            to   < 0 || to   >= (int)adjacencyMatrix.size())
-        {
-            std::cerr << "[ERROR analyzePath] Edge indices out-of-bounds: from=" << from << ", to=" << to << "\n";
-            continue; // lub inna logika obsługi błędu
-        }
-        
-        if (from >= 0 && from < (int)adjacencyMatrix.size() &&
-            to   >= 0 && to   < (int)adjacencyMatrix.size())
-        {
-            // zliczamy użycie węzła
-            analysis.nodeUsageCount[from]++;
-            if (analysis.nodeUsageCount[from] == 1) {
-                analysis.uniqueNodesUsed++;
-            } else {
-                analysis.repeatNodeUsages++;
-            }
-
-            // sprawdzamy krawędź
-            const auto& edge = adjacencyMatrix[from][to];
+        if (i > 0) {
+            int prevNode = path[i-1];
+            const auto& edge = adjacencyMatrix[prevNode][node];
+            
             if (edge.exists) {
                 if (edge.weight == 1) {
                     analysis.edgesWeight1++;
@@ -254,26 +232,15 @@ OptimizedGraphBasedFitness::analyzePath(const std::vector<int>& path,
             }
         }
     }
-    // Ostatni węzeł
-    int last = path.back();
-    if (!path.empty()) {
-        if (last >= 0 && last < (int)adjacencyMatrix.size()) {
-            analysis.nodeUsageCount[last]++;
-            if (analysis.nodeUsageCount[last] == 1) {
-                analysis.uniqueNodesUsed++;
-            } else {
-                analysis.repeatNodeUsages++;
+
+    for (int usage : nodeUsageBuffer) {
+        if (usage > 0) {
+            analysis.uniqueNodesUsed++;
+            if (usage > 1) {
+                analysis.repeatNodeUsages += usage - 1;
             }
         }
-    }else
-    {
-        std::cerr << "[ERROR analyzePath] Last node out-of-bounds: " << last << "\n";
     }
-    // **Debug Log**: Wyniki analizy ścieżki
-    std::cout << "[DEBUG analyzePath] Analysis results - edgesWeight1: " << analysis.edgesWeight1
-              << ", edgesWeight2or3: " << analysis.edgesWeight2or3
-              << ", uniqueNodesUsed: " << analysis.uniqueNodesUsed
-              << ", repeatNodeUsages: " << analysis.repeatNodeUsages << "\n";
 
     return analysis;
 }
@@ -285,27 +252,68 @@ OptimizedGraphBasedFitness::permutationToPath(std::shared_ptr<std::vector<int>> 
 }
 
 double OptimizedGraphBasedFitness::calculateFitness(
-    const std::shared_ptr<std::vector<int>>& individual,
+    const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation
 ) const {
-    if (!individual || individual->empty()) {
+    if (!solution || solution->empty()) {
+        LOG_WARNING("Null or empty solution provided to fitness calculation");
         return 0.0;
     }
 
-    // Build spectrum graph
-    auto graph = buildSpectrumGraph(instance.getSpectrum(), instance.getK());
+    if (!representation) {
+        LOG_ERROR("Null representation provided to fitness calculation");
+        return 0.0;
+    }
+
+    // Initialize buffers if needed
+    initBuffers(instance.getSpectrum().size());
+
+    // Build or get cached graph
+    std::string cacheKey = createCacheKey(instance.getSpectrum(), instance.getK());
+    auto& graph = graphCache[cacheKey];
+    if (graph.empty()) {
+        graph = buildSpectrumGraph(instance.getSpectrum(), instance.getK());
+    }
+
+    // Convert graph to adjacency matrix for faster access
     auto adjacencyMatrix = buildAdjacencyMatrix(graph);
-    
-    // Analyze path
-    const auto& path = permutationToPath(individual);
+
+    // Analyze path properties
+    const auto& path = permutationToPath(solution);
     auto analysis = analyzePath(path, adjacencyMatrix);
-    
-    // Calculate fitness based on path analysis
-    double pathScore = analysis.edgesWeight1 * 1.0 + analysis.edgesWeight2or3 * 0.5;
-    double uniquenessScore = analysis.uniqueNodesUsed - analysis.repeatNodeUsages * 0.5;
-    
-    return pathScore + uniquenessScore;
+
+    // Calculate fitness components
+    double connectivityScore = (analysis.edgesWeight1 + 0.5 * analysis.edgesWeight2or3) / 
+                             static_cast<double>(path.size() - 1);
+    double uniquenessScore = static_cast<double>(analysis.uniqueNodesUsed) / instance.getSpectrum().size();
+    double repetitionPenalty = 1.0 / (1.0 + analysis.repeatNodeUsages);
+
+    // Combine scores with weights
+    constexpr double CONNECTIVITY_WEIGHT = 0.5;
+    constexpr double UNIQUENESS_WEIGHT = 0.3;
+    constexpr double REPETITION_WEIGHT = 0.2;
+
+    return (CONNECTIVITY_WEIGHT * connectivityScore) +
+           (UNIQUENESS_WEIGHT * uniquenessScore) +
+           (REPETITION_WEIGHT * repetitionPenalty);
+}
+
+std::vector<std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>> OptimizedGraphBasedFitness::buildAdjacencyMatrix(
+    const std::vector<std::vector<Edge>>& graph
+) const {
+    std::vector<std::vector<PreprocessedEdge>> matrix(
+        graph.size(),
+        std::vector<PreprocessedEdge>(graph.size())
+    );
+
+    for (size_t i = 0; i < graph.size(); ++i) {
+        for (const auto& edge : graph[i]) {
+            matrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
+        }
+    }
+
+    return matrix;
 }
 
 double Fitness::calculateFitness(
@@ -314,36 +322,51 @@ double Fitness::calculateFitness(
     std::shared_ptr<IRepresentation> representation
 ) const {
     if (!individual || individual->empty()) {
+        LOG_WARNING("Null or empty individual provided to fitness calculation");
         return 0.0;
     }
 
-    // Convert individual to DNA sequence
-    std::vector<char> dna;
-    for (int gene : *individual) {
-        if (gene >= 0 && gene < static_cast<int>(instance.getSpectrum().size())) {
-            const auto& kmer = instance.getSpectrum()[gene];
-            dna.insert(dna.end(), kmer.begin(), kmer.end());
-        } else {
-            LOG_ERROR("Invalid gene value: " + std::to_string(gene));
-            return 0.0;
-        }
+    if (!representation) {
+        LOG_ERROR("Null representation provided to fitness calculation");
+        return 0.0;
     }
 
+    // Check cache first if available
+    if (m_cache) {
+        return m_cache->getOrCalculateFitness(individual, instance, shared_from_this(), representation);
+    }
+
+    // Convert to DNA and calculate fitness
+    std::vector<char> dna = representation->toDNA(individual, instance);
     return calculateDNAFitness(dna, instance);
 }
 
-std::vector<std::vector<PreprocessedEdge>> OptimizedGraphBasedFitness::buildAdjacencyMatrix(
-    const std::vector<std::vector<Edge>>& graph) const {
+double Fitness::calculateDNAFitness(const std::vector<char>& dna, const DNAInstance& instance) const {
+    // Calculate Levenshtein distance between reconstructed DNA and original DNA
+    const std::string& originalDNA = instance.getDNA();
+    const std::string reconstructedDNA(dna.begin(), dna.end());
     
-    const size_t n = graph.size();
-    std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(n, std::vector<PreprocessedEdge>(n));
+    int distance = levenshteinDistance(originalDNA, reconstructedDNA);
+    
+    // Convert distance to fitness (lower distance = higher fitness)
+    // We use negative distance so that higher values are better
+    return -static_cast<double>(distance);
+}
 
-    // Inicjalizacja macierzy sąsiedztwa
-    for (size_t i = 0; i < n; ++i) {
-        for (const auto& edge : graph[i]) {
-            adjacencyMatrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
-        }
-    }
+int Fitness::levenshteinDistance(const std::string& s1, const std::string& s2) const {
+    const std::size_t len1 = s1.size(), len2 = s2.size();
+    std::vector<std::vector<int>> d(len1 + 1, std::vector<int>(len2 + 1));
 
-    return adjacencyMatrix;
+    for (int i = 0; i <= len1; ++i)
+        d[i][0] = i;
+    for (int j = 0; j <= len2; ++j)
+        d[0][j] = j;
+
+    for (int i = 1; i <= len1; ++i)
+        for (int j = 1; j <= len2; ++j)
+            d[i][j] = std::min({ d[i - 1][j] + 1,
+                                d[i][j - 1] + 1,
+                                d[i - 1][j - 1] + (s1[i - 1] != s2[j - 1]) });
+
+    return d[len1][len2];
 }

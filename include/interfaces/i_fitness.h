@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <memory>
+#include <vector>
 #include "../dna/dna_instance.h"
 #include "i_representation.h"
 
@@ -14,5 +14,5 @@ public:
         const std::shared_ptr<std::vector<int>>& solution,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
-    ) = 0;
+    ) const = 0;
 }; 

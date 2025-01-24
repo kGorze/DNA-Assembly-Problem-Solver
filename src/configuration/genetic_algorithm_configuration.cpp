@@ -1,8 +1,8 @@
 //
 // Created by konrad_guest on 23/01/2025.
 //
-#include "configuration/genetic_algorithm_configuration.h"
-#include "metaheuristics/stopping_criteria.h"
+#include "../../include/configuration/genetic_algorithm_configuration.h"
+#include "../../include/metaheuristics/stopping_criteria_impl.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -11,24 +11,30 @@
 #include <chrono>
 #include <mutex>
 #include <shared_mutex>
+#include <limits>
+#include "../../include/metaheuristics/selection_impl.h"
+#include "../../include/metaheuristics/crossover_impl.h"
+#include "../../include/metaheuristics/mutation_impl.h"
+#include "../../include/metaheuristics/replacement_impl.h"
+#include "../../include/metaheuristics/fitness_impl.h"
+#include "../../include/metaheuristics/stopping_criteria_impl.h"
+#include "../../include/interfaces/i_population_cache.h"
+#include "../../include/metaheuristics/population_cache_impl.h"
+#include "../../include/metaheuristics/representation_impl.h"
+#include "../../include/metaheuristics/adaptive_crossover.h"
 
 /*
     Konstruktor prywatny: ustawiamy domyślne wartości.
 */
-GAConfig::GAConfig()
-{
-    std::cout << "[GAConfig] Creating new GAConfig instance" << std::endl;
-    // All initialization is now done through in-class initializers
-}
+// GAConfig::GAConfig() { ... }
 
 void GAConfig::resetToDefaults()
 {
     std::unique_lock<std::shared_mutex> lock(configMutex);
     
-    // Reset all values to their in-class initializer defaults
     m_maxGenerations = 100;
-    populationSize = 100;
-    mutationRate = 0.15;
+    m_populationSize = 100;
+    m_mutationRate = 0.15;
     replacementRatio = 0.7;
     crossoverProbability = 1.0;
     
@@ -37,6 +43,7 @@ void GAConfig::resetToDefaults()
     mutationMethod = "point";
     replacementMethod = "partial";
     stoppingMethod = "maxGenerations";
+    fitnessType = "optimized_graph";
     
     noImprovementGenerations = 30;
     tournamentSize = 3;
@@ -108,20 +115,48 @@ void GAConfig::setGlobalBestFitness(double fitness) {
     - Dla prostoty: "adaptive.xyz" -> interpretujemy i przypisujemy do struct AdaptiveCrossoverParams.
 
 */
-void GAConfig::loadFromFile(const std::string& filePath)
+bool GAConfig::loadFromFile(const std::string& filePath)
 {
     std::unique_lock<std::shared_mutex> lock(configMutex);
     
     if (isInitialized.load() && filePath == lastLoadedConfig) {
         std::cout << "[GAConfig] Configuration already loaded from " << filePath << std::endl;
-        return;
+        return true;
     }
     
     std::cout << "[GAConfig] Loading configuration from " << filePath << std::endl;
     
+    // First try the exact path
     std::ifstream in(filePath);
     if (!in.is_open()) {
-        throw std::runtime_error("Failed to open config file: " + filePath);
+        // If that fails, try relative to current directory
+        std::string currentDirPath = "./" + filePath;
+        in.open(currentDirPath);
+        
+        if (!in.is_open()) {
+            // If that fails too, try relative to executable directory
+            char* exePath = nullptr;
+            size_t size = 0;
+            _get_pgmptr(&exePath);
+            if (exePath != nullptr) {
+                std::string executablePath(exePath);
+                std::string executableDir = executablePath.substr(0, executablePath.find_last_of("/\\"));
+                std::string execDirPath = executableDir + "/" + filePath;
+                in.open(execDirPath);
+            }
+        }
+        
+        if (!in.is_open()) {
+            std::string error = "Failed to open config file. Tried paths:\n";
+            error += "  - " + filePath + "\n";
+            error += "  - " + std::string("./") + filePath + "\n";
+            if (exePath != nullptr) {
+                std::string executablePath(exePath);
+                std::string executableDir = executablePath.substr(0, executablePath.find_last_of("/\\"));
+                error += "  - " + executableDir + "/" + filePath + "\n";
+            }
+            throw std::runtime_error(error);
+        }
     }
     
     std::string line;
@@ -148,7 +183,7 @@ void GAConfig::loadFromFile(const std::string& filePath)
                 setPopulationSize(std::stoi(value));
             }
             else if (key == "mutationRate") {
-                mutationRate = std::stod(value);
+                m_mutationRate = std::stod(value);
             }
             else if (key == "replacementRatio") {
                 setReplacementRatio(std::stod(value));
@@ -230,6 +265,7 @@ void GAConfig::loadFromFile(const std::string& filePath)
     
     lastLoadedConfig = filePath;
     isInitialized.store(true);
+    return true;
 }
 
 // ---------------------------------------
@@ -237,8 +273,6 @@ void GAConfig::loadFromFile(const std::string& filePath)
 // ---------------------------------------
 std::shared_ptr<IRepresentation> GAConfig::getRepresentation() const
 {
-    // Na potrzeby SBH zwykle PermutationRepresentation,
-    // można tu dodać logikę wyboru różnych representation (jeśli potrzeba).
     return std::make_shared<PermutationRepresentation>();
 }
 
@@ -263,7 +297,7 @@ std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& type) cons
     } else if (type == "pmx") {
         return std::make_shared<PMXCrossover>();
     } else if (type == "onepoint") {
-        return std::make_shared<OnePointCrossover>();
+        return std::make_shared<OnePointCrossover>(crossoverProbability);
     } else if (type == "adaptive") {
         auto ac = std::make_shared<AdaptiveCrossover>();
         ac->setParameters(adaptiveParams.inertia,
@@ -272,14 +306,14 @@ std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& type) cons
                           adaptiveParams.minProb);
         return ac;
     }
-    // Domyślnie:
+    // Default:
     return std::make_shared<OrderCrossover>();
 }
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const
 {
     if (mutationMethod == "point") {
-        return std::make_shared<PointMutation>(mutationRate);
+        return std::make_shared<PointMutation>(m_mutationRate);
     }
     // Możesz zdefiniować inne klasy:
     //  if (mutationMethod == "swap") { ... }
@@ -287,17 +321,17 @@ std::shared_ptr<IMutation> GAConfig::getMutation() const
     // itp.
 
     // Domyślnie point:
-    return std::make_shared<PointMutation>(mutationRate);
+    return std::make_shared<PointMutation>(m_mutationRate);
 }
 
 std::shared_ptr<IReplacement> GAConfig::getReplacement() const
 {
     if (replacementMethod == "full") {
-        return std::make_shared<FullReplacement>();
+        return std::make_shared<PartialReplacement>(1.0, m_cache);  // Full replacement is just partial with ratio 1.0
     } else if (replacementMethod == "partial") {
         return std::make_shared<PartialReplacement>(replacementRatio, m_cache);
     }
-    // domyślnie partial
+    // Default partial
     return std::make_shared<PartialReplacement>(replacementRatio, m_cache);
 }
 
@@ -326,14 +360,18 @@ public:
     }
     
     bool stop(const std::vector<std::shared_ptr<std::vector<int>>>& population,
-              int generation,
               const DNAInstance& instance,
-              std::shared_ptr<IFitness> fitness,
-              std::shared_ptr<IRepresentation> representation) override {
+              int generation,
+              double bestFitness) const override {
         auto now = std::chrono::steady_clock::now();
         auto elapsedSec = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
         return (elapsedSec >= limitSeconds);
     }
+
+    void reset() override {
+        start = std::chrono::steady_clock::now();
+    }
+
 private:
     int limitSeconds;
     std::chrono::steady_clock::time_point start;
@@ -396,13 +434,13 @@ bool GAConfig::validate() const {
         isValid = false;
     }
     
-    if (populationSize <= 1) {
-        std::cerr << "[GAConfig] Invalid population size: " << populationSize << std::endl;
+    if (m_populationSize <= 1) {
+        std::cerr << "[GAConfig] Invalid population size: " << m_populationSize << std::endl;
         isValid = false;
     }
     
-    if (mutationRate < 0.0 || mutationRate > 1.0) {
-        std::cerr << "[GAConfig] Invalid mutation rate: " << mutationRate << std::endl;
+    if (m_mutationRate < 0.0 || m_mutationRate > 1.0) {
+        std::cerr << "[GAConfig] Invalid mutation rate: " << m_mutationRate << std::endl;
         isValid = false;
     }
     

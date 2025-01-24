@@ -14,8 +14,6 @@
 
 // Project headers
 #include "dna/dna_instance.h"
-#include "metaheuristics/genetic_algorithm.h"
-#include "configuration/genetic_algorithm_configuration.h"
 #include "interfaces/i_representation.h"
 #include "interfaces/i_selection.h"
 #include "interfaces/i_crossover.h"
@@ -25,13 +23,16 @@
 #include "interfaces/i_stopping.h"
 #include "interfaces/i_population_cache.h"
 
+#include "configuration/genetic_algorithm_configuration.h"
+#include "metaheuristics/population_cache_impl.h"
+
 #include "generator/dna_generator.h"
 #include "naive/naive_reconstruction.h"
 #include "benchmark/naive_benchmark.h"
 #include "utils/utility_functions.h"
 
-#include "metaheuristics/crossover.h"
-#include "metaheuristics/fitness.h"
+#include "metaheuristics/crossover_impl.h"
+#include "metaheuristics/fitness_impl.h"
 #include "metaheuristics/genetic_algorithm_runner.h"
 
 #include "benchmark/crossover_benchmark.h"
@@ -48,7 +49,6 @@
 
 #include "utils/logging.h"
 
-#include "metaheuristics/population_cache.h"
 
 // Funkcja do wypisywania użycia programu:
 void printUsage() {
@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
         updateConfigWithInstanceParams(instance, config);
 
         // Create and run GA
-        auto cache = std::make_shared<CachedPopulation>();
+        auto cache = std::make_shared<SimplePopulationCache>();
         config.setCache(cache);
 
         // Run GA with the debug instance

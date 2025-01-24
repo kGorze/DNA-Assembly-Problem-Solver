@@ -1,45 +1,44 @@
 #pragma once
 
 #include "../interfaces/i_stopping.h"
+#include "../dna/dna_instance.h"
 #include "../configuration/genetic_algorithm_configuration.h"
+#include <vector>
+#include <memory>
 #include <limits>
 
 class NoImprovementStopping : public IStopping {
 public:
-    explicit NoImprovementStopping(int maxGenerationsWithoutImprovement = 20)
-        : m_maxGenerationsWithoutImprovement(maxGenerationsWithoutImprovement)
-        , m_bestFitness(std::numeric_limits<double>::lowest())
-        , m_generationsWithoutImprovement(0)
-    {}
+    explicit NoImprovementStopping(int maxGenerationsWithoutImprovement);
 
     bool stop(
         const std::vector<std::shared_ptr<std::vector<int>>>& population,
         const DNAInstance& instance,
         int currentGeneration,
         double bestFitness
-    ) override;
+    ) const override;
 
     void reset();
 
 private:
     int m_maxGenerationsWithoutImprovement;
-    double m_bestFitness;
-    int m_generationsWithoutImprovement;
+    mutable int m_generationsWithoutImprovement;
+    mutable double m_bestFitness;
 };
 
 class MaxGenerationsStopping : public IStopping {
 public:
+    explicit MaxGenerationsStopping(int maxGenerations);
     explicit MaxGenerationsStopping(GAConfig& config);
-    explicit MaxGenerationsStopping(int maxGen);
 
     bool stop(
         const std::vector<std::shared_ptr<std::vector<int>>>& population,
         const DNAInstance& instance,
         int currentGeneration,
         double bestFitness
-    ) override;
+    ) const override;
 
-    void reset();
+    void reset() {}
 
 private:
     int m_maxGenerations;

@@ -12,7 +12,7 @@ public:
         const std::shared_ptr<std::vector<int>>& solution,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
-    ) override;
+    ) const override;
 };
 
 class BetterFitness : public IFitness {
@@ -21,7 +21,7 @@ public:
         const std::shared_ptr<std::vector<int>>& solution,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
-    ) override;
+    ) const override;
 };
 
 class SmithWatermanFitness : public IFitness {
@@ -30,10 +30,10 @@ public:
         const std::shared_ptr<std::vector<int>>& solution,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
-    ) override;
+    ) const override;
 
 private:
-    double smithWaterman(const std::string& seq1, const std::string& seq2);
+    double smithWaterman(const std::string& seq1, const std::string& seq2) const;
 };
 
 class OptimizedGraphBasedFitness : public IFitness {
@@ -42,5 +42,5 @@ public:
         const std::shared_ptr<std::vector<int>>& solution,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
-    ) override;
+    ) const override;
 }; 

@@ -3,16 +3,27 @@
 // SMART
 
 
-#include "benchmark/crossover_benchmark.h"
+#include "../../include/benchmark/crossover_benchmark.h"
+#include "../../include/metaheuristics/representation_impl.h"
+#include "../../include/metaheuristics/selection_impl.h"
+#include "../../include/metaheuristics/crossover_impl.h"
+#include "../../include/metaheuristics/mutation_impl.h"
+#include "../../include/metaheuristics/replacement_impl.h"
+#include "../../include/metaheuristics/fitness_impl.h"
+#include "../../include/metaheuristics/stopping_criteria_impl.h"
+#include "../../include/metaheuristics/population_cache_impl.h"
 #include "utils/logging.h"
 
 void CrossoverBenchmark::runBenchmark(const DNAInstance &instance)
 {
     LOG_INFO("Starting crossover benchmark");
     
+    // Get singleton instance
+    auto& config = GAConfig::getInstance();
+    
     // We create a list of crossovers to test
     std::vector<std::pair<std::string, std::shared_ptr<ICrossover>>> crossovers = {
-        {"OnePoint",          std::make_shared<OnePointCrossover>()},
+        {"OnePoint",          std::make_shared<OnePointCrossover>(config.getCrossoverProbability())},
         {"OrderCrossover",    std::make_shared<OrderCrossover>()},
         {"EdgeRecombination", std::make_shared<EdgeRecombination>()},
         {"PMXCrossover",      std::make_shared<PMXCrossover>()}
@@ -55,17 +66,18 @@ int CrossoverBenchmark::runOneGA(const DNAInstance& instance,
     }
     
     // Create and run GA with this config
-    auto cache = std::make_shared<CachedPopulation>();
+    auto cache = std::make_shared<SimplePopulationCache>();
     config.setCache(cache);
     
-    GeneticAlgorithm ga(
-        config.getRepresentation(),
-        config.getSelection(),
-        crossover,  // Use the provided crossover operator
-        config.getMutation(),
-        config.getReplacement(),
-        config.getFitness(),
-        config.getStopping(),
+    // Create GA components
+    auto ga = GeneticAlgorithm(
+        std::make_shared<PermutationRepresentation>(),
+        std::make_shared<TournamentSelection>(config, cache),
+        crossover,
+        std::make_shared<PointMutation>(config.getMutationRate()),
+        std::make_shared<PartialReplacement>(config.getReplacementRatio(), cache),
+        std::make_shared<OptimizedGraphBasedFitness>(),
+        std::make_shared<MaxGenerationsStopping>(config),
         cache,
         config
     );

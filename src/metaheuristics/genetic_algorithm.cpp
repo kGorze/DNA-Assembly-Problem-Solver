@@ -126,8 +126,8 @@ void GeneticAlgorithm::updateGlobalBest(
     }
 }
 
-void GeneticAlgorithm::run(const DNAInstance& instance)
-{
+void GeneticAlgorithm::run(const DNAInstance& instance) {
+    // Initialize population
     population = m_representation->initializePopulation(m_config.getPopulationSize(), instance);
     
     if (population.empty()) {
@@ -138,30 +138,16 @@ void GeneticAlgorithm::run(const DNAInstance& instance)
     int generation = 0;
     updateGlobalBest(population, instance);
     
+    // Main evolution loop
     while (!m_stopping->stop(population, instance, generation, m_globalBestFit)) {
-        // Selection
-        auto parents = m_selection->select(population, instance, m_fitness, m_representation);
+        evolve(instance);
         
-        // Crossover
-        std::vector<std::shared_ptr<std::vector<int>>> offspring;
-        for (size_t i = 0; i < parents.size(); i += 2) {
-            if (i + 1 < parents.size()) {
-                std::vector<std::shared_ptr<std::vector<int>>> parentPair = {parents[i], parents[i + 1]};
-                auto children = m_crossover->crossover(parentPair, instance, m_representation);
-                offspring.insert(offspring.end(), children.begin(), children.end());
-            }
-        }
-        
-        // Mutation
-        for (auto& child : offspring) {
-            m_mutation->mutate(child, instance, m_representation);
-        }
-        
-        // Replacement
-        population = m_replacement->replace(population, offspring, instance, m_fitness, m_representation);
-        
-        // Update statistics
+        // Update global best
         updateGlobalBest(population, instance);
+        
+        // Log progress
+        logGenerationStats(population, instance, generation);
+        
         generation++;
     }
 }
@@ -175,32 +161,32 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instanc
 }
 
 void GeneticAlgorithm::evolve(const DNAInstance& instance) {
-    int generation = 0;
+    // Select parents
+    auto parents = m_selection->select(population, instance, m_fitness, m_representation);
     
-    // Main evolution loop
-    while (!m_stopping->stop(population, instance, generation, m_globalBestFit)) {
-        // Selection
-        auto parents = m_selection->select(population, instance, m_fitness, m_representation);
-        
-        // Crossover
-        auto offspring = m_crossover->crossover(parents, instance, m_representation);
-        
-        // Mutation
-        for (auto& child : offspring) {
-            m_mutation->mutate(child, instance, m_representation);
-        }
-        
-        // Replacement
-        population = m_replacement->replace(population, offspring, instance, m_fitness, m_representation);
-        
-        // Update global best
-        updateGlobalBest(population, instance);
-        
-        // Log progress
-        logGenerationStats(population, instance, generation);
-        
-        generation++;
+    // Create offspring through crossover
+    auto offspring = m_crossover->crossover(parents, instance, m_representation);
+    
+    // Mutate offspring
+    for (auto& child : offspring) {
+        m_mutation->mutate(child, instance, m_representation);
     }
+    
+    // Calculate fitness for population and offspring
+    std::vector<double> populationFitness;
+    populationFitness.reserve(population.size());
+    for (const auto& individual : population) {
+        populationFitness.push_back(m_cache->getOrCalculateFitness(individual, instance, m_fitness, m_representation));
+    }
+    
+    std::vector<double> offspringFitness;
+    offspringFitness.reserve(offspring.size());
+    for (const auto& individual : offspring) {
+        offspringFitness.push_back(m_cache->getOrCalculateFitness(individual, instance, m_fitness, m_representation));
+    }
+    
+    // Replace old population with offspring
+    population = m_replacement->replace(population, offspring, populationFitness, offspringFitness, instance, m_representation);
 }
 
 double GeneticAlgorithm::getBestFitness() const {

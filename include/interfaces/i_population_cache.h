@@ -14,7 +14,7 @@ public:
     virtual double getOrCalculateFitness(
         const std::shared_ptr<std::vector<int>>& solution,
         const DNAInstance& instance,
-        std::shared_ptr<IFitness> fitness,
+        std::shared_ptr<const IFitness> fitness,
         std::shared_ptr<IRepresentation> representation
     ) = 0;
     

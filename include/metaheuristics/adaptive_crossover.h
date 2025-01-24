@@ -2,14 +2,15 @@
 // Created by konrad_guest on 10/01/2025.
 // SMART
 
-#ifndef ADAPTIVE_CROSSOVER_H
-#define ADAPTIVE_CROSSOVER_H
+#pragma once
 
-#include <memory>
+#include "../interfaces/i_crossover.h"
+#include "../dna/dna_instance.h"
+#include "crossover_impl.h"
 #include <vector>
+#include <memory>
+#include <random>
 #include <string>
-#include "metaheuristics/crossover.h"
-
 
 struct RunMetrics {
     double avgFitness;
@@ -76,5 +77,3 @@ public:
     void setParameters(double inertia, int adaptInterval, int minTrials, double minProb);
     RunMetrics getMetrics() const;
 };
-
-#endif //ADAPTIVE_CROSSOVER_H

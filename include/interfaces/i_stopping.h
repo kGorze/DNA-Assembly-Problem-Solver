@@ -14,7 +14,7 @@ public:
         const DNAInstance& instance,
         int currentGeneration,
         double bestFitness
-    ) = 0;
+    ) const = 0;
     
     // Reset stopping criteria
     virtual void reset() = 0;
