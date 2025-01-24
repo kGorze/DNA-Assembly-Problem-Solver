@@ -283,13 +283,13 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
 
             // Tworzymy adjacencyMatrix
             int n = (int)graph.size();
-            std::vector<std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>> adjacencyMatrix(
-                n, std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>(n)
+            std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(
+                n, std::vector<PreprocessedEdge>(n)
             );
 
             for (int i = 0; i < n; i++) {
-                for (auto &edge : graph[i]) {
-                    adjacencyMatrix[i][edge.to] = { edge.to, edge.weight, true };
+                for (const auto &edge : graph[i]) {
+                    adjacencyMatrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
                 }
             }
 
@@ -572,13 +572,13 @@ void GeneticAlgorithm::evolve(const DNAInstance& instance) {
 
             // Tworzymy adjacencyMatrix
             int n = (int)graph.size();
-            std::vector<std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>> adjacencyMatrix(
-                n, std::vector<OptimizedGraphBasedFitness::PreprocessedEdge>(n)
+            std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(
+                n, std::vector<PreprocessedEdge>(n)
             );
 
             for (int i = 0; i < n; i++) {
-                for (auto &edge : graph[i]) {
-                    adjacencyMatrix[i][edge.to] = { edge.to, edge.weight, true };
+                for (const auto &edge : graph[i]) {
+                    adjacencyMatrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
                 }
             }
 

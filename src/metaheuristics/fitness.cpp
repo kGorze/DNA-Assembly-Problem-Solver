@@ -371,14 +371,14 @@ double Fitness::calculateFitness(const std::vector<char>& dna, const DNAInstance
     return fitness;
 }
 
-std::vector<std::vector<PreprocessedEdge>> 
-OptimizedGraphBasedFitness::buildAdjacencyMatrix(const std::vector<std::vector<Edge>>& graph) const {
-    std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(
-        graph.size(), 
-        std::vector<PreprocessedEdge>(graph.size())
-    );
+std::vector<std::vector<PreprocessedEdge>> OptimizedGraphBasedFitness::buildAdjacencyMatrix(
+    const std::vector<std::vector<Edge>>& graph) const {
+    
+    const size_t n = graph.size();
+    std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(n, std::vector<PreprocessedEdge>(n));
 
-    for (size_t i = 0; i < graph.size(); i++) {
+    // Inicjalizacja macierzy sąsiedztwa
+    for (size_t i = 0; i < n; ++i) {
         for (const auto& edge : graph[i]) {
             adjacencyMatrix[i][edge.to] = PreprocessedEdge(edge.to, edge.weight, true);
         }
