@@ -19,46 +19,40 @@ TournamentSelection::TournamentSelection(GAConfig& config, std::shared_ptr<IPopu
 std::vector<std::shared_ptr<std::vector<int>>> 
 TournamentSelection::select(
     const std::vector<std::shared_ptr<std::vector<int>>>& population,
-    const std::vector<double>& fitness,
-    size_t numParents,
     const DNAInstance& instance,
+    std::shared_ptr<IFitness> fitness,
     std::shared_ptr<IRepresentation> representation)
 {
-    if (population.empty() || fitness.empty() || numParents == 0) {
+    if (population.empty()) {
         return {};
     }
 
     std::vector<std::shared_ptr<std::vector<int>>> selected;
-    selected.reserve(numParents);
+    selected.reserve(population.size());
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<size_t> dist(0, population.size() - 1);
+    std::uniform_int_distribution<> dis(0, population.size() - 1);
 
-    // For each parent we need to select
-    for (size_t i = 0; i < numParents; ++i) {
-        // Select tournament participants
-        std::vector<size_t> tournamentIndices;
-        tournamentIndices.reserve(m_tournamentSize);
-        
+    // For each tournament
+    for (size_t i = 0; i < population.size(); ++i) {
+        double bestFitness = -std::numeric_limits<double>::infinity();
+        std::shared_ptr<std::vector<int>> winner;
+
+        // Run tournament
         for (int j = 0; j < m_tournamentSize; ++j) {
-            tournamentIndices.push_back(dist(gen));
-        }
+            auto candidate = population[dis(gen)];
+            double candidateFitness = m_cache->getOrCalculateFitness(candidate, instance, fitness, representation);
 
-        // Find the best participant
-        size_t bestIdx = tournamentIndices[0];
-        double bestFitness = fitness[bestIdx];
-
-        for (size_t j = 1; j < tournamentIndices.size(); ++j) {
-            size_t idx = tournamentIndices[j];
-            if (fitness[idx] > bestFitness) {
-                bestIdx = idx;
-                bestFitness = fitness[idx];
+            if (candidateFitness > bestFitness) {
+                bestFitness = candidateFitness;
+                winner = candidate;
             }
         }
 
-        // Add the winner to selected parents
-        selected.push_back(population[bestIdx]);
+        if (winner) {
+            selected.push_back(winner);
+        }
     }
 
     return selected;

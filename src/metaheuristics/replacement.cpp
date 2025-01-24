@@ -2,6 +2,8 @@
 // Created by konrad_guest on 07/01/2025.
 // SMART
 #include "metaheuristics/replacement.h"
+#include "../include/metaheuristics/replacement_impl.h"
+#include "../include/utils/logging.h"
 #include <algorithm>
 #include <iostream>
 
@@ -25,79 +27,93 @@ PartialReplacement::PartialReplacement(double replacementRatio, std::shared_ptr<
 PartialReplacement::~PartialReplacement() = default;
 
 std::vector<std::shared_ptr<std::vector<int>>> 
-PartialReplacement::replace(const std::vector<std::shared_ptr<std::vector<int>>> &oldPop,
-                            const std::vector<std::shared_ptr<std::vector<int>>> &offspring,
-                            const DNAInstance &instance,
-                            std::shared_ptr<IFitness> fitness,
-                            std::shared_ptr<IRepresentation> representation)
+PartialReplacement::replace(
+    const std::vector<std::shared_ptr<std::vector<int>>>& population,
+    const std::vector<std::shared_ptr<std::vector<int>>>& offspring,
+    const std::vector<double>& populationFitness,
+    const std::vector<double>& offspringFitness,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation)
 {
-    if (oldPop.empty() && offspring.empty()) {
-        return {};
+    if (population.empty() || offspring.empty()) {
+        return population;
     }
 
-    const size_t oldSize = oldPop.size();
-    const size_t offSize = offspring.size();
-    const size_t targetSize = std::max(oldSize, offSize);
-    
-    // Calculate required length based on n and k (same as in PermutationRepresentation)
-    int k = instance.getK();
-    int n = instance.getN();
-    int requiredLength = n - k + 1;  // This is the correct length for Permutation representation
+    // Calculate how many offspring to include
+    size_t numToReplace = static_cast<size_t>(population.size() * m_replacementRatio);
+    numToReplace = std::min(numToReplace, offspring.size());
 
-    struct Individual {
-        std::shared_ptr<std::vector<int>> ptr;
-        double fitnessVal;
-        
-        Individual(std::shared_ptr<std::vector<int>> p = nullptr, double f = -1e9) 
-            : ptr(p), fitnessVal(f) {}
-    };
-    
-    std::vector<Individual> allIndividuals;
-    allIndividuals.reserve(oldSize + offSize);
-    
-    // Lambda for size verification
-    auto isValidSize = [&](std::shared_ptr<std::vector<int>> ind){
-        return (ind && (int)ind->size() == requiredLength);
-    };
+    // Create combined population
+    std::vector<std::pair<double, std::shared_ptr<std::vector<int>>>> combined;
+    combined.reserve(population.size() + offspring.size());
 
-    // 1. Zbieramy stare + nowe
-    // 2. Odfiltrowujemy osobniki z niewłaściwą długością, bo i tak spowodują błąd
-    // 3. Obliczamy fitness
-    auto addWithFitness = [&](const std::vector<std::shared_ptr<std::vector<int>>>& vec) {
-        for (auto &ind : vec) {
-            if (!ind) continue;
-            if (!isValidSize(ind)) {
-                // Możesz logować ostrzeżenie
-                continue;
-            }
-            double fit = m_fitnessCache->getOrCalculateFitness(ind, instance, fitness, representation);
-            allIndividuals.push_back(Individual(ind, fit));
-        }
-    };
-
-    addWithFitness(oldPop);
-    addWithFitness(offspring);
-    
-    // Jeśli wszystko odrzucone, zwracamy cokolwiek
-    if (allIndividuals.empty()) {
-        // lub stwórzmy nową populację
-        return representation->initializePopulation(targetSize, instance);
-    }
-    
-    // Sortujemy malejąco wg fitnessVal
-    std::sort(allIndividuals.begin(), allIndividuals.end(),
-        [](const Individual& a, const Individual& b){
-            return a.fitnessVal > b.fitnessVal;
-        }
-    );
-    
-    // Zostawiamy top N (N=targetSize)
-    std::vector<std::shared_ptr<std::vector<int>>> newPop;
-    newPop.reserve(targetSize);
-    size_t take = std::min(targetSize, allIndividuals.size());
-    for (size_t i = 0; i < take; i++) {
-        newPop.push_back(allIndividuals[i].ptr);
+    // Add population with their fitness
+    for (size_t i = 0; i < population.size(); ++i) {
+        combined.emplace_back(populationFitness[i], population[i]);
     }
 
-    return newPop;
+    // Add offspring with their fitness
+    for (size_t i = 0; i < offspring.size(); ++i) {
+        combined.emplace_back(offspringFitness[i], offspring[i]);
+    }
+
+    // Sort by fitness in descending order
+    std::sort(combined.begin(), combined.end(),
+              [](const auto& a, const auto& b) { return a.first > b.first; });
+
+    // Take the best individuals
+    std::vector<std::shared_ptr<std::vector<int>>> newPopulation;
+    newPopulation.reserve(population.size());
+
+    for (size_t i = 0; i < population.size(); ++i) {
+        newPopulation.push_back(combined[i].second);
+    }
+
+    return newPopulation;
+}
+
+std::vector<std::shared_ptr<std::vector<int>>> 
+ElitistReplacement::replace(
+    const std::vector<std::shared_ptr<std::vector<int>>>& population,
+    const std::vector<std::shared_ptr<std::vector<int>>>& offspring,
+    const std::vector<double>& populationFitness,
+    const std::vector<double>& offspringFitness,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation)
+{
+    if (population.empty() || offspring.empty()) {
+        return population;
+    }
+
+    // Find the best individual from the current population
+    auto maxPopIt = std::max_element(populationFitness.begin(), populationFitness.end());
+    size_t bestPopIdx = std::distance(populationFitness.begin(), maxPopIt);
+    auto bestFromPop = population[bestPopIdx];
+    double bestPopFitness = *maxPopIt;
+
+    // Create new population starting with the best from the current population
+    std::vector<std::shared_ptr<std::vector<int>>> newPopulation;
+    newPopulation.reserve(population.size());
+    newPopulation.push_back(bestFromPop);
+
+    // Add the best offspring until the population is full
+    std::vector<std::pair<double, std::shared_ptr<std::vector<int>>>> sortedOffspring;
+    sortedOffspring.reserve(offspring.size());
+    for (size_t i = 0; i < offspring.size(); ++i) {
+        sortedOffspring.emplace_back(offspringFitness[i], offspring[i]);
+    }
+
+    std::sort(sortedOffspring.begin(), sortedOffspring.end(),
+              [](const auto& a, const auto& b) { return a.first > b.first; });
+
+    for (size_t i = 0; i < population.size() - 1 && i < sortedOffspring.size(); ++i) {
+        newPopulation.push_back(sortedOffspring[i].second);
+    }
+
+    // If we still need more individuals, take them from the original population
+    while (newPopulation.size() < population.size()) {
+        newPopulation.push_back(population[newPopulation.size() - 1]);
+    }
+
+    return newPopulation;
 }

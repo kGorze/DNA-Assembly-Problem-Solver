@@ -1,21 +1,11 @@
-#ifndef REPLACEMENT_H
-#define REPLACEMENT_H
+#pragma once
 
+#include "../interfaces/i_replacement.h"
+#include "../interfaces/i_population_cache.h"
+#include "../interfaces/i_fitness.h"
+#include "../dna/dna_instance.h"
 #include <vector>
 #include <memory>
-#include "metaheuristics/fitness.h"
-#include "metaheuristics/population_cache.h"
-
-class IReplacement {
-public:
-    virtual ~IReplacement() = default;
-    virtual std::vector<std::shared_ptr<std::vector<int>>>
-    replace(const std::vector<std::shared_ptr<std::vector<int>>> &oldPop,
-            const std::vector<std::shared_ptr<std::vector<int>>> &offspring,
-            const DNAInstance &instance,
-            std::shared_ptr<IFitness> fitness,
-            std::shared_ptr<IRepresentation> representation) = 0;
-};
 
 class FullReplacement : public IReplacement {
 public:
@@ -45,5 +35,3 @@ public:
         std::shared_ptr<IRepresentation> representation
     ) override;
 };
-
-#endif //REPLACEMENT_H

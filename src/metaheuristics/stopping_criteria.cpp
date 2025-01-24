@@ -1,10 +1,12 @@
 //
 // Created by konrad_guest on 07/01/2025.
 // SMART
+#include "../include/metaheuristics/stopping_criteria_impl.h"
+#include "../include/utils/logging.h"
 #include <chrono>
-#include "metaheuristics/stopping_criteria.h"
 #include "configuration/genetic_algorithm_configuration.h"
 #include <iostream>
+#include <limits>
 
 bool NoImprovementStopping::stop(
     const std::vector<std::shared_ptr<std::vector<int>>>& population,
@@ -28,17 +30,17 @@ void NoImprovementStopping::reset() {
 }
 
 MaxGenerationsStopping::MaxGenerationsStopping(GAConfig& config) 
-    : m_maxGenerations(config.getMaxGenerations())  // Initialize with config value
+    : m_maxGenerations(config.getMaxGenerations())
     , m_useConfig(true)
 {
-    std::cout << "[MaxGenerationsStopping] Created with maxGenerations = " << m_maxGenerations << " from config" << std::endl;
+    LOG_INFO("MaxGenerationsStopping initialized with maxGenerations = " + std::to_string(m_maxGenerations));
 }
 
 MaxGenerationsStopping::MaxGenerationsStopping(int maxGen)
     : m_maxGenerations(maxGen)
     , m_useConfig(false)
 {
-    std::cout << "[MaxGenerationsStopping] Created with fixed maxGenerations = " << maxGen << std::endl;
+    LOG_INFO("MaxGenerationsStopping initialized with fixed maxGenerations = " + std::to_string(maxGen));
 }
 
 bool MaxGenerationsStopping::stop(

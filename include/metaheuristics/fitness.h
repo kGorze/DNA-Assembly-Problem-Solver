@@ -5,12 +5,13 @@
 #ifndef FITNESS_H
 #define FITNESS_H
 
-#include "metaheuristics/representation.h"
-#include "generator/dna_generator.h"
-#include "utils/utility_functions.h"
-#include "metaheuristics/population_cache.h"
-#include "metaheuristics/path_analyzer.h"
-#include "metaheuristics/preprocessed_edge.h"
+#include "../interfaces/i_representation.h"
+#include "../interfaces/i_fitness.h"
+#include "../interfaces/i_population_cache.h"
+#include "../generator/dna_generator.h"
+#include "../utils/utility_functions.h"
+#include "../metaheuristics/path_analyzer.h"
+#include "../metaheuristics/preprocessed_edge.h"
 
 #include <unordered_map>
 #include <vector>
@@ -19,30 +20,16 @@
 #include <omp.h>
 
 /**
- * Interfejs fitness
- */
-class IFitness {
-public:
-    virtual ~IFitness() = default;
-    /**
-     * Ocena przystosowania pojedynczego osobnika
-     */
-    virtual double evaluate(std::shared_ptr<std::vector<int>> individual,
-                            const DNAInstance &instance,
-                            std::shared_ptr<IRepresentation> representation) const = 0;
-};
-
-#include "metaheuristics/population_cache.h"
-
-/**
  * Bardzo prosta funkcja fitness – liczy liczbę k-merów
  * wspólnych z oryginalnym spektrum DNA.
  */
 class SimpleFitness : public IFitness {
 public:
-    double evaluate(std::shared_ptr<std::vector<int>> individual,
-                    const DNAInstance &instance,
-                    std::shared_ptr<IRepresentation> representation) const override;
+    double calculateFitness(
+        const std::shared_ptr<std::vector<int>>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation
+    ) const override;
 };
 
 /**
@@ -51,9 +38,11 @@ public:
  */
 class BetterFitness : public IFitness {
 public:
-    double evaluate(std::shared_ptr<std::vector<int>> individual,
-                    const DNAInstance &instance,
-                    std::shared_ptr<IRepresentation> representation) const override;
+    double calculateFitness(
+        const std::shared_ptr<std::vector<int>>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation
+    ) const override;
 };
 
 /**
@@ -69,9 +58,11 @@ private:
     int smithWaterman(const std::string& seq1, const std::string& seq2) const;
 
 public:
-    double evaluate(std::shared_ptr<std::vector<int>> individual, 
-                    const DNAInstance& instance,
-                    std::shared_ptr<IRepresentation> representation) const override;
+    double calculateFitness(
+        const std::shared_ptr<std::vector<int>>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation
+    ) const override;
 };
 
 class OptimizedGraphBasedFitness : public IFitness {
@@ -106,9 +97,11 @@ public:
     void initBuffers(size_t size) const;
     OptimizedGraphBasedFitness() = default;
     
-    double evaluate(std::shared_ptr<std::vector<int>> individual,
-                    const DNAInstance& instance,
-                    std::shared_ptr<IRepresentation> representation) const override;
+    double calculateFitness(
+        const std::shared_ptr<std::vector<int>>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation
+    ) const override;
 
     // Gdybyśmy chcieli wyczyścić kesz
     void clearCache() {
@@ -145,14 +138,16 @@ private:
     std::shared_ptr<IPopulationCache> m_cache;
 
 protected:
-    double calculateFitness(const std::vector<char>& dna, const DNAInstance& instance) const;
+    double calculateDNAFitness(const std::vector<char>& dna, const DNAInstance& instance) const;
 
 public:
     explicit Fitness(std::shared_ptr<IPopulationCache> cache = nullptr) : m_cache(cache) {}
     
-    double evaluate(std::shared_ptr<std::vector<int>> individual,
-                   const DNAInstance& instance,
-                   std::shared_ptr<IRepresentation> representation) const override;
+    double calculateFitness(
+        const std::shared_ptr<std::vector<int>>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation
+    ) const override;
 };
 
 #endif //FITNESS_H
