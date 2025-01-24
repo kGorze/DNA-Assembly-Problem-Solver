@@ -21,10 +21,15 @@ from display_manager import UnifiedDisplayManager
 # Global reference to the framework instance
 framework_instance = None
 
-def setup_logger():
+def setup_logger(debug_mode=False):
     # Konfiguracja głównego loggera
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    
+    # Ustaw poziom logowania w zależności od trybu
+    if debug_mode:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.WARNING)
     
     # Usuń wszystkie istniejące handlery
     for handler in logger.handlers[:]:
@@ -32,7 +37,11 @@ def setup_logger():
     
     # Utworzenie nowego handlera pliku z trybem 'w' (nadpisywanie)
     file_handler = logging.FileHandler('sbh_framework.log', mode='w', encoding='utf-8')
-    file_handler.setLevel(logging.INFO)
+    
+    if debug_mode:
+        file_handler.setLevel(logging.DEBUG)
+    else:
+        file_handler.setLevel(logging.WARNING)
     
     # Format logów
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -83,6 +92,10 @@ progress_pattern_expanded = re.compile(
 def to_windows_path(path: Path) -> str:
     """Convert a path to Windows format."""
     if sys.platform == 'win32':
+        # Dla WSL, zamieniamy /mnt/c na C:
+        path_str = str(path)
+        if path_str.startswith('/mnt/c/'):
+            return 'C:' + path_str[6:].replace('/', '\\')
         return str(PureWindowsPath(path))
     return str(path)
 
@@ -96,20 +109,34 @@ def solver_subprocess(
         queue: multiprocessing.Queue
 ) -> None:
     start_time = time.time()
-    logging.info(f"Process {process_id}: Starting solver for test_id {test_id}.")
+    
+    # Określ trudność na podstawie ścieżki
+    difficulty = "Unknown"
+    path_str = str(instance_path).lower()
+    if "easy" in path_str:
+        difficulty = "Easy"
+    elif "medium" in path_str:
+        difficulty = "Medium"
+    elif "hard" in path_str:
+        difficulty = "Hard"
+    
+    logging.debug(f"Process {process_id}: Starting solver for test_id {test_id}, difficulty: {difficulty}")
 
     try:
+        # Konwertuj ścieżki na format Windows
+        solver_win_path = to_windows_path(Path(solver_path))
+        instance_win_path = to_windows_path(instance_path)
+        results_win_path = to_windows_path(instance_path.with_name("results.txt"))
+
         cmd = [
-            to_windows_path(Path(solver_path)),
+            solver_win_path,
             "test_instance",
-            "-i", to_windows_path(instance_path),
-            "-o", to_windows_path(instance_path.with_name("results.txt")),
+            "-i", instance_win_path,
+            "-o", results_win_path,
             "-pid", str(process_id)
         ]
-        # Możesz dodać "-diff" wg nazwy trudności, np. z bazy
-        # w tym przykładzie pomijamy
 
-        logging.info(f"Process {process_id}: Executing command: {' '.join(cmd)}")
+        logging.debug(f"Process {process_id}: Executing command: {' '.join(cmd)}")
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -118,13 +145,13 @@ def solver_subprocess(
             bufsize=1
         )
 
+        # Wysyłamy informację o trudności od razu po starcie
+        queue.put(("current_test", process_id, f"CURRENT_TEST:{process_id}:{difficulty}:{instance_path}"))
         queue.put(("started", process_id))
-        logging.info(f"Process {process_id}: Solver started.")
 
         for line in proc.stdout:
             line = line.strip()
             if line.startswith("PROGRESS_UPDATE:"):
-                # Spróbujmy dopasować do expanded:
                 match = progress_pattern_expanded.match(line)
                 if match:
                     try:
@@ -144,24 +171,16 @@ def solver_subprocess(
                                    coverage_val,
                                    edge_score_val,
                                    theoretical_max))
-                        logging.debug(f"Process {process_id}: parse OK -> coverage={coverage_val}, edge={edge_score_val}")
                     except (ValueError, IndexError) as e:
                         error_msg = f"Process {process_id}: Error converting expanded progress update: {e}"
                         queue.put(("output", process_id, error_msg, True))
                         logging.error(error_msg)
                 else:
-                    # fallback stary format
-                    # (lub zgłoś błąd)
                     error_msg = f"Process {process_id}: Unrecognized progress format: {line}"
                     queue.put(("output", process_id, error_msg, True))
                     logging.error(error_msg)
-            elif line.startswith("CURRENT_TEST:"):
-                # Przekaż to jako "current_test" do main
-                queue.put(("current_test", process_id, line))
-                logging.debug(f"Process {process_id}: current_test line -> {line}")
             else:
                 queue.put(("output", process_id, line, False))
-                logging.debug(f"Process {process_id}: Output - {line}")
 
         proc.wait()
         exit_code = proc.returncode
@@ -273,7 +292,7 @@ class SBHTestingFramework:
 
         test_configs: Dict[str, Dict[str, Any]] = {
             "easy": {
-                "counts": 5,
+                "counts": 5,  # 5 testów dla każdego zestawu parametrów
                 "params": [
                     {"n": 300, "k": 7, "dk": 0, "ln": 10, "lp": 10},
                     {"n": 325, "k": 7, "dk": 0, "ln": 11, "lp": 11},
@@ -301,22 +320,18 @@ class SBHTestingFramework:
             }
         }
 
-        if not self.solver_path or not os.path.isfile(self.solver_path):
-            error_msg = f"Solver executable not found at path: {self.solver_path}"
-            print(error_msg)
-            logging.error(error_msg)
-            sys.exit(1)
-        logging.info(f"Validated solver path: {self.solver_path}")
-
+        total_test_count = 0
         with sqlite3.connect(self.db_path) as conn:
             for difficulty, config in test_configs.items():
                 diff_dir = self.test_dir / difficulty
                 diff_dir.mkdir(parents=True, exist_ok=True)
-                logging.info(f"Created directory for difficulty '{difficulty}' at {diff_dir}.")
+                logging.info(f"Creating directory for difficulty '{difficulty}' at {diff_dir}.")
 
-                for i in range(config["counts"]):
-                    for params in config["params"]:
-                        test_subdir = diff_dir / f"test_{i + 1}"
+                # Dla każdego zestawu parametrów
+                for param_idx, params in enumerate(config["params"]):
+                    # Generujemy counts testów z tymi parametrami
+                    for i in range(config["counts"]):
+                        test_subdir = diff_dir / f"test_{total_test_count + 1}"
                         test_subdir.mkdir(parents=True, exist_ok=True)
 
                         instance_path = test_subdir / "instance.txt"
@@ -329,7 +344,8 @@ class SBHTestingFramework:
                         try:
                             logging.debug(f"Executing command: {cmd}")
                             subprocess.run(cmd, shell=True, check=True)
-                            logging.info(f"Generated instance at {instance_path}.")
+                            total_test_count += 1
+                            logging.info(f"Generated instance at {instance_path} ({total_test_count} total)")
                         except subprocess.CalledProcessError as e:
                             error_msg = f"Error generating instance {instance_path}: {e}"
                             print(error_msg)
@@ -341,14 +357,14 @@ class SBHTestingFramework:
                                 INSERT INTO test_cases (difficulty, instance_path, created_at)
                                 VALUES (?, ?, ?)
                             """, (difficulty, str(instance_path), datetime.now()))
-                            logging.debug(f"Inserted test case into database: {instance_path}")
                         except sqlite3.Error as e:
                             error_msg = f"Database error while inserting test case {instance_path}: {e}"
                             print(error_msg)
                             logging.error(error_msg)
 
             conn.commit()
-            logging.info("All test cases generated and saved to the database.")
+            logging.info(f"All test cases generated and saved to the database. Total tests: {total_test_count}")
+            print(f"Generated {total_test_count} test cases in total.")
 
     def test_solver_version(
             self,
@@ -383,8 +399,31 @@ class SBHTestingFramework:
 
             with sqlite3.connect(self.db_path) as conn:
                 c = conn.cursor()
-                c.execute("SELECT test_id, instance_path FROM test_cases")
+                # Pobierz tylko najnowsze testy dla każdej trudności
+                c.execute("""
+                    WITH RankedTests AS (
+                        SELECT 
+                            test_id,
+                            instance_path,
+                            difficulty,
+                            created_at,
+                            ROW_NUMBER() OVER (PARTITION BY difficulty ORDER BY created_at DESC) as rn
+                        FROM test_cases
+                    )
+                    SELECT test_id, instance_path, difficulty
+                    FROM RankedTests
+                    WHERE rn <= 20  -- 20 testów dla każdej trudności
+                    ORDER BY difficulty, created_at
+                """)
                 test_cases = c.fetchall()
+                
+                # Logowanie informacji o testach
+                difficulties = {}
+                for _, _, diff in test_cases:
+                    difficulties[diff] = difficulties.get(diff, 0) + 1
+                logging.warning(f"Found {len(test_cases)} test cases to run:")
+                for diff, count in difficulties.items():
+                    logging.warning(f"- {diff}: {count} tests")
 
             if not test_cases:
                 message = "No test cases found. Please generate first."
@@ -395,7 +434,7 @@ class SBHTestingFramework:
                 return
 
             total_tests = len(test_cases)
-            logging.info(f"Total test cases to run: {total_tests}")
+            logging.warning(f"Total test cases to run: {total_tests}")
 
             cpu_count = os.cpu_count() or 1
             if num_processes is None:
@@ -439,7 +478,7 @@ class SBHTestingFramework:
             for pid in range(num_processes):
                 if test_index >= total_tests:
                     break
-                test_id, inst_path = tests_to_run[test_index]
+                test_id, inst_path, difficulty = tests_to_run[test_index]
                 p = multiprocessing.Process(
                     target=solver_subprocess,
                     args=(
@@ -454,7 +493,7 @@ class SBHTestingFramework:
                 )
                 p.start()
                 running_processes.append(p)
-                logging.info(f"Started process {pid} for test_id {test_id}.")
+                logging.info(f"Started process {pid} for test_id {test_id}, difficulty: {difficulty}")
                 test_index += 1
 
             stop_event = threading.Event()
@@ -557,7 +596,7 @@ class SBHTestingFramework:
                         finished_tests += 1
 
                         if test_index < total_tests:
-                            new_test_id, new_inst_path = tests_to_run[test_index]
+                            new_test_id, new_inst_path, new_difficulty = tests_to_run[test_index]
                             p = multiprocessing.Process(
                                 target=solver_subprocess,
                                 args=(
@@ -572,7 +611,7 @@ class SBHTestingFramework:
                             )
                             p.start()
                             running_processes.append(p)
-                            logging.info(f"Started new process {pid} for test_id {new_test_id}.")
+                            logging.info(f"Started new process {pid} for test_id {new_test_id}, difficulty: {new_difficulty}")
                             test_index += 1
 
                         active_procs = [p for p in running_processes if p.is_alive()]
@@ -677,11 +716,14 @@ def main() -> None:
     parser.add_argument('--processes', type=int, help='Number of parallel processes')
     parser.add_argument('--rankings', action='store_true', help='Display solver rankings')
     parser.add_argument('--log', action='store_true', help='Use logging instead of UI')
+    parser.add_argument('--debug', action='store_true', help='Enable debug logging')
 
     args = parser.parse_args()
 
     try:
         use_ui = not args.log and sys.stdout.isatty()
+        # Inicjalizacja loggera z odpowiednim trybem
+        logger = setup_logger(debug_mode=args.debug)
         logging.info(f"Determined use_ui: {use_ui}")
 
         framework = SBHTestingFramework(

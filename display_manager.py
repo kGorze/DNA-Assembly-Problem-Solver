@@ -24,7 +24,7 @@ class UnifiedDisplayManager:
                 "best_edge_score": 0.0,
                 "theoretical_max": 0.0,
                 "current_test_name": "N/A",
-                "difficulty": "Unknown"  # Dodane pole difficulty
+                "difficulty": "Unknown"
             }
             for pid in range(num_processes)
         }
@@ -32,8 +32,15 @@ class UnifiedDisplayManager:
         self.screen: Optional[curses.window] = None
         self.window_lock = threading.Lock()
         self.start_time = datetime.now()
-        self.best_fitness_overall = float('-inf')  # Zmienione na -inf żeby obsłużyć ujemne wartości
+        self.best_fitness_overall = float('-inf')
         self.total_errors = 0
+        
+        # Ustawienie poziomu logowania dla loggera
+        self.logger = logging.getLogger()
+        if not self.use_ui:
+            self.logger.setLevel(logging.WARNING)
+            for handler in self.logger.handlers:
+                handler.setLevel(logging.WARNING)
 
         if self.use_ui:
             self.ui_thread = threading.Thread(target=self._start_curses_ui, daemon=True)
@@ -231,7 +238,18 @@ class UnifiedDisplayManager:
 
     def add_output(self, message: str, error: bool = False) -> None:
         with self.output_lock:
-            self.output_messages.append(message)
+            # Jeśli to błąd, zawsze go wyświetlamy
+            if error:
+                self.output_messages.append(message)
+                logging.error(message)
+            else:
+                # Dla zwykłych komunikatów, sprawdzamy poziom logowania
+                if self.logger.level <= logging.INFO:
+                    self.output_messages.append(message)
+                    logging.info(message)
+                elif "Test" in message or "Completed" in message:  # Ważne komunikaty o postępie
+                    self.output_messages.append(message)
+                    logging.warning(message)
 
     def update_process(self, pid: int, progress: float, status: str, fitness: float,
                        coverage: float = 0.0, edge_score: float = 0.0, theoretical_max: float = 0.0) -> None:
