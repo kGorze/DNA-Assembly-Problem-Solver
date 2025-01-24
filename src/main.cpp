@@ -135,8 +135,9 @@ int main(int argc, char* argv[]) {
     std::string mode = argv[1];
     // Domyślna ścieżka do pliku config
     std::string configFile = "config.cfg";
+    bool debugMode = false;
 
-    // Parsujemy argumenty w poszukiwaniu -cfg
+    // Parsujemy argumenty w poszukiwaniu -cfg i --debug
     for (int i = 2; i < argc; ++i) {
         if (std::strcmp(argv[i], "-cfg") == 0) {
             if (i + 1 < argc) {
@@ -146,10 +147,15 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Error: -cfg requires a file path.\n";
                 return 1;
             }
+        } else if (std::strcmp(argv[i], "--debug") == 0) {
+            debugMode = true;
+            LOG_INFO("Debug output enabled");
         }
     }
 
     if (argc > 1 && strcmp(argv[1], "debug") == 0) {
+        LOG_INFO("Starting debug mode" + std::string(debugMode ? " with extended debug output" : ""));
+        
         // Create a debug instance first
         DNAInstanceBuilder builder;
         builder.setN(400)
@@ -163,31 +169,45 @@ int main(int argc, char* argv[]) {
                .buildSpectrum();
 
         DNAInstance instance = builder.getInstance();
+        
+        // Set start index
+        auto startFrag = instance.getDNA().substr(0, instance.getK());
+        const auto& spectrum = instance.getSpectrum();
+        
+        int startIdx = -1;
+        for (int i = 0; i < (int)spectrum.size(); i++) {
+            if (spectrum[i] == startFrag) {
+                startIdx = i;
+                break;
+            }
+        }
+        
+        if (startIdx == -1) {
+            LOG_ERROR("Failed to find start fragment in spectrum");
+            return 1;
+        }
+        
+        instance.setStartIndex(startIdx);
+        LOG_INFO("Debug instance created with start index: " + std::to_string(startIdx));
 
         // Save debug instance
         std::string debugInstanceFile = "debug_instance.txt";
         if (!InstanceIO::saveInstance(instance, debugInstanceFile)) {
-            std::cerr << "Failed to save debug instance!\n";
+            LOG_ERROR("Failed to save debug instance!");
             return 1;
         }
+        LOG_INFO("Debug instance saved to: " + debugInstanceFile);
 
-        // Now load config and update with instance params
-        GAConfig& config = GAConfig::getInstance();
-        if (!config.loadFromFile("config.cfg")) {
-            std::cerr << "Failed to load GA configuration\n";
+        // Run GA with the debug instance and config file
+        try {
+            LOG_INFO("Running genetic algorithm with config file: " + configFile);
+            runGeneticAlgorithm(instance, "debug_output.txt", 0, configFile, debugMode);
+            LOG_INFO("Genetic algorithm completed successfully");
+        } catch (const std::exception& e) {
+            LOG_ERROR("Error running genetic algorithm: " + std::string(e.what()));
             return 1;
         }
-        updateConfigWithInstanceParams(instance, config);
-
-        // Create and run GA
-        auto cache = std::make_shared<SimplePopulationCache>();
-        config.setCache(cache);
-
-        // Run GA with the debug instance
-        runGeneticAlgorithm(instance, "debug_output.txt", 0, "DEBUG");
-
         return 0;
-
     } else if (mode == "generate_instance") {
         int n = 400, k = 8, deltaK = 1, lNeg = 10, lPoz = 10;
         std::string outputFile = "generated_instance.txt";

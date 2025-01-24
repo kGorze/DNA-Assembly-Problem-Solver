@@ -27,6 +27,9 @@
 #include "../configuration/genetic_algorithm_configuration.h"
 #include "../naive/naive_reconstruction.h"
 #include "../dna/dna_instance.h"
+#include "../metaheuristics/adaptive_crossover.h"
+#include "../metaheuristics/path_analyzer.h"
+#include "../metaheuristics/preprocessed_edge.h"
 
 // Forward declarations of interfaces
 class IRepresentation;
@@ -70,25 +73,22 @@ public:
     // Po uruchomieniu GA można pobrać najlepsze DNA
     std::string getBestDNA() const { return m_bestDNA; }
 
-    double getBestFitness() const;
-    std::shared_ptr<std::vector<int>> getBestIndividual() const;
+    double getBestFitness() const { return m_globalBestFit; }
+    std::shared_ptr<std::vector<int>> getBestIndividual() const { return m_globalBestInd; }
 
 private:
-    GAConfig& m_config;  // Store config reference
     void logGenerationStats(const std::vector<std::shared_ptr<std::vector<int>>>& pop,
-                            const DNAInstance& instance,
-                            int generation);
-    void initializePopulation(int popSize, const DNAInstance &instance);
+                          const DNAInstance& instance,
+                          int generation);
+    void initializePopulation(int popSize, const DNAInstance& instance);
     void updateGlobalBest(const std::vector<std::shared_ptr<std::vector<int>>>& pop,
-                          const DNAInstance &instance);
-    void calculateTheoreticalMaxFitness(const DNAInstance &instance);
+                         const DNAInstance& instance);
+    void calculateTheoreticalMaxFitness(const DNAInstance& instance);
     void evolve(const DNAInstance& instance);
+    std::string vectorToString(const std::vector<int>& vec);
+    std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(const DNAInstance& instance) const;
+    int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
 
-    double getGlobalBestFitness() const {
-        return m_globalBestFit;
-    }
-
-private:
     static std::mutex outputMutex;
 
     std::shared_ptr<IRepresentation> m_representation;
@@ -99,10 +99,11 @@ private:
     std::shared_ptr<IFitness> m_fitness;
     std::shared_ptr<IStopping> m_stopping;
     std::shared_ptr<IPopulationCache> m_cache;
+    GAConfig& m_config;
 
     std::vector<std::shared_ptr<std::vector<int>>> population;
     
-    ProgressCallback progressCallback = nullptr;
+    ProgressCallback progressCallback;
 
     // Najlepszy osobnik
     std::shared_ptr<std::vector<int>> m_globalBestInd;

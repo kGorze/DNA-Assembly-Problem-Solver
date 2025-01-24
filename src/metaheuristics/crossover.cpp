@@ -132,27 +132,95 @@ OrderCrossover::crossover(
 {
     const size_t spectrumSize = instance.getSpectrum().size();
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
+    offspring.reserve(parents.size());
     
     if (parents.size() < 2) {
-        std::cerr << "[ERROR OrderCrossover] Not enough parents for crossover\n";
-        return offspring;
+        LOG_ERROR("OrderCrossover: Not enough parents for crossover");
+        return parents;  // Return parents instead of empty vector
     }
 
     for (size_t i = 0; i < parents.size() - 1; i += 2) {
         if (!parents[i] || !parents[i + 1] || 
             parents[i]->size() != spectrumSize || 
             parents[i + 1]->size() != spectrumSize) {
-            std::cerr << "[ERROR OrderCrossover] Invalid parent sizes or null parents\n";
+            LOG_WARNING("OrderCrossover: Invalid parent sizes or null parents, copying parents");
+            if (parents[i]) offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
+            if (parents[i + 1]) offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
             continue;
         }
 
         auto child = performOrderCrossover(*parents[i], *parents[i + 1], spectrumSize);
         if (isValidPermutation(child, spectrumSize)) {
             offspring.push_back(std::make_shared<std::vector<int>>(child));
+            
+            // Create second child by reversing the roles of parents
+            auto child2 = performOrderCrossover(*parents[i + 1], *parents[i], spectrumSize);
+            if (isValidPermutation(child2, spectrumSize)) {
+                offspring.push_back(std::make_shared<std::vector<int>>(child2));
+            } else {
+                offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
+            }
+        } else {
+            // If crossover fails, copy both parents
+            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
+            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
+        }
+    }
+
+    // Handle odd number of parents
+    if (parents.size() % 2 == 1 && !parents.empty()) {
+        offspring.push_back(std::make_shared<std::vector<int>>(*parents.back()));
+    }
+
+    if (offspring.empty()) {
+        LOG_WARNING("OrderCrossover produced no offspring, returning copies of parents");
+        for (const auto& parent : parents) {
+            if (parent) {
+                offspring.push_back(std::make_shared<std::vector<int>>(*parent));
+            }
         }
     }
 
     return offspring;
+}
+
+std::vector<int> OrderCrossover::performOrderCrossover(
+    const std::vector<int>& parent1,
+    const std::vector<int>& parent2,
+    size_t size) 
+{
+    std::vector<int> child(size, -1);
+    std::vector<bool> used(size, false);
+    
+    // Wybierz losowy segment
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<int> dist(0, size - 1);
+    int start = dist(gen);
+    int end = dist(gen);
+    if (start > end) std::swap(start, end);
+    
+    // Skopiuj segment z pierwszego rodzica
+    for (int i = start; i <= end; i++) {
+        child[i] = parent1[i];
+        used[parent1[i]] = true;
+    }
+    
+    // Wypełnij pozostałe pozycje genami z drugiego rodzica
+    int j = (end + 1) % size;
+    for (size_t i = 0; i < size; i++) {
+        int pos = (end + 1 + i) % size;
+        if (child[pos] == -1) {
+            // Znajdź następny nieużyty gen z parent2
+            while (used[parent2[j]]) {
+                j = (j + 1) % size;
+            }
+            child[pos] = parent2[j];
+            used[parent2[j]] = true;
+            j = (j + 1) % size;
+        }
+    }
+    
+    return child;
 }
 
 // ========================================
@@ -492,43 +560,4 @@ DistancePreservingCrossover::crossover(
 
     return offspring;
     
-}
-
-std::vector<int> OrderCrossover::performOrderCrossover(
-    const std::vector<int>& parent1,
-    const std::vector<int>& parent2,
-    size_t size) 
-{
-    std::vector<int> child(size, -1);
-    std::vector<bool> used(size, false);
-    
-    // Wybierz losowy segment
-    std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<int> dist(0, size - 1);
-    int start = dist(gen);
-    int end = dist(gen);
-    if (start > end) std::swap(start, end);
-    
-    // Skopiuj segment z pierwszego rodzica
-    for (int i = start; i <= end; i++) {
-        child[i] = parent1[i];
-        used[parent1[i]] = true;
-    }
-    
-    // Wypełnij pozostałe pozycje genami z drugiego rodzica
-    int j = (end + 1) % size;
-    for (size_t i = 0; i < size; i++) {
-        int pos = (end + 1 + i) % size;
-        if (child[pos] == -1) {
-            // Znajdź następny nieużyty gen z parent2
-            while (used[parent2[j]]) {
-                j = (j + 1) % size;
-            }
-            child[pos] = parent2[j];
-            used[parent2[j]] = true;
-            j = (j + 1) % size;
-        }
-    }
-    
-    return child;
 }

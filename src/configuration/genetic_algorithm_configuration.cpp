@@ -117,8 +117,7 @@ void GAConfig::setGlobalBestFitness(double fitness) {
 */
 bool GAConfig::loadFromFile(const std::string& filePath)
 {
-    std::unique_lock<std::shared_mutex> lock(configMutex);
-    
+    // First check if we've already loaded this config
     if (isInitialized.load() && filePath == lastLoadedConfig) {
         std::cout << "[GAConfig] Configuration already loaded from " << filePath << std::endl;
         return true;
@@ -126,38 +125,33 @@ bool GAConfig::loadFromFile(const std::string& filePath)
     
     std::cout << "[GAConfig] Loading configuration from " << filePath << std::endl;
     
-    // First try the exact path
+    // Open and read the file without holding the lock
     std::ifstream in(filePath);
     if (!in.is_open()) {
-        // If that fails, try relative to current directory
-        std::string currentDirPath = "./" + filePath;
-        in.open(currentDirPath);
-        
-        if (!in.is_open()) {
-            // If that fails too, try relative to executable directory
-            char* exePath = nullptr;
-            size_t size = 0;
-            _get_pgmptr(&exePath);
-            if (exePath != nullptr) {
-                std::string executablePath(exePath);
-                std::string executableDir = executablePath.substr(0, executablePath.find_last_of("/\\"));
-                std::string execDirPath = executableDir + "/" + filePath;
-                in.open(execDirPath);
-            }
-        }
-        
-        if (!in.is_open()) {
-            std::string error = "Failed to open config file. Tried paths:\n";
-            error += "  - " + filePath + "\n";
-            error += "  - " + std::string("./") + filePath + "\n";
-            if (exePath != nullptr) {
-                std::string executablePath(exePath);
-                std::string executableDir = executablePath.substr(0, executablePath.find_last_of("/\\"));
-                error += "  - " + executableDir + "/" + filePath + "\n";
-            }
-            throw std::runtime_error(error);
-        }
+        std::string error = "Failed to open config file: " + filePath;
+        throw std::runtime_error(error);
     }
+    
+    // Create temporary storage for the new values
+    int maxGen = 100;
+    int popSize = 100;
+    double mutRate = 0.15;
+    double replRatio = 0.7;
+    double crossProb = 1.0;
+    std::string selMethod = "tournament";
+    std::string crossType = "order";
+    std::string mutMethod = "point";
+    std::string replMethod = "partial";
+    std::string stopMethod = "maxGenerations";
+    std::string fitType = "optimized_graph";
+    int noImprovGen = 30;
+    int tournSize = 3;
+    int timeLimit = 60;
+    AdaptiveCrossoverParams adaptParams = {0.7, 20, 5, 0.1};
+    double a = 0.7, b = 0.3;
+    int k_val = 8, dk = 2, ln = 25, lp = 25;
+    bool rep = false;
+    int probPos = 0;
     
     std::string line;
     while (std::getline(in, line)) {
@@ -176,95 +170,68 @@ bool GAConfig::loadFromFile(const std::string& filePath)
         value.erase(value.find_last_not_of(" \t") + 1);
         
         try {
-            if (key == "maxGenerations") {
-                setMaxGenerations(std::stoi(value));
-            }
-            else if (key == "populationSize") {
-                setPopulationSize(std::stoi(value));
-            }
-            else if (key == "mutationRate") {
-                m_mutationRate = std::stod(value);
-            }
-            else if (key == "replacementRatio") {
-                setReplacementRatio(std::stod(value));
-            }
-            else if (key == "crossoverProbability") {
-                crossoverProbability = std::stod(value);
-            }
-            else if (key == "selectionMethod") {
-                selectionMethod = value;
-            }
-            else if (key == "crossoverType") {
-                crossoverType = value;
-            }
-            else if (key == "mutationMethod") {
-                mutationMethod = value;
-            }
-            else if (key == "replacementMethod") {
-                replacementMethod = value;
-            }
-            else if (key == "stoppingMethod") {
-                stoppingMethod = value;
-            }
-            else if (key == "noImprovementGenerations") {
-                noImprovementGenerations = std::stoi(value);
-            }
-            else if (key == "tournamentSize") {
-                tournamentSize = std::stoi(value);
-            }
-            else if (key == "timeLimitSeconds") {
-                timeLimitSeconds = std::stoi(value);
-            }
-            else if (key == "fitnessType") {
-                fitnessType = value;
-            }
-            else if (key == "alpha") {
-                alpha = std::stod(value);
-            }
-            else if (key == "beta") {
-                beta = std::stod(value);
-            }
-            else if (key == "k") {
-                k = std::stoi(value);
-            }
-            else if (key == "deltaK") {
-                deltaK = std::stoi(value);
-            }
-            else if (key == "lNeg") {
-                lNeg = std::stoi(value);
-            }
-            else if (key == "lPoz") {
-                lPoz = std::stoi(value);
-            }
-            else if (key == "repAllowed") {
-                repAllowed = (value == "true" || value == "1");
-            }
-            else if (key == "probablePositive") {
-                probablePositive = std::stoi(value);
-            }
-            else if (key == "adaptive.inertia") {
-                adaptiveParams.inertia = std::stod(value);
-            }
-            else if (key == "adaptive.adaptationInterval") {
-                adaptiveParams.adaptationInterval = std::stoi(value);
-            }
-            else if (key == "adaptive.minTrials") {
-                adaptiveParams.minTrials = std::stoi(value);
-            }
-            else if (key == "adaptive.minProb") {
-                adaptiveParams.minProb = std::stod(value);
-            }
-            else {
-                std::cerr << "[GAConfig] Unknown configuration key: " << key << std::endl;
-            }
+            if (key == "maxGenerations") maxGen = std::stoi(value);
+            else if (key == "populationSize") popSize = std::stoi(value);
+            else if (key == "mutationRate") mutRate = std::stod(value);
+            else if (key == "replacementRatio") replRatio = std::stod(value);
+            else if (key == "crossoverProbability") crossProb = std::stod(value);
+            else if (key == "selectionMethod") selMethod = value;
+            else if (key == "crossoverType") crossType = value;
+            else if (key == "mutationMethod") mutMethod = value;
+            else if (key == "replacementMethod") replMethod = value;
+            else if (key == "stoppingMethod") stopMethod = value;
+            else if (key == "fitnessType") fitType = value;
+            else if (key == "noImprovementGenerations") noImprovGen = std::stoi(value);
+            else if (key == "tournamentSize") tournSize = std::stoi(value);
+            else if (key == "timeLimitSeconds") timeLimit = std::stoi(value);
+            else if (key == "alpha") a = std::stod(value);
+            else if (key == "beta") b = std::stod(value);
+            else if (key == "k") k_val = std::stoi(value);
+            else if (key == "deltaK") dk = std::stoi(value);
+            else if (key == "lNeg") ln = std::stoi(value);
+            else if (key == "lPoz") lp = std::stoi(value);
+            else if (key == "repAllowed") rep = (value == "true" || value == "1");
+            else if (key == "probablePositive") probPos = std::stoi(value);
+            else if (key == "adaptive.inertia") adaptParams.inertia = std::stod(value);
+            else if (key == "adaptive.adaptationInterval") adaptParams.adaptationInterval = std::stoi(value);
+            else if (key == "adaptive.minTrials") adaptParams.minTrials = std::stoi(value);
+            else if (key == "adaptive.minProb") adaptParams.minProb = std::stod(value);
         } catch (const std::exception& e) {
             std::cerr << "[GAConfig] Error parsing " << key << ": " << e.what() << std::endl;
-            continue;
         }
     }
     
+    // Now acquire the lock and update all values atomically
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    
+    m_maxGenerations = maxGen;
+    m_populationSize = popSize;
+    m_mutationRate = mutRate;
+    replacementRatio = replRatio;
+    crossoverProbability = crossProb;
+    selectionMethod = selMethod;
+    crossoverType = crossType;
+    mutationMethod = mutMethod;
+    replacementMethod = replMethod;
+    stoppingMethod = stopMethod;
+    fitnessType = fitType;
+    noImprovementGenerations = noImprovGen;
+    tournamentSize = tournSize;
+    timeLimitSeconds = timeLimit;
+    adaptiveParams = adaptParams;
+    alpha = a;
+    beta = b;
+    k = k_val;
+    deltaK = dk;
+    lNeg = ln;
+    lPoz = lp;
+    repAllowed = rep;
+    probablePositive = probPos;
+    
     lastLoadedConfig = filePath;
     isInitialized.store(true);
+    
+    std::cout << "[GAConfig] Configuration loaded successfully" << std::endl;
     return true;
 }
 
