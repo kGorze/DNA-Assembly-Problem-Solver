@@ -8,8 +8,23 @@
 #include <iomanip>
 #include <memory>
 #include <ctime>
+#include <vector>
+#include <thread>
+#include <mutex>
 
-// Pliki projektu
+// Project headers
+#include "dna/dna_instance.h"
+#include "metaheuristics/genetic_algorithm.h"
+#include "configuration/genetic_algorithm_configuration.h"
+#include "interfaces/i_representation.h"
+#include "interfaces/i_selection.h"
+#include "interfaces/i_crossover.h"
+#include "interfaces/i_mutation.h"
+#include "interfaces/i_replacement.h"
+#include "interfaces/i_fitness.h"
+#include "interfaces/i_stopping.h"
+#include "interfaces/i_population_cache.h"
+
 #include "generator/dna_generator.h"
 #include "naive/naive_reconstruction.h"
 #include "benchmark/naive_benchmark.h"
@@ -17,22 +32,14 @@
 
 #include "metaheuristics/crossover.h"
 #include "metaheuristics/fitness.h"
-#include "metaheuristics/genetic_algorithm.h"
-#include "metaheuristics/mutation.h"
-#include "metaheuristics/replacement.h"
-#include "metaheuristics/selection.h"
-#include "metaheuristics/stopping_criteria.h"
 #include "metaheuristics/genetic_algorithm_runner.h"
 
 #include "benchmark/crossover_benchmark.h"
-
-// Nowy include do konfiguracji AG:
-#include "configuration/genetic_algorithm_configuration.h"
-
-#include "metaheuristics/adaptive_crossover.h"
 #include "benchmark/adaptive_crossover_benchmark.h"
 
-// Pliki do tuningu:
+#include "metaheuristics/adaptive_crossover.h"
+
+// Tuning headers
 #include "tuning/parameter_tuning_manager.h"
 #include "tuning/parameters_parser.h"
 #include "tuning/tuning_structures.h"
@@ -165,7 +172,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Now load config and update with instance params
-        GAConfig config;
+        GAConfig& config = GAConfig::getInstance();
         if (!config.loadFromFile("config.cfg")) {
             std::cerr << "Failed to load GA configuration\n";
             return 1;
@@ -273,7 +280,7 @@ int main(int argc, char* argv[]) {
         }
         
         // Create config and run GA
-        GAConfig config;
+        GAConfig& config = GAConfig::getInstance();
         if (!config.loadFromFile("config.cfg")) {
             std::cerr << "Failed to load GA configuration\n";
             return 1;
@@ -333,7 +340,7 @@ int main(int argc, char* argv[]) {
             }
             
             // Create a new config instance
-            GAConfig cfg;
+            GAConfig& cfg = GAConfig::getInstance();
             if (!cfg.loadFromFile("config.cfg")) {
                 std::cerr << "Failed to load GA configuration\n";
                 return TuningResult{ps, -1.0, -1.0};
@@ -345,9 +352,9 @@ int main(int argc, char* argv[]) {
             // Update GA parameters from parameter set
             for (const auto &[key, value] : ps.params) {
                 if (key == "populationSize") {
-                    cfg.populationSize = std::stoi(value);
+                    cfg.setPopulationSize(std::stoi(value));
                 } else if (key == "mutationRate") {
-                    cfg.mutationRate = std::stod(value);
+                    cfg.setMutationRate(std::stod(value));
                 }
                 // Don't override k-mer related parameters here
             }
@@ -417,7 +424,7 @@ int main(int argc, char* argv[]) {
             DNAInstance instance = builder.getInstance();
 
             // Create a new config instance
-            GAConfig cfg;
+            GAConfig& cfg = GAConfig::getInstance();
             if (!cfg.loadFromFile("config.cfg")) {
                 std::cerr << "Failed to load GA configuration\n";
                 return TuningResult{ps, -1.0, -1.0};
@@ -426,9 +433,9 @@ int main(int argc, char* argv[]) {
             // Ustawiamy parametry GA
             for (const auto &[key, value] : ps.params) {
                 if (key == "populationSize") {
-                    cfg.populationSize = std::stoi(value);
+                    cfg.setPopulationSize(std::stoi(value));
                 } else if (key == "mutationRate") {
-                    cfg.mutationRate = std::stod(value);
+                    cfg.setMutationRate(std::stod(value));
                 }
             }
 

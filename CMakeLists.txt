@@ -11,6 +11,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
+# Define include directories at the top level
+include_directories(
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}
+)
+
 # Create library from source files
 add_library(${PROJECT_NAME}_lib STATIC
         src/dna/dna_instance_builder.cpp
@@ -41,8 +48,11 @@ add_library(${PROJECT_NAME}_lib STATIC
         src/tuning/tuning_structures.cpp
 )
 
+# Set include directories for the library
 target_include_directories(${PROJECT_NAME}_lib PUBLIC 
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}
 )
 
 # Main executable
@@ -50,6 +60,14 @@ add_executable(${PROJECT_NAME}
         src/main.cpp
 )
 
+# Set include directories for the main executable
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}
+)
+
+# Link the library
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 
 # Google Test setup

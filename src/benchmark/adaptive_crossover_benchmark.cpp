@@ -19,7 +19,16 @@ AdaptiveCrossoverBenchmark::AdaptiveCrossoverBenchmark(const std::string& output
 
 // runBenchmark implementation
 void AdaptiveCrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
-    BenchmarkConfig config;
+    // Get singleton instance
+    auto& config = GAConfig::getInstance();
+    
+    try {
+        config.loadFromFile("config.cfg");
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
+        return;
+    }
+    
     std::ofstream csvFile(outputFile);
     
     // Write CSV header
@@ -28,18 +37,18 @@ void AdaptiveCrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
             << "OX_Usage,ERX_Usage,PMX_Usage,"
             << "OX_Success,ERX_Success,PMX_Success\n";
 
-    for (double inertia : config.inertiaValues) {
-        for (int interval : config.adaptationIntervals) {
-            for (int trials : config.minTrials) {
-                for (double minProb : config.minProbs) {
-                    for (int run = 0; run < config.runsPerConfig; run++) {
-                        // Create a new config for each run
-                        GAConfig gaConfig;
-                        if (!gaConfig.loadFromFile("config.cfg")) {
-                            std::cerr << "Failed to load GA configuration\n";
-                            continue;
-                        }
-                        
+    // Define parameter ranges for the benchmark
+    std::vector<double> inertiaValues = {0.1, 0.3, 0.5, 0.7, 0.9};
+    std::vector<int> adaptationIntervals = {5, 10, 20};
+    std::vector<int> minTrialsValues = {3, 5, 10};
+    std::vector<double> minProbValues = {0.1, 0.2, 0.3};
+    int runsPerConfig = 5;
+
+    for (double inertia : inertiaValues) {
+        for (int interval : adaptationIntervals) {
+            for (int trials : minTrialsValues) {
+                for (double minProb : minProbValues) {
+                    for (int run = 0; run < runsPerConfig; run++) {
                         // Configure adaptive crossover with current parameters
                         auto crossover = std::make_shared<AdaptiveCrossover>();
                         crossover->setParameters(inertia, interval, trials, minProb);
@@ -49,15 +58,15 @@ void AdaptiveCrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
                         
                         // Create and run GA
                         GeneticAlgorithm ga(
-                            gaConfig.getRepresentation(),
-                            gaConfig.getSelection(),
+                            config.getRepresentation(),
+                            config.getSelection(),
                             crossover,
-                            gaConfig.getMutation(),
-                            gaConfig.getReplacement(),
+                            config.getMutation(),
+                            config.getReplacement(),
                             std::make_shared<OptimizedGraphBasedFitness>(),
-                            std::make_shared<MaxGenerationsStopping>(gaConfig),
+                            std::make_shared<MaxGenerationsStopping>(config),
                             std::make_shared<CachedPopulation>(),
-                            gaConfig
+                            config
                         );
                         
                         ga.run(instance);

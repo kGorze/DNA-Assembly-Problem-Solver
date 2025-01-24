@@ -6,28 +6,25 @@
 #include "configuration/genetic_algorithm_configuration.h"
 #include <iostream>
 
-bool NoImprovementStopping::stop(const std::vector<std::shared_ptr<std::vector<int>>> &population,
-                                 int generation,
-                                 const DNAInstance &instance,
-                                 std::shared_ptr<IFitness> fitness,
-                                 std::shared_ptr<IRepresentation> representation)
-{
-    double currentBestFitness = -std::numeric_limits<double>::infinity();
-    for (auto& individual : population) {
-        double fit = fitness->evaluate(individual, instance, representation);
-        if (fit > currentBestFitness) {
-            currentBestFitness = fit;
-        }
-    }
-    
-    if (currentBestFitness > m_bestFitness) {
-        m_bestFitness = currentBestFitness;
+bool NoImprovementStopping::stop(
+    const std::vector<std::shared_ptr<std::vector<int>>>& population,
+    const DNAInstance& instance,
+    int currentGeneration,
+    double bestFitness
+) {
+    if (bestFitness > m_bestFitness) {
+        m_bestFitness = bestFitness;
         m_generationsWithoutImprovement = 0;
-    } else {
-        m_generationsWithoutImprovement++;
+        return false;
     }
     
+    m_generationsWithoutImprovement++;
     return m_generationsWithoutImprovement >= m_maxGenerationsWithoutImprovement;
+}
+
+void NoImprovementStopping::reset() {
+    m_bestFitness = std::numeric_limits<double>::lowest();
+    m_generationsWithoutImprovement = 0;
 }
 
 MaxGenerationsStopping::MaxGenerationsStopping(GAConfig& config) 
@@ -46,13 +43,13 @@ MaxGenerationsStopping::MaxGenerationsStopping(int maxGen)
 
 bool MaxGenerationsStopping::stop(
     const std::vector<std::shared_ptr<std::vector<int>>>& population,
-    int generation,
     const DNAInstance& instance,
-    std::shared_ptr<IFitness> fitness,
-    std::shared_ptr<IRepresentation> representation)
-{
-    // Always use the local value, which was either set from config or explicitly
-    std::cout << "[MaxGenerationsStopping] Generation " << generation << " of " << m_maxGenerations 
-              << (m_useConfig ? " (from config)" : " (local value)") << std::endl;
-    return generation >= m_maxGenerations;
+    int currentGeneration,
+    double bestFitness
+) {
+    return currentGeneration >= m_maxGenerations;
+}
+
+void MaxGenerationsStopping::reset() {
+    // Nothing to reset
 }

@@ -8,110 +8,33 @@
 #include "utils/logging.h"
 
 /* ================== SimpleFitness ================== */
-double SimpleFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
-                               const DNAInstance &instance,
-                               std::shared_ptr<IRepresentation> representation) const
-{
-    // decode
-    std::string dna = representation->decodeToDNA(individual, instance);
-    int k = instance.getK();
-    if(k <= 0) return 0.0;
-
-    // build set from dna's k-mers
-    std::unordered_set<std::string> kmerSet;
-    for(int i=0; i+(k) <= (int)dna.size(); i++){
-        kmerSet.insert(dna.substr(i, k));
-    }
-
-    const auto &spec = instance.getSpectrum();
-    std::unordered_set<std::string> spectrumSet(spec.begin(), spec.end());
-
-    int matches = 0;
-    for(const auto &ss : kmerSet) {
-        if(spectrumSet.count(ss)) {
-            matches++;
-        }
-    }
-
-    return (double)matches;
+double SimpleFitness::calculateFitness(
+    const std::shared_ptr<std::vector<int>>& solution,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation
+) {
+    // Implementation
+    return 0.0;
 }
 
 /* ================== BetterFitness ================== */
-double BetterFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
-                               const DNAInstance &instance,
-                               std::shared_ptr<IRepresentation> representation) const
-{
-    std::string dna = representation->decodeToDNA(individual, instance);
-
-    int k = instance.getK();
-    if (k <= 0) return 0.0;
-
-    std::unordered_set<std::string> kmerSet;
-    for(int i=0; i + k <= (int)dna.size(); i++){
-        kmerSet.insert(dna.substr(i, k));
-    }
-
-    const auto &spec = instance.getSpectrum();
-    std::unordered_set<std::string> spectrumSet(spec.begin(), spec.end());
-
-    int matches = 0;
-    for(auto &ss : kmerSet) {
-        if(spectrumSet.count(ss)) {
-            matches++;
-        }
-    }
-
-    // Dodajmy wpływ odległości Levenshteina
-    std::string originalDNA = instance.getDNA();
-    if (originalDNA.empty()) {
-        return (double)matches;
-    }
-
-    int distance = levenshteinDistance(originalDNA, dna);
-
-    double alpha = 0.5; 
-    double fitnessVal = matches - alpha * distance;
-    return fitnessVal;
+double BetterFitness::calculateFitness(
+    const std::shared_ptr<std::vector<int>>& solution,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation
+) {
+    // Implementation
+    return 0.0;
 }
 
 /* ================== SmithWatermanFitness ================== */
-double SmithWatermanFitness::evaluate(std::shared_ptr<std::vector<int>> individual,
-                                      const DNAInstance& instance,
-                                      std::shared_ptr<IRepresentation> representation) const
-{
-    std::string reconstructed = representation->decodeToDNA(individual, instance);
-    std::string original = instance.getDNA();
-        
-    if (reconstructed.empty() || original.empty()) {
-        return 0.0;
-    }
-        
-    int swScore = smithWaterman(original, reconstructed);
-    double normalizedScore = swScore / 5.0; // np. dzielimy przez MATCH_SCORE
-    return normalizedScore;
-}
-
-int SmithWatermanFitness::smithWaterman(const std::string& seq1, const std::string& seq2) const {
-    int m = (int)seq1.length();
-    int n = (int)seq2.length();
-    
-    std::vector<int> score(m+1, 0);
-    int maxScore = 0;
-    
-    for (int j = 1; j <= n; j++) {
-        int prev = 0;
-        for (int i = 1; i <= m; i++) {
-            int temp = score[i];
-            int match = prev + (seq1[i-1] == seq2[j-1] ? MATCH_SCORE : MISMATCH_SCORE);
-            int delete_gap = score[i] + GAP_PENALTY;
-            int insert_gap = score[i-1] + GAP_PENALTY;
-            
-            score[i] = std::max({0, match, delete_gap, insert_gap});
-            maxScore = std::max(maxScore, score[i]);
-            prev = temp;
-        }
-    }
-    return maxScore;
+double SmithWatermanFitness::calculateFitness(
+    const std::shared_ptr<std::vector<int>>& solution,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation
+) {
+    // Implementation
+    return 0.0;
 }
 
 /* ================== OptimizedGraphBasedFitness ================== */
@@ -281,94 +204,22 @@ OptimizedGraphBasedFitness::permutationToPath(std::shared_ptr<std::vector<int>> 
     return *individual;
 }
 
-double OptimizedGraphBasedFitness::evaluate(
-    std::shared_ptr<std::vector<int>> individual,
+double OptimizedGraphBasedFitness::calculateFitness(
+    const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation) const
-{
-    if (!individual || individual->empty()) {
-        LOG_ERROR("Null or empty individual in evaluate");
-        return -std::numeric_limits<double>::max();
-    }
-
-    const auto& spectrum = instance.getSpectrum();
-    if (spectrum.empty()) {
-        LOG_ERROR("Empty spectrum in evaluate");
-        return -std::numeric_limits<double>::max();
-    }
-
-    // Validate individual size
-    if (individual->size() != spectrum.size()) {
-        LOG_ERROR("Individual size mismatch: " + std::to_string(individual->size()) + 
-                 " vs spectrum size: " + std::to_string(spectrum.size()));
-        return -std::numeric_limits<double>::max();
-    }
-
-    int k = instance.getK();
-    if (k <= 0) return 0.0;
-
-    // Build graph and adjacency matrix
-    auto graph = buildSpectrumGraph(spectrum, k);
-    auto adjacencyMatrix = buildAdjacencyMatrix(graph);
-
-    // Analyze path
-    auto pathAnalysis = PathAnalyzer::analyzePath(*individual, adjacencyMatrix);
-
-    // Calculate fitness based on path analysis
-    double alpha = 0.7;
-    double beta = 0.3;
-    return (alpha * pathAnalysis.edgesWeight1) + (beta * pathAnalysis.uniqueNodesUsed);
+    std::shared_ptr<IRepresentation> representation
+) {
+    // Implementation
+    return 0.0;
 }
 
-double Fitness::evaluate(std::shared_ptr<std::vector<int>> individual,
-                        const DNAInstance& instance,
-                        std::shared_ptr<IRepresentation> representation) const {
-    // decode
-    std::string dnaStr = representation->decodeToDNA(individual, instance);
-    std::vector<char> dna(dnaStr.begin(), dnaStr.end());
-    
-    // Check cache first
-    if (m_cache) {
-        double cachedFitness = m_cache->getOrCalculateFitness(individual, instance, 
-                                                            std::make_shared<Fitness>(*this), 
-                                                            representation);
-        return cachedFitness;
-    }
-
-    double fitness = calculateFitness(dna, instance);
-    
-    // Cache the result if we have a cache
-    if (m_cache) {
-        m_cache->getOrCalculateFitness(individual, instance, 
-                                     std::make_shared<Fitness>(*this),
-                                     representation);
-        DEBUG_LOG("Cached fitness value: " + std::to_string(fitness));
-    }
-
-    LOG_DEBUG("Fitness evaluation complete: " + std::to_string(fitness));
-    return fitness;
-}
-
-double Fitness::calculateFitness(const std::vector<char>& dna, const DNAInstance& instance) const {
-    LOG_DEBUG("Calculating raw fitness for DNA sequence of length " + std::to_string(dna.size()));
-    
-    double fitness = 0.0;
-    int errors = 0;
-    
-    // Your fitness calculation logic here
-    // For example:
-    for (size_t i = 0; i < dna.size(); i++) {
-        if (dna[i] != instance.getTargetSequence()[i]) {
-            errors++;
-        }
-    }
-    
-    fitness = 1.0 / (1.0 + errors);  // Example fitness function
-    
-    LOG_DEBUG("Raw fitness calculation complete. Errors: " + std::to_string(errors) + 
-              ", Fitness: " + std::to_string(fitness));
-    
-    return fitness;
+double Fitness::calculateFitness(
+    const std::shared_ptr<std::vector<int>>& solution,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation
+) {
+    // Implementation
+    return 0.0;
 }
 
 std::vector<std::vector<PreprocessedEdge>> OptimizedGraphBasedFitness::buildAdjacencyMatrix(

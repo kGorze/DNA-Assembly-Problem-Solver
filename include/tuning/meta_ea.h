@@ -42,9 +42,18 @@ public:
      * Wewnątrz, w każdej generacji, możemy wykorzystać Racing
      * lub normalną ocenę (wielokrotne uruchomienia) – w zależności od koncepcji.
      */
-    ParameterSet runMetaEA(std::function<TuningResult(const ParameterSet&)> evaluateFunc)
+    ParameterSet runMetaEA(std::function<TuningResult(const ParameterSet&)> evaluator)
     {
-        // Implementacja pozostaje bez zmian
+        // Get singleton instance
+        auto& config = GAConfig::getInstance();
+        
+        try {
+            config.loadFromFile("config.cfg");
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
+            return ParameterSet();
+        }
+        
         std::random_device rd;
         std::mt19937 rng(rd());
         std::vector<ParameterSet> population = initPopulation(rng);
@@ -52,19 +61,12 @@ public:
         ParameterSet bestSoFar;
         double bestFitnessSoFar = -1e9;
 
-        // Create a new config instance
-        GAConfig gaConfig;
-        if (!gaConfig.loadFromFile("config.cfg")) {
-            std::cerr << "Failed to load GA configuration\n";
-            return bestSoFar;
-        }
-        
-        int maxGenerations = gaConfig.getMaxGenerations();
+        int maxGenerations = config.getMaxGenerations();
 
         for (int gen = 0; gen < maxGenerations; gen++) {
             Racing::Manager rm(racingCfg); // Korzystanie z namespace
             auto results = rm.runRacing(population, [&](const ParameterSet &ps){
-                return evaluateFunc(ps);
+                return evaluator(ps);
             });
 
             for (auto &r : results) {
@@ -253,55 +255,47 @@ private:
     // z danym zestawem parametrów i zwraca TuningResult.
     TuningResult evaluateParamSet(const ParameterSet &ps, const DNAInstance &exampleInstance)
     {
-        // Create a new config instance
-        GAConfig gaConfig;
-        if (!gaConfig.loadFromFile("config.cfg")) {
-            std::cerr << "Failed to load GA configuration\n";
-            TuningResult tr;
-            tr.parameterSet = ps;
-            tr.fitness = -1e9;
-            tr.executionTime = 0;
-            return tr;
+        // Get singleton instance
+        auto& config = GAConfig::getInstance();
+        
+        try {
+            config.loadFromFile("config.cfg");
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
+            TuningResult result;
+            result.fitness = -std::numeric_limits<double>::infinity();
+            return result;
         }
-
-        // Update parameters
-        for (auto &kv : ps.params) {
+        
+        // Update configuration using proper setters
+        for (const auto& kv : ps.params) {
             if (kv.first == "populationSize") {
-                gaConfig.populationSize = std::stoi(kv.second);
+                config.setPopulationSize(std::stoi(kv.second));
             } else if (kv.first == "mutationRate") {
-                gaConfig.mutationRate = std::stod(kv.second);
+                config.setMutationRate(std::stod(kv.second));
             }
+            // Note: crossoverType is handled through getCrossover below
         }
-
-        auto start = std::chrono::high_resolution_clock::now();
         
         // Create and run GA
-        auto cache = std::make_shared<CachedPopulation>();
-        gaConfig.setCache(cache);
-        
         GeneticAlgorithm ga(
-            gaConfig.getRepresentation(),
-            gaConfig.getSelection(),
-            gaConfig.getCrossover(gaConfig.crossoverType),
-            gaConfig.getMutation(),
-            gaConfig.getReplacement(),
-            gaConfig.getFitness(),
-            gaConfig.getStopping(),
-            cache,
-            gaConfig
+            config.getRepresentation(),
+            config.getSelection(),
+            config.getCrossover("order"), // Use default crossover type
+            config.getMutation(),
+            config.getReplacement(),
+            config.getFitness(),
+            config.getStopping(),
+            config.getCache(),
+            config
         );
         
         ga.run(exampleInstance);
         
-        auto end = std::chrono::high_resolution_clock::now();
-        double durationSec = std::chrono::duration<double>(end - start).count();
-
-        TuningResult tr;
-        tr.parameterSet = ps;
-        tr.fitness = ga.getBestFitness();
-        tr.executionTime = durationSec;
-
-        return tr;
+        TuningResult result;
+        result.parameterSet = ps;
+        result.fitness = ga.getBestFitness();
+        return result;
     }
 
     ParameterSet mutateParameterSet(const ParameterSet &parent)

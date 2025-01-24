@@ -2,8 +2,8 @@
 // Created by konrad_guest on 07/01/2025.
 // SMART
 
-#include "metaheuristics/crossover.h"
-#include "utils/logging.h"
+#include "../include/metaheuristics/crossover_impl.h"
+#include "../include/utils/logging.h"
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -106,11 +106,12 @@ std::pair<std::shared_ptr<std::vector<int>>, std::shared_ptr<std::vector<int>>>
 OnePointCrossover::performCrossover(const std::shared_ptr<std::vector<int>>& parent1,
                                   const std::shared_ptr<std::vector<int>>& parent2,
                                   const DNAInstance& instance) {
-    // Implementation of one-point crossover
     auto child1 = std::make_shared<std::vector<int>>(*parent1);
     auto child2 = std::make_shared<std::vector<int>>(*parent2);
     
-    int crossPoint = std::uniform_int_distribution<int>(0, parent1->size()-1)(RandomGenerator::getInstance().get());
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    int crossPoint = std::uniform_int_distribution<int>(0, parent1->size()-1)(gen);
     
     for (size_t i = crossPoint; i < parent1->size(); ++i) {
         (*child1)[i] = (*parent2)[i];

@@ -2,7 +2,7 @@
 // Created by konrad_guest on 23/01/2025.
 //
 #include "configuration/genetic_algorithm_configuration.h"
-
+#include "metaheuristics/stopping_criteria.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -10,6 +10,7 @@
 #include <cctype>
 #include <chrono>
 #include <mutex>
+#include <shared_mutex>
 
 /*
     Konstruktor prywatny: ustawiamy domyślne wartości.
@@ -17,85 +18,73 @@
 GAConfig::GAConfig()
 {
     std::cout << "[GAConfig] Creating new GAConfig instance" << std::endl;
-    // Don't reset to defaults automatically
-    m_maxGenerations = -1;  // Invalid value to indicate it needs to be set
-    isInitialized = false;
+    // All initialization is now done through in-class initializers
 }
 
-void GAConfig::resetToDefaults() 
+void GAConfig::resetToDefaults()
 {
-    std::lock_guard<std::mutex> lock(configMutex);
-    std::cout << "[GAConfig] Resetting to default values" << std::endl;
+    std::unique_lock<std::shared_mutex> lock(configMutex);
     
-    // Only set defaults if not already initialized from config
-    if (!isInitialized) {
-        // Domyślne wartości
-        populationSize       = 100;
-        mutationRate         = 0.15;
-        replacementRatio     = 0.7;
-        m_maxGenerations     = 200;  // Using private member
-        crossoverProbability = 1.0;
-
-        selectionMethod      = "tournament";
-        crossoverType        = "order";
-        mutationMethod       = "point";
-        replacementMethod    = "partial";
-        stoppingMethod       = "maxGenerations";
-
-        noImprovementGenerations = 30;
-        tournamentSize           = 3;
-        timeLimitSeconds         = 60;
-
-        adaptiveParams.inertia            = 0.7;
-        adaptiveParams.adaptationInterval = 20;
-        adaptiveParams.minTrials          = 5;
-        adaptiveParams.minProb            = 0.1;
-
-        fitnessType = "optimized_graph";
-        alpha = 0.7;
-        beta  = 0.3;
-
-        // DNA Generation parameters - invalid values to indicate they need to be set
-        k = -1;
-        deltaK = -1;
-        lNeg = -1;
-        lPoz = -1;
-        repAllowed = false;
-        probablePositive = -1;
-
-        m_globalBestFit = -std::numeric_limits<double>::infinity();
-        
-        std::cout << "[GAConfig] Default values set:" << std::endl
-                  << "  maxGenerations = " << m_maxGenerations << std::endl
-                  << "  populationSize = " << populationSize << std::endl
-                  << "  mutationRate = " << mutationRate << std::endl;
-    } else {
-        std::cout << "[GAConfig] Already initialized from config, not resetting" << std::endl;
-    }
+    // Reset all values to their in-class initializer defaults
+    m_maxGenerations = 100;
+    populationSize = 100;
+    mutationRate = 0.15;
+    replacementRatio = 0.7;
+    crossoverProbability = 1.0;
+    
+    selectionMethod = "tournament";
+    crossoverType = "order";
+    mutationMethod = "point";
+    replacementMethod = "partial";
+    stoppingMethod = "maxGenerations";
+    
+    noImprovementGenerations = 30;
+    tournamentSize = 3;
+    timeLimitSeconds = 60;
+    
+    adaptiveParams = {0.7, 20, 5, 0.1};
+    
+    alpha = 0.7;
+    beta = 0.3;
+    
+    k = 8;
+    deltaK = 2;
+    lNeg = 25;
+    lPoz = 25;
+    repAllowed = false;
+    probablePositive = 0;
+    
+    m_globalBestFit = -std::numeric_limits<double>::infinity();
+    
+    std::cout << "[GAConfig] Reset to default values" << std::endl;
 }
 
 // Setter z klamrowaniem wartości replacementRatio
 void GAConfig::setReplacementRatio(double ratio) {
-    if (ratio < 0.0) ratio = 0.0;
-    if (ratio > 1.0) ratio = 1.0;
-    replacementRatio = ratio;
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    if (ratio >= 0.0 && ratio <= 1.0) {
+        replacementRatio = ratio;
+    } else {
+        std::cerr << "[GAConfig] Invalid replacement ratio: " << ratio << ", using default of 0.7" << std::endl;
+        replacementRatio = 0.7;
+    }
 }
 
 
 // ---- IMPLEMENTACJA GET/SET GlobalBestFitness ----
 
 double GAConfig::getGlobalBestFitness() const {
-
+    std::shared_lock<std::shared_mutex> lock(configMutex);
     return m_globalBestFit;
-
 }
 
 
 
 void GAConfig::setGlobalBestFitness(double fitness) {
-
-    m_globalBestFit = fitness;
-
+    std::unique_lock<std::shared_mutex> lock(configMutex);
+    if (fitness > m_globalBestFit) {
+        m_globalBestFit = fitness;
+    }
 }
 
 
@@ -119,188 +108,128 @@ void GAConfig::setGlobalBestFitness(double fitness) {
     - Dla prostoty: "adaptive.xyz" -> interpretujemy i przypisujemy do struct AdaptiveCrossoverParams.
 
 */
-bool GAConfig::loadFromFile(const std::string& filePath)
+void GAConfig::loadFromFile(const std::string& filePath)
 {
-    std::lock_guard<std::mutex> lock(configMutex);
+    std::unique_lock<std::shared_mutex> lock(configMutex);
     
-    std::cout << "[GAConfig] Current maxGenerations before loading: " << m_maxGenerations << std::endl;
-    
-    if (filePath == lastLoadedConfig && isInitialized) {
-        std::cout << "[GAConfig] Config file " << filePath << " was already loaded, skipping." << std::endl;
-        return true;
+    if (isInitialized.load() && filePath == lastLoadedConfig) {
+        std::cout << "[GAConfig] Configuration already loaded from " << filePath << std::endl;
+        return;
     }
     
-    // Get absolute path of executable
-    char exePath[1024];
-    #ifdef _WIN32
-    GetModuleFileName(NULL, exePath, sizeof(exePath));
-    #else
-    if (readlink("/proc/self/exe", exePath, sizeof(exePath)) == -1) {
-        LOG_ERROR("Failed to get executable path");
-        return false;
-    }
-    #endif
-    std::string exeDir = std::string(exePath);
-    exeDir = exeDir.substr(0, exeDir.find_last_of("/\\"));
+    std::cout << "[GAConfig] Loading configuration from " << filePath << std::endl;
     
-    std::vector<std::string> possiblePaths = {
-        filePath,
-        "config.cfg",
-        "./config.cfg",
-        "../config.cfg",
-        (exeDir + "/config.cfg"),
-        (exeDir + "/../config.cfg"),
-        (exeDir + "/build/config.cfg"),
-        "../build/config.cfg",
-        "./build/config.cfg"
-    };
-
-    for (const auto& path : possiblePaths) {
-        std::ifstream in(path);
-        if (in.is_open()) {
-            std::cout << "[GAConfig] Loading configuration from: " << path << std::endl;
-
-            std::string line;
-            bool anyValueSet = false;
-            
-            while (std::getline(in, line)) {
-                auto trim = [&](std::string &s) {
-                    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch){
-                        return !std::isspace(ch);
-                    }));
-                    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch){
-                        return !std::isspace(ch);
-                    }).base(), s.end());
-                };
-                trim(line);
-
-                if (line.empty() || line[0] == '#' || line[0] == ';') {
-                    continue;
-                }
-
-                auto eqPos = line.find('=');
-                if (eqPos == std::string::npos) {
-                    continue;
-                }
-
-                std::string key = line.substr(0, eqPos);
-                std::string value = line.substr(eqPos + 1);
-                trim(key);
-                trim(value);
-
-                std::cout << "[GAConfig] Processing: " << key << " = " << value << std::endl;
-
-                try {
-                    if (key == "maxGenerations") {
-                        int oldValue = m_maxGenerations;
-                        m_maxGenerations = std::stoi(value);
-                        std::cout << "[GAConfig] Updated maxGenerations from " << oldValue << " to " << m_maxGenerations << std::endl;
-                        anyValueSet = true;
-                    } else if (key == "populationSize") {
-                        populationSize = std::stoi(value);
-                        std::cout << "[GAConfig] Set populationSize = " << populationSize << std::endl;
-                    } else if (key == "mutationRate") {
-                        mutationRate = std::stod(value);
-                        std::cout << "[GAConfig] Set mutationRate = " << mutationRate << std::endl;
-                    } else if (key == "replacementRatio") {
-                        setReplacementRatio(std::stod(value));
-                        std::cout << "[GAConfig] Set replacementRatio = " << replacementRatio << std::endl;
-                    } else if (key == "crossoverProbability") {
-                        crossoverProbability = std::stod(value);
-                        std::cout << "[GAConfig] Set crossoverProbability = " << crossoverProbability << std::endl;
-                    } else if (key == "selectionMethod") {
-                        selectionMethod = value;
-                        std::cout << "[GAConfig] Set selectionMethod = " << selectionMethod << std::endl;
-                    } else if (key == "crossoverType") {
-                        crossoverType = value;
-                        std::cout << "[GAConfig] Set crossoverType = " << crossoverType << std::endl;
-                    } else if (key == "mutationMethod") {
-                        mutationMethod = value;
-                        std::cout << "[GAConfig] Set mutationMethod = " << mutationMethod << std::endl;
-                    } else if (key == "replacementMethod") {
-                        replacementMethod = value;
-                        std::cout << "[GAConfig] Set replacementMethod = " << replacementMethod << std::endl;
-                    } else if (key == "stoppingMethod") {
-                        stoppingMethod = value;
-                        std::cout << "[GAConfig] Set stoppingMethod = " << stoppingMethod << std::endl;
-                    } else if (key == "noImprovementGenerations") {
-                        noImprovementGenerations = std::stoi(value);
-                        std::cout << "[GAConfig] Set noImprovementGenerations = " << noImprovementGenerations << std::endl;
-                    } else if (key == "tournamentSize") {
-                        tournamentSize = std::stoi(value);
-                        std::cout << "[GAConfig] Set tournamentSize = " << tournamentSize << std::endl;
-                    } else if (key == "timeLimitSeconds") {
-                        timeLimitSeconds = std::stoi(value);
-                        std::cout << "[GAConfig] Set timeLimitSeconds = " << timeLimitSeconds << std::endl;
-                    } else if (key == "fitnessType") {
-                        fitnessType = value;
-                        std::cout << "[GAConfig] Set fitnessType = " << fitnessType << std::endl;
-                    } else if (key == "alpha") {
-                        alpha = std::stod(value);
-                        std::cout << "[GAConfig] Set alpha = " << alpha << std::endl;
-                    } else if (key == "beta") {
-                        beta = std::stod(value);
-                        std::cout << "[GAConfig] Set beta = " << beta << std::endl;
-                    
-                    // Instance parameters
-                    } else if (key == "k") {
-                        k = std::stoi(value);
-                        std::cout << "[GAConfig] Set k = " << k << std::endl;
-                    } else if (key == "deltaK") {
-                        deltaK = std::stoi(value);
-                        std::cout << "[GAConfig] Set deltaK = " << deltaK << std::endl;
-                    } else if (key == "lNeg") {
-                        lNeg = std::stoi(value);
-                        std::cout << "[GAConfig] Set lNeg = " << lNeg << std::endl;
-                    } else if (key == "lPoz") {
-                        lPoz = std::stoi(value);
-                        std::cout << "[GAConfig] Set lPoz = " << lPoz << std::endl;
-                    } else if (key == "repAllowed") {
-                        repAllowed = (value == "true" || value == "1");
-                        std::cout << "[GAConfig] Set repAllowed = " << repAllowed << std::endl;
-                    } else if (key == "probablePositive") {
-                        probablePositive = std::stoi(value);
-                        std::cout << "[GAConfig] Set probablePositive = " << probablePositive << std::endl;
-                    
-                    // Obsługa parametrów adaptacyjnego krzyżowania (przykład):
-                    } else if (key == "adaptive.inertia") {
-                        adaptiveParams.inertia = std::stod(value);
-                        std::cout << "[GAConfig] Set adaptive.inertia = " << adaptiveParams.inertia << std::endl;
-                    } else if (key == "adaptive.adaptationInterval") {
-                        adaptiveParams.adaptationInterval = std::stoi(value);
-                        std::cout << "[GAConfig] Set adaptive.adaptationInterval = " << adaptiveParams.adaptationInterval << std::endl;
-                    } else if (key == "adaptive.minTrials") {
-                        adaptiveParams.minTrials = std::stoi(value);
-                        std::cout << "[GAConfig] Set adaptive.minTrials = " << adaptiveParams.minTrials << std::endl;
-                    } else if (key == "adaptive.minProb") {
-                        adaptiveParams.minProb = std::stod(value);
-                        std::cout << "[GAConfig] Set adaptive.minProb = " << adaptiveParams.minProb << std::endl;
-                    } else {
-                        // Nieznany klucz – wypisz ostrzeżenie
-                        std::cerr << "[GAConfig] Unknown configuration key: " << key << std::endl;
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "[GAConfig] Error parsing value for key '" << key << "': " << e.what() << std::endl;
-                }
+    std::ifstream in(filePath);
+    if (!in.is_open()) {
+        throw std::runtime_error("Failed to open config file: " + filePath);
+    }
+    
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+        
+        size_t eqPos = line.find('=');
+        if (eqPos == std::string::npos) continue;
+        
+        std::string key = line.substr(0, eqPos);
+        std::string value = line.substr(eqPos + 1);
+        
+        // Trim whitespace
+        key.erase(0, key.find_first_not_of(" \t"));
+        key.erase(key.find_last_not_of(" \t") + 1);
+        value.erase(0, value.find_first_not_of(" \t"));
+        value.erase(value.find_last_not_of(" \t") + 1);
+        
+        try {
+            if (key == "maxGenerations") {
+                setMaxGenerations(std::stoi(value));
             }
-
-            if (anyValueSet) {
-                lastLoadedConfig = path;
-                isInitialized = true;
+            else if (key == "populationSize") {
+                setPopulationSize(std::stoi(value));
             }
-
-            std::cout << "\n[GAConfig] Final configuration values:" << std::endl
-                      << "  maxGenerations = " << m_maxGenerations << std::endl
-                      << "  populationSize = " << populationSize << std::endl
-                      << "  mutationRate = " << mutationRate << std::endl;
-
-            in.close();
-            return true;
+            else if (key == "mutationRate") {
+                mutationRate = std::stod(value);
+            }
+            else if (key == "replacementRatio") {
+                setReplacementRatio(std::stod(value));
+            }
+            else if (key == "crossoverProbability") {
+                crossoverProbability = std::stod(value);
+            }
+            else if (key == "selectionMethod") {
+                selectionMethod = value;
+            }
+            else if (key == "crossoverType") {
+                crossoverType = value;
+            }
+            else if (key == "mutationMethod") {
+                mutationMethod = value;
+            }
+            else if (key == "replacementMethod") {
+                replacementMethod = value;
+            }
+            else if (key == "stoppingMethod") {
+                stoppingMethod = value;
+            }
+            else if (key == "noImprovementGenerations") {
+                noImprovementGenerations = std::stoi(value);
+            }
+            else if (key == "tournamentSize") {
+                tournamentSize = std::stoi(value);
+            }
+            else if (key == "timeLimitSeconds") {
+                timeLimitSeconds = std::stoi(value);
+            }
+            else if (key == "fitnessType") {
+                fitnessType = value;
+            }
+            else if (key == "alpha") {
+                alpha = std::stod(value);
+            }
+            else if (key == "beta") {
+                beta = std::stod(value);
+            }
+            else if (key == "k") {
+                k = std::stoi(value);
+            }
+            else if (key == "deltaK") {
+                deltaK = std::stoi(value);
+            }
+            else if (key == "lNeg") {
+                lNeg = std::stoi(value);
+            }
+            else if (key == "lPoz") {
+                lPoz = std::stoi(value);
+            }
+            else if (key == "repAllowed") {
+                repAllowed = (value == "true" || value == "1");
+            }
+            else if (key == "probablePositive") {
+                probablePositive = std::stoi(value);
+            }
+            else if (key == "adaptive.inertia") {
+                adaptiveParams.inertia = std::stod(value);
+            }
+            else if (key == "adaptive.adaptationInterval") {
+                adaptiveParams.adaptationInterval = std::stoi(value);
+            }
+            else if (key == "adaptive.minTrials") {
+                adaptiveParams.minTrials = std::stoi(value);
+            }
+            else if (key == "adaptive.minProb") {
+                adaptiveParams.minProb = std::stod(value);
+            }
+            else {
+                std::cerr << "[GAConfig] Unknown configuration key: " << key << std::endl;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "[GAConfig] Error parsing " << key << ": " << e.what() << std::endl;
+            continue;
         }
     }
-
-    std::cerr << "[GAConfig] No configuration file found in available paths." << std::endl;
-    return false;
+    
+    lastLoadedConfig = filePath;
+    isInitialized.store(true);
 }
 
 // ---------------------------------------
@@ -389,9 +318,30 @@ std::shared_ptr<IFitness> GAConfig::getFitness() const
     return std::make_shared<BetterFitness>();
 }
 
+// Add TimeLimitStopping class definition
+class TimeLimitStopping : public IStopping {
+public:
+    explicit TimeLimitStopping(int sec) : limitSeconds(sec) {
+        start = std::chrono::steady_clock::now();
+    }
+    
+    bool stop(const std::vector<std::shared_ptr<std::vector<int>>>& population,
+              int generation,
+              const DNAInstance& instance,
+              std::shared_ptr<IFitness> fitness,
+              std::shared_ptr<IRepresentation> representation) override {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsedSec = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+        return (elapsedSec >= limitSeconds);
+    }
+private:
+    int limitSeconds;
+    std::chrono::steady_clock::time_point start;
+};
+
 std::shared_ptr<IStopping> GAConfig::getStopping() const
 {
-    std::lock_guard<std::mutex> lock(configMutex);
+    std::shared_lock<std::shared_mutex> lock(configMutex);
     // Log the current maxGenerations value for debugging
     std::cout << "[GAConfig] Creating stopping criteria with maxGenerations=" << m_maxGenerations << std::endl;
     
@@ -403,27 +353,6 @@ std::shared_ptr<IStopping> GAConfig::getStopping() const
     } else if (stoppingMethod == "noImprovement") {
         return std::make_shared<NoImprovementStopping>(noImprovementGenerations);
     } else if (stoppingMethod == "timeLimit") {
-        // Przykład prostej implementacji TimeLimitStopping
-        class TimeLimitStopping : public IStopping {
-        public:
-            TimeLimitStopping(int sec) : limitSeconds(sec) {
-                start = std::chrono::steady_clock::now();
-            }
-            bool stop(const std::vector<std::shared_ptr<std::vector<int>>> &population,
-                      int generation,
-                      const DNAInstance &instance,
-                      std::shared_ptr<IFitness> fitness,
-                      std::shared_ptr<IRepresentation> representation) override
-            {
-                auto now = std::chrono::steady_clock::now();
-                auto elapsedSec = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
-                return (elapsedSec >= limitSeconds);
-            }
-        private:
-            int limitSeconds;
-            std::chrono::steady_clock::time_point start;
-        };
-
         return std::make_shared<TimeLimitStopping>(timeLimitSeconds);
     }
     // Default:
@@ -433,80 +362,60 @@ std::shared_ptr<IStopping> GAConfig::getStopping() const
     return stopping;
 }
 
-void GAConfig::setParameters(const ParameterSet &ps) {
-    std::lock_guard<std::mutex> lock(configMutex);
+void GAConfig::setParameters(const ParameterSet& ps) {
+    std::unique_lock<std::shared_mutex> lock(configMutex);
     
+    // Set parameters from the parameter set
+    if (ps.params.count("maxGenerations")) {
+        setMaxGenerations(std::stoi(ps.params.at("maxGenerations")));
+    }
     if (ps.params.count("populationSize")) {
-        populationSize = std::stoi(ps.params.at("populationSize"));
+        setPopulationSize(std::stoi(ps.params.at("populationSize")));
     }
     if (ps.params.count("mutationRate")) {
-        mutationRate = std::stod(ps.params.at("mutationRate"));
+        setMutationRate(std::stod(ps.params.at("mutationRate")));
+    }
+    if (ps.params.count("crossoverProbability")) {
+        setCrossoverProbability(std::stod(ps.params.at("crossoverProbability")));
     }
     if (ps.params.count("replacementRatio")) {
-        replacementRatio = std::stod(ps.params.at("replacementRatio"));
+        setReplacementRatio(std::stod(ps.params.at("replacementRatio")));
     }
-    if (ps.params.count("tournamentSize")) {
-        tournamentSize = std::stoi(ps.params.at("tournamentSize"));
-    }
-    if (ps.params.count("crossoverType")) {
-        crossoverType = ps.params.at("crossoverType");
-    }
-    if (ps.params.count("selectionMethod")) {
-        selectionMethod = ps.params.at("selectionMethod");
-    }
-    if (ps.params.count("adaptive.inertia")) {
-        adaptiveParams.inertia = std::stod(ps.params.at("adaptive.inertia"));
-    }
-    if (ps.params.count("adaptive.adaptationInterval")) {
-        adaptiveParams.adaptationInterval = std::stoi(ps.params.at("adaptive.adaptationInterval"));
-    }
-    if (ps.params.count("adaptive.minTrials")) {
-        adaptiveParams.minTrials = std::stoi(ps.params.at("adaptive.minTrials"));
-    }
-    if (ps.params.count("adaptive.minProb")) {
-        adaptiveParams.minProb = std::stod(ps.params.at("adaptive.minProb"));
-    }
-    if (ps.params.count("k")) {
-        k = std::stoi(ps.params.at("k"));
-    }
-    if (ps.params.count("deltaK")) {
-        deltaK = std::stoi(ps.params.at("deltaK"));
-    }
-    if (ps.params.count("lNeg")) {
-        lNeg = std::stoi(ps.params.at("lNeg"));
-    }
-    if (ps.params.count("lPoz")) {
-        lPoz = std::stoi(ps.params.at("lPoz"));
-    }
-    if (ps.params.count("repAllowed")) {
-        repAllowed = ps.params.at("repAllowed") == "true";
-    }
-    if (ps.params.count("probablePositive")) {
-        probablePositive = std::stoi(ps.params.at("probablePositive"));
-    }
+    
+    // Validate after setting all parameters
+    validate();
 }
 
 bool GAConfig::validate() const {
-    if (k <= 0) {
-        std::cerr << "[ERROR] K must be positive" << std::endl;
-        return false;
+    std::shared_lock<std::shared_mutex> lock(configMutex);
+    
+    bool isValid = true;
+    
+    if (m_maxGenerations <= 0) {
+        std::cerr << "[GAConfig] Invalid maxGenerations: " << m_maxGenerations << std::endl;
+        isValid = false;
     }
     
-    if (populationSize <= 0) {
-        std::cerr << "[ERROR] Population size must be positive" << std::endl;
-        return false;
+    if (populationSize <= 1) {
+        std::cerr << "[GAConfig] Invalid population size: " << populationSize << std::endl;
+        isValid = false;
     }
     
     if (mutationRate < 0.0 || mutationRate > 1.0) {
-        std::cerr << "[ERROR] Mutation rate must be between 0 and 1" << std::endl;
-        return false;
+        std::cerr << "[GAConfig] Invalid mutation rate: " << mutationRate << std::endl;
+        isValid = false;
+    }
+    
+    if (crossoverProbability < 0.0 || crossoverProbability > 1.0) {
+        std::cerr << "[GAConfig] Invalid crossover probability: " << crossoverProbability << std::endl;
+        isValid = false;
     }
     
     if (replacementRatio < 0.0 || replacementRatio > 1.0) {
-        std::cerr << "[ERROR] Replacement ratio must be between 0 and 1" << std::endl;
-        return false;
+        std::cerr << "[GAConfig] Invalid replacement ratio: " << replacementRatio << std::endl;
+        isValid = false;
     }
     
-    return true;
+    return isValid;
 }
 

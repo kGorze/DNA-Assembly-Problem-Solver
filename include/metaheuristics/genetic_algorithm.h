@@ -1,5 +1,4 @@
-#ifndef GENETIC_ALGORITHM_H
-#define GENETIC_ALGORITHM_H
+#pragma once
 
 #include <vector>
 #include <memory>
@@ -9,30 +8,41 @@
 #include <limits>
 #include <iomanip>
 #include <sstream>
+#include <random>
+#include <algorithm>
+#include <chrono>
 
-#include "metaheuristics/representation.h"
-#include "metaheuristics/selection.h"
-#include "metaheuristics/crossover.h"
-#include "metaheuristics/mutation.h"
-#include "metaheuristics/replacement.h"
-#include "metaheuristics/fitness.h"
-#include "metaheuristics/stopping_criteria.h"
-#include "metaheuristics/population_cache.h"
-#include "utils/performance_profilling_framework.h"
-#include "configuration/genetic_algorithm_configuration.h"
-#include "naive/naive_reconstruction.h"
-#include "metaheuristics/adaptive_crossover.h"
+// Interface includes
+#include "../interfaces/i_representation.h"
+#include "../interfaces/i_selection.h"
+#include "../interfaces/i_crossover.h"
+#include "../interfaces/i_mutation.h"
+#include "../interfaces/i_replacement.h"
+#include "../interfaces/i_fitness.h"
+#include "../interfaces/i_stopping.h"
+#include "../interfaces/i_population_cache.h"
+
+// Other includes
+#include "../utils/performance_profilling_framework.h"
+#include "../configuration/genetic_algorithm_configuration.h"
+#include "../naive/naive_reconstruction.h"
+#include "../dna/dna_instance.h"
+
+// Forward declarations of interfaces
+class IRepresentation;
+class ISelection;
+class ICrossover;
+class IMutation;
+class IReplacement;
+class IFitness;
+class IStopping;
+class IPopulationCache;
 
 double runGeneticAlgorithmWrapper(const DNAInstance& instance);
 
 // Definicja typu funkcji-callbacku
 // Teraz z dodatkowymi parametrami coverage, edgeScore, theoreticalMax
-using ProgressCallback = std::function<void(int generation,
-                                            int maxGenerations,
-                                            double bestFitness,
-                                            double coverage,
-                                            double edgeScore,
-                                            double theoreticalMax)>;
+using ProgressCallback = std::function<void(int, int, double, double, double, double)>;
 
 class GeneticAlgorithm {
 public:
@@ -45,7 +55,7 @@ public:
         std::shared_ptr<IFitness> fitness,
         std::shared_ptr<IStopping> stopping,
         std::shared_ptr<IPopulationCache> cache,
-        GAConfig& config  // Add config parameter
+        GAConfig& config
     );
 
     ~GeneticAlgorithm();
@@ -69,7 +79,7 @@ private:
                             const DNAInstance& instance,
                             int generation);
     void initializePopulation(int popSize, const DNAInstance &instance);
-    void updateGlobalBest(const std::vector<std::shared_ptr<std::vector<int>>> &pop,
+    void updateGlobalBest(const std::vector<std::shared_ptr<std::vector<int>>>& pop,
                           const DNAInstance &instance);
     void calculateTheoreticalMaxFitness(const DNAInstance &instance);
     void evolve(const DNAInstance& instance);
@@ -101,7 +111,4 @@ private:
 
     int m_processId = 0;
     double m_theoreticalMaxFitness = 0.0;
-
 };
-
-#endif // GENETIC_ALGORITHM_H

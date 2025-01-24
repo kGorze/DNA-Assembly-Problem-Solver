@@ -42,46 +42,34 @@ void CrossoverBenchmark::runBenchmark(const DNAInstance &instance)
 
 int CrossoverBenchmark::runOneGA(const DNAInstance& instance,
                                   std::shared_ptr<ICrossover> crossover,
-                                  const std::string& outputFile)
+                                  const std::string& configFile)
 {
-    // Create a new config instance
-    GAConfig config;
-    if (!config.loadFromFile("config.cfg")) {
-        std::cerr << "Failed to load GA configuration\n";
+    // Get singleton instance
+    auto& config = GAConfig::getInstance();
+    
+    try {
+        config.loadFromFile(configFile);
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
         return -1;
     }
-
-    // Set up cache
+    
+    // Create and run GA with this config
     auto cache = std::make_shared<CachedPopulation>();
     config.setCache(cache);
-
-    // Create GA components with config
-    auto selection = std::make_shared<TournamentSelection>(config, cache);
-    auto stopping = std::make_shared<MaxGenerationsStopping>(config);
-
-    // Create and run GA
+    
     GeneticAlgorithm ga(
         config.getRepresentation(),
-        selection,
-        crossover,
+        config.getSelection(),
+        crossover,  // Use the provided crossover operator
         config.getMutation(),
         config.getReplacement(),
         config.getFitness(),
-        stopping,
+        config.getStopping(),
         cache,
         config
     );
-
+    
     ga.run(instance);
-
-    // Save results if output file specified
-    if (!outputFile.empty()) {
-        std::ofstream out(outputFile);
-        if (out.is_open()) {
-            out << ga.getBestDNA() << std::endl;
-            out.close();
-        }
-    }
-
     return static_cast<int>(ga.getBestFitness());
 }

@@ -5,6 +5,7 @@
 #include "metaheuristics/fitness.h"
 #include <algorithm>
 #include <chrono>
+#include <mutex>
 
 uint64_t CachedPopulation::computeHash(std::shared_ptr<std::vector<int>> individual) {
     return ZobristHasher::getInstance().hashPermutation(*individual);
@@ -32,45 +33,45 @@ void CachedPopulation::evictOldEntries() {
 }
 
 double CachedPopulation::getOrCalculateFitness(
-    std::shared_ptr<std::vector<int>> individual,
+    const std::shared_ptr<std::vector<int>>& solution,
     const DNAInstance& instance,
     std::shared_ptr<IFitness> fitness,
-    std::shared_ptr<IRepresentation> representation) 
-{
-    uint64_t hash = computeHash(individual);
+    std::shared_ptr<IRepresentation> representation
+) {
+    std::unique_lock<std::mutex> lock(m_mutex);
     
-    auto it = cache.find(hash);
-    if (it != cache.end()) {
-        it->second.lastAccess = std::chrono::steady_clock::now();
-        return it->second.fitness;
+    // Try to find in cache
+    auto it = m_cache.find(solution);
+    if (it != m_cache.end()) {
+        return it->second;
     }
     
-    double fitnessValue = fitness->evaluate(individual, instance, representation);
-    
-    cache[hash] = {
-        fitnessValue,
-        hash,
-        std::chrono::steady_clock::now()
-    };
-    
-    evictOldEntries();
-    
-    return fitnessValue;
+    // Calculate and cache
+    double value = fitness->calculateFitness(solution, instance, representation);
+    m_cache[solution] = value;
+    return value;
 }
 
 void CachedPopulation::updatePopulation(
     const std::vector<std::shared_ptr<std::vector<int>>>& population,
     const DNAInstance& instance,
     std::shared_ptr<IFitness> fitness,
-    std::shared_ptr<IRepresentation> representation) 
-{
-    for (auto& individual : population) {
-        getOrCalculateFitness(individual, instance, fitness, representation);
+    std::shared_ptr<IRepresentation> representation
+) {
+    std::unique_lock<std::mutex> lock(m_mutex);
+    
+    // Clear old entries
+    m_cache.clear();
+    
+    // Cache new population
+    for (const auto& solution : population) {
+        m_cache[solution] = fitness->calculateFitness(solution, instance, representation);
     }
 }
 
 void CachedPopulation::clear() {
-    cache.clear();
+    std::unique_lock<std::mutex> lock(m_mutex);
+    m_cache.clear();
 }
 
 size_t CachedPopulation::size() const {
