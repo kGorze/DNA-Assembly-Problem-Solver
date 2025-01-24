@@ -1,5 +1,6 @@
 #include "metaheuristics/genetic_algorithm.h"
 #include "configuration/genetic_algorithm_configuration.h" // żeby mieć dostęp do GAConfig
+#include "metaheuristics/genetic_algorithm_runner.h"  // for updateConfigWithInstanceParams
 #include <iostream>
 #include <random>
 #include <chrono>
@@ -19,19 +20,20 @@ GeneticAlgorithm::GeneticAlgorithm(
     std::shared_ptr<IReplacement> replacement,
     std::shared_ptr<IFitness> fitness,
     std::shared_ptr<IStopping> stopping,
-    std::shared_ptr<IPopulationCache> cache)
-    : m_representation(representation)
-    , m_selection(selection)
-    , m_crossover(crossover)
-    , m_mutation(mutation)
-    , m_replacement(replacement)
-    , m_fitness(fitness)
-    , m_stopping(stopping)
-    , m_cache(cache)
-    , m_globalBestInd(nullptr)
-    , m_globalBestFit(-std::numeric_limits<double>::infinity())
+    std::shared_ptr<IPopulationCache> cache,
+    GAConfig& config
+) : m_representation(representation),
+    m_selection(selection),
+    m_crossover(crossover),
+    m_mutation(mutation),
+    m_replacement(replacement),
+    m_fitness(fitness),
+    m_stopping(stopping),
+    m_cache(cache),
+    m_config(config),
+    m_globalBestFit(-std::numeric_limits<double>::infinity())
 {
-    LOG_INFO("Initializing Genetic Algorithm with population size: " + std::to_string(GAConfig::getInstance().getPopulationSize()));
+    LOG_INFO("Initializing Genetic Algorithm with population size: " + std::to_string(m_config.populationSize));
 }
 
 GeneticAlgorithm::~GeneticAlgorithm() {
@@ -61,7 +63,7 @@ void GeneticAlgorithm::logGenerationStats(
     }
     
     avgFit /= pop.size();
-    double progress = (generation * 100.0) / GAConfig::getInstance().getMaxGenerations();
+    double progress = (generation * 100.0) / m_config.getMaxGenerations();
     double relativeBestFit = (m_theoreticalMaxFitness > 0) 
         ? (bestFit / m_theoreticalMaxFitness) * 100.0
         : 0.0;
@@ -121,11 +123,14 @@ void GeneticAlgorithm::updateGlobalBest(
 void GeneticAlgorithm::run(const DNAInstance &instance)
 {
     LOG_INFO("Starting Genetic Algorithm optimization");
-    DEBUG_LOG("Instance size: " + std::to_string(instance.size()));
+    DEBUG_LOG("Instance size: " + std::to_string(instance.getSize()));
     
     auto startTime = std::chrono::high_resolution_clock::now();
     
-    population = m_representation->initializePopulation(GAConfig::getInstance().getPopulationSize(), instance);
+    // Log the maxGenerations value at the start
+    std::cout << "[DEBUG GA] Starting with maxGenerations = " << m_config.getMaxGenerations() << std::endl;
+    
+    population = m_representation->initializePopulation(m_config.populationSize, instance);
     m_cache->updatePopulation(population, instance, m_fitness, m_representation);
 
     // **Debug Log**: Po inicjalizacji populacji
@@ -144,7 +149,8 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
     }
 
     int generation = 0;
-    int maxGenerations = GAConfig::getInstance().getMaxGenerations();
+    // Always get maxGenerations from config when needed instead of storing locally
+    std::cout << "[DEBUG GA] Current maxGenerations = " << m_config.getMaxGenerations() << std::endl;
 
     // Z góry obliczamy teoretyczne maksymalne fitness
     calculateTheoreticalMaxFitness(instance);
@@ -152,9 +158,10 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     std::vector<std::shared_ptr<std::vector<int>>> parents;
     
-    std::cout << "[DEBUG GA] Starting main GA loop\n";
+    std::cout << "[DEBUG GA] Starting main GA loop with maxGenerations = " << m_config.getMaxGenerations() << "\n";
 
     while (!m_stopping->stop(population, generation, instance, m_fitness, m_representation)) {
+        std::cout << "[DEBUG GA] Generation " << generation << " of " << m_config.getMaxGenerations() << "\n";
         
         {
             PROFILE_SCOPE("selection");
@@ -307,7 +314,7 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
         // Wywołujemy callback:
         if (progressCallback) {
             progressCallback(generation,
-                             maxGenerations,
+                             m_config.getMaxGenerations(),
                              currentBestFitness,
                              coverageVal,
                              edgeScoreVal,
@@ -324,7 +331,7 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
     updateGlobalBest(population, instance);
     if (m_globalBestInd) {
         m_bestDNA = m_representation->decodeToDNA(m_globalBestInd, instance);
-        GAConfig::getInstance().setGlobalBestFitness(m_globalBestFit); // Aktualizacja GAConfig
+        m_config.setGlobalBestFitness(m_globalBestFit); // Aktualizacja GAConfig
 
         // **Debug Log**: Po zakończeniu GA
         std::cout << "[DEBUG GA] Final best fitness: " << m_globalBestFit << ", length of best DNA: " << m_bestDNA.size() << "\n";
@@ -332,7 +339,7 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
         // Jednorazowy callback na koniec (opcjonalnie):
         if (progressCallback) {
             progressCallback(generation,
-                             maxGenerations,
+                             m_config.getMaxGenerations(),
                              m_globalBestFit,
                              0.0, // coverage
                              0.0, // edgeScore
@@ -352,50 +359,29 @@ void GeneticAlgorithm::run(const DNAInstance &instance)
              " generations (Duration: " + std::to_string(duration) + "s)");
 }
 
-void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instance) {
-    const auto& spectrum = instance.getSpectrum();
-    int k = instance.getK();
-
-    if (spectrum.empty() || k <= 0) {
-        m_theoreticalMaxFitness = 0.0;
-        return;
-    }
-
-    size_t n = spectrum.size();
-
-    // Zakładamy, że "best edge score" to (n-1), a coverage to n
-    double bestEdgeScore = (n - 1);
-    double bestCoverageScore = n;
-
-    // Współczynniki domyślne w OptimizedGraphBasedFitness:
-    double alpha = 0.7; 
-    double beta = 0.3;  
-
-    m_theoreticalMaxFitness = (alpha * bestEdgeScore) + (beta * bestCoverageScore);
-
-    std::cout << "[MaxFitness] Theoretical maximum calculated:\n"
-              << "- Best edge score: " << bestEdgeScore << " (weight: " << alpha << ")\n"
-              << "- Best coverage score: " << bestCoverageScore << " (weight: " << beta << ")\n"
-              << "- Total theoretical maximum: " << m_theoreticalMaxFitness << "\n";
+void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance &instance)
+{
+    // Obliczamy teoretyczne maksymalne fitness
+    // Dla prostego fitness to po prostu długość DNA
+    // Dla bardziej złożonych implementacji można nadpisać tę metodę
+    m_theoreticalMaxFitness = instance.getSize();
 }
 
-/**
- * Funkcja uruchamiająca cały Algorytm Genetyczny (wykorzystywana przez
- * różne tryby, w tym tuning). Jest wywoływana w lambdach `evaluateFunc`.
- */
-void runGeneticAlgorithm(const DNAInstance& instance,
-                         const std::string& outputFile ,
-                         int processId ,
-                         const std::string& difficulty )
+double runGeneticAlgorithmWrapper(const DNAInstance& instance)
 {
-    // Wyciągamy singleton GAConfig (już wczytany z pliku przez main)
-    auto& config = GAConfig::getInstance();
-
-    // Ustawiamy cache, jeśli chcemy
+    GAConfig config;
+    if (!config.loadFromFile("config.cfg")) {
+        std::cerr << "Failed to load GA configuration\n";
+        return 0.0;
+    }
+    
+    // Update instance-specific parameters
+    updateConfigWithInstanceParams(instance, config);
+    
+    // Create and run GA with this config
     auto cache = std::make_shared<CachedPopulation>();
     config.setCache(cache);
-
-    // Tworzymy obiekt GA
+    
     GeneticAlgorithm ga(
         config.getRepresentation(),
         config.getSelection(),
@@ -404,97 +390,12 @@ void runGeneticAlgorithm(const DNAInstance& instance,
         config.getReplacement(),
         config.getFitness(),
         config.getStopping(),
-        cache
+        cache,
+        config
     );
-
-    // Ustawienie callbacku do aktualizacji postępu (opcjonalne)
-    ga.setProgressCallback([processId](int generation,
-                                       int maxGenerations,
-                                       double bestFitness,
-                                       double coverage,
-                                       double edgeScore,
-                                       double theoreticalMax)
-    {
-        double progress = (static_cast<double>(generation) / maxGenerations) * 100.0;
-        std::ostringstream status;
-        status << "Gen " << generation << "/" << maxGenerations
-               << " Fit=" << bestFitness 
-               << " Cov=" << coverage 
-               << " Edge=" << edgeScore;
-
-        // Format: PROGRESS_UPDATE:PID:progress:status:bestFitness:coverage:edgeScore:theoreticalMax
-        std::cout << "PROGRESS_UPDATE:" << processId << ":"
-                  << std::fixed << std::setprecision(2) << progress << ":"
-                  << status.str() << ":"
-                  << bestFitness << ":"
-                  << coverage << ":"
-                  << edgeScore << ":"
-                  << theoreticalMax
-                  << std::endl;
-        std::cout.flush();
-    });
-
-    // Identyfikator procesu
-    ga.setProcessId(processId);
-    // **Debug Log**: Przed uruchomieniem GA
-    std::cout << "[DEBUG runGA] Starting Genetic Algorithm for process " << processId << "\n";
-
-
-    std::cout << "[DEBUG] N=" << instance.getN() 
-          << ", K=" << instance.getK()
-          << ", n-k+1=" << (instance.getN()-instance.getK()+1)
-          << ", spectrum.size()=" << instance.getSpectrum().size() 
-          << std::endl;
-
     
-    // Uruchamiamy GA
     ga.run(instance);
-
-    // **Debug Log**: Po zakończeniu GA
-    std::cout << "[DEBUG runGA] Genetic Algorithm finished for process " << processId << "\n";
-
-    // Odczytujemy najlepsze znalezione rozwiązanie
-    std::string reconstructedDNA = ga.getBestDNA();
-    std::string originalDNA = instance.getDNA();
-
-    int distance = levenshteinDistance(originalDNA, reconstructedDNA);
-    // **Debug Log**: Po obliczeniu odległości
-    std::cout << "[DEBUG runGA] Levenshtein distance: " << distance << "\n";
-
-    // Zapis do pliku lub wypis w stdout
-    if (outputFile.empty()) {
-        std::cout << "\nOriginal DNA (first 100 bases): "
-                  << originalDNA.substr(0, 100) << "...\n";
-        std::cout << "Reconstructed DNA (first 100 bases): "
-                  << reconstructedDNA.substr(0, 100) << "...\n";
-        std::cout << "Levenshtein distance: " << distance << "\n";
-    } else {
-        std::ofstream outFile(outputFile);
-        if (outFile.is_open()) {
-            outFile << "Original DNA: " << originalDNA << "\n";
-            outFile << "Reconstructed DNA: " << reconstructedDNA << "\n";
-            outFile << "Levenshtein distance: " << distance << "\n";
-            outFile.close();
-
-            // **Debug Log**: Po zapisaniu wyników do pliku
-            std::cout << "[DEBUG runGA] Results saved to " << outputFile << "\n";
-
-            // Wypisanie finalnego statusu
-            std::cout << "PROGRESS_UPDATE:" << processId << ":100:Completed:0:0:0:0\n";
-            std::cout.flush();
-        } else {
-            std::cerr << "[ERROR runGA] Failed to open output file: " << outputFile << "\n";
-        }
-    }
-}
-
-
-double runGeneticAlgorithmWrapper(const DNAInstance& instance)
-{
-    runGeneticAlgorithm(instance); // Call original function
-    
-    // Get fitness from global config or GA instance
-    return GAConfig::getInstance().getGlobalBestFitness();
+    return ga.getBestFitness();
 }
 
 void GeneticAlgorithm::evolve(const DNAInstance& instance) {
@@ -596,7 +497,7 @@ void GeneticAlgorithm::evolve(const DNAInstance& instance) {
         // Wywołujemy callback:
         if (progressCallback) {
             progressCallback(generation,
-                             GAConfig::getInstance().getMaxGenerations(),
+                             m_config.getMaxGenerations(),
                              currentBestFitness,
                              coverageVal,
                              edgeScoreVal,
@@ -608,4 +509,12 @@ void GeneticAlgorithm::evolve(const DNAInstance& instance) {
 
         generation++;
     }
+}
+
+double GeneticAlgorithm::getBestFitness() const {
+    return m_globalBestFit;
+}
+
+std::shared_ptr<std::vector<int>> GeneticAlgorithm::getBestIndividual() const {
+    return m_globalBestInd;
 }

@@ -2,41 +2,51 @@
 // Created by konrad_guest on 07/01/2025.
 // SMART
 
-#ifndef STOPPING_CRITERIA_H
-#define STOPPING_CRITERIA_H
+#pragma once
 
 #include <vector>
 #include <memory>
-#include "metaheuristics/fitness.h"
 #include "generator/dna_generator.h"
-#include "metaheuristics/representation.h"
+
+// Forward declarations
+class IFitness;
+class IRepresentation;
+class GAConfig;  // Forward declare GAConfig instead of including it
 
 class IStopping {
 public:
     virtual ~IStopping() = default;
-
-    virtual bool stop(const std::vector<std::shared_ptr<std::vector<int>>> &population,
-                      int generation,
-                      const DNAInstance &instance,
-                      std::shared_ptr<IFitness> fitness,
-                      std::shared_ptr<IRepresentation> representation) = 0;
+    virtual bool stop(const std::vector<std::shared_ptr<std::vector<int>>>& population,
+                     int generation,
+                     const DNAInstance& instance,
+                     std::shared_ptr<IFitness> fitness,
+                     std::shared_ptr<IRepresentation> representation) = 0;
 };
 
 class MaxGenerationsStopping : public IStopping {
 public:
-    explicit MaxGenerationsStopping(int maxGen) : m_maxGen(maxGen) {}
-
-    bool stop(const std::vector<std::shared_ptr<std::vector<int>>> &population,
+    // Constructor taking GAConfig reference
+    explicit MaxGenerationsStopping(GAConfig& config);
+    
+    // Constructor with explicit max generations value
+    explicit MaxGenerationsStopping(int maxGen);
+    
+    bool stop(const std::vector<std::shared_ptr<std::vector<int>>>& population,
               int generation,
-              const DNAInstance &instance,
+              const DNAInstance& instance,
               std::shared_ptr<IFitness> fitness,
-              std::shared_ptr<IRepresentation> representation) override
-    {
-        return generation >= m_maxGen;
+              std::shared_ptr<IRepresentation> representation) override;
+
+    // Add method to set maxGenerations
+    void setMaxGenerations(int maxGen) {
+        m_maxGenerations = maxGen;
+        m_useConfig = false;
+        std::cout << "[MaxGenerationsStopping] Set fixed maxGenerations = " << maxGen << std::endl;
     }
 
 private:
-    int m_maxGen;
+    int m_maxGenerations;  // Store locally if provided in constructor
+    bool m_useConfig;      // Whether to use GAConfig or local value
 };
 
 class NoImprovementStopping : public IStopping {
@@ -59,5 +69,3 @@ public:
               std::shared_ptr<IFitness> fitness,
               std::shared_ptr<IRepresentation> representation) override;
 };
-
-#endif //STOPPING_CRITERIA_H

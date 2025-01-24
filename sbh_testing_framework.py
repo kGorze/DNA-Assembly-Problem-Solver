@@ -91,13 +91,50 @@ progress_pattern_expanded = re.compile(
 
 def to_windows_path(path: Path) -> str:
     """Convert a path to Windows format."""
+    path_str = str(path)
+    # Jeśli jesteśmy w WSL, używamy oryginalnej ścieżki
+    if path_str.startswith('/mnt/'):
+        return path_str
     if sys.platform == 'win32':
-        # Dla WSL, zamieniamy /mnt/c na C:
-        path_str = str(path)
-        if path_str.startswith('/mnt/c/'):
-            return 'C:' + path_str[6:].replace('/', '\\')
         return str(PureWindowsPath(path))
     return str(path)
+
+def read_config(config_path: Path) -> Dict[str, str]:
+    """Czyta parametry z pliku konfiguracyjnego."""
+    config = {}
+    try:
+        logging.warning(f"Reading config from: {config_path}")
+        if not config_path.exists():
+            logging.error(f"Config file not found at: {config_path}")
+            return config
+            
+        logging.warning(f"Config file exists, size: {config_path.stat().st_size} bytes")
+        with open(config_path, 'r') as f:
+            content = f.read()
+            logging.warning(f"Raw config content:\n{content}")
+            
+            for line in content.splitlines():
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip()
+                        if value:
+                            config[key] = value
+                            logging.warning(f"Config: parsed {key} = {value}")
+                        else:
+                            logging.error(f"Config: empty value for key {key}")
+    except Exception as e:
+        logging.error(f"Error reading config file: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
+    
+    if not config:
+        logging.error("No valid configuration parameters found!")
+    else:
+        logging.warning(f"Successfully parsed {len(config)} parameters")
+    return config
 
 def solver_subprocess(
         solver_path: str,
@@ -120,37 +157,81 @@ def solver_subprocess(
     elif "hard" in path_str:
         difficulty = "Hard"
     
-    logging.debug(f"Process {process_id}: Starting solver for test_id {test_id}, difficulty: {difficulty}")
+    logging.warning(f"Process {process_id}: Starting solver for test_id {test_id}, difficulty: {difficulty}")
 
     try:
-        # Konwertuj ścieżki na format Windows
-        solver_win_path = to_windows_path(Path(solver_path))
-        instance_win_path = to_windows_path(instance_path)
-        results_win_path = to_windows_path(instance_path.with_name("results.txt"))
+        # Konwertuj ścieżki
+        solver_path = to_windows_path(Path(solver_path))
+        instance_path_str = to_windows_path(instance_path)
+        results_path_str = to_windows_path(instance_path.with_name("results.txt"))
+        
+        # Wczytaj konfigurację
+        config_path = Path(solver_path).parent / "config.cfg"
+        logging.warning(f"Process {process_id}: Looking for config at: {config_path} (exists: {config_path.exists()})")
+        if not config_path.exists():
+            logging.error(f"Process {process_id}: Config file not found!")
+            alternative_path = Path.cwd() / "build" / "config.cfg"
+            if alternative_path.exists():
+                logging.warning(f"Process {process_id}: Found alternative config at: {alternative_path}")
+                config_path = alternative_path
+            
+        config = read_config(config_path)
+        if not config:
+            logging.error(f"Process {process_id}: No configuration loaded!")
+        
+        # Przygotuj parametry z konfiguracji
+        config_params = []
+        instance_params = ['k', 'deltaK', 'lNeg', 'lPoz', 'repAllowed', 'probablePositive']
+        for key, value in config.items():
+            if key not in instance_params:  # parametry instancji
+                # Użyj formatu -param value zamiast --param=value
+                param = f"-{key}"
+                config_params.extend([param, value])
+                logging.warning(f"Process {process_id}: Adding parameter: {param} {value}")
+            else:
+                logging.warning(f"Process {process_id}: Skipping instance parameter: {key}={value}")
 
         cmd = [
-            solver_win_path,
+            solver_path,
             "test_instance",
-            "-i", instance_win_path,
-            "-o", results_win_path,
-            "-pid", str(process_id)
+            "-i", instance_path_str,
+            "-o", results_path_str,
+            "-pid", str(process_id),
+            *config_params  # dodaj parametry z konfiguracji
         ]
 
-        logging.debug(f"Process {process_id}: Executing command: {' '.join(cmd)}")
+        logging.warning(f"Process {process_id}: Full command: {' '.join(cmd)}")
+        
+        # Sprawdź czy pliki istnieją przed uruchomieniem
+        logging.warning(f"Process {process_id}: Checking files:")
+        logging.warning(f"  Solver path: {solver_path}")
+        logging.warning(f"  Input path: {instance_path_str}")
+        logging.warning(f"  Output path: {results_path_str}")
+        logging.warning(f"  Solver exists: {Path(solver_path).exists()}")
+        logging.warning(f"  Input exists: {Path(instance_path_str).exists()}")
+        logging.warning(f"  Output dir exists: {Path(results_path_str).parent.exists()}")
+        
+        # Uruchom solver z przekierowaniem stderr do stdout
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
-            bufsize=1
+            bufsize=1,
+            shell=False  # Nie używaj powłoki
         )
 
         # Wysyłamy informację o trudności od razu po starcie
         queue.put(("current_test", process_id, f"CURRENT_TEST:{process_id}:{difficulty}:{instance_path}"))
         queue.put(("started", process_id))
 
+        # Zbieraj wszystkie linie wyjścia
+        all_output = []
         for line in proc.stdout:
             line = line.strip()
+            if line:
+                all_output.append(line)
+                logging.warning(f"Process {process_id} output: {line}")
             if line.startswith("PROGRESS_UPDATE:"):
                 match = progress_pattern_expanded.match(line)
                 if match:

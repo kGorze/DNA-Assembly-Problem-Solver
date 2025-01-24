@@ -3,7 +3,7 @@
 11	2557	7592145185152699	CMakeFiles/optymalizacja_kombinatoryczna.dir/src/main.cpp.obj	8154510771dc6de8
 12238	23168	7592099489183722	CMakeFiles/optymalizacja_kombinatoryczna_lib.dir/src/metaheuristics/fitness.cpp.obj	d2101c62e9844ff2
 2557	3169	7592145210628722	optymalizacja_kombinatoryczna.exe	1cebb0e685a4da9f
-4	2150	7594280492439966	build.ninja	f7cb40722541b9b0
+4	2150	7594339239432608	build.ninja	f7cb40722541b9b0
 20217	20301	7581481642883355	lib/libgtest_main.a	bacc755345f13b8c
 31460	38932	7592099681416338	CMakeFiles/optymalizacja_kombinatoryczna.dir/src/benchmark/adaptive_crossover_benchmark.cpp.obj	fa0d66b90add7c7e
 31738	33364	7592099684192479	liboptymalizacja_kombinatoryczna_lib.a	470d90f1a3965473

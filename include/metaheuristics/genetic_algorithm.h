@@ -23,13 +23,7 @@
 #include "naive/naive_reconstruction.h"
 #include "metaheuristics/adaptive_crossover.h"
 
-void runGeneticAlgorithm(const DNAInstance& instance,
-                         const std::string& outputFile = "",
-                         int processId = 0,
-                         const std::string& difficulty = "Unknown");
-
 double runGeneticAlgorithmWrapper(const DNAInstance& instance);
-
 
 // Definicja typu funkcji-callbacku
 // Teraz z dodatkowymi parametrami coverage, edgeScore, theoreticalMax
@@ -42,18 +36,21 @@ using ProgressCallback = std::function<void(int generation,
 
 class GeneticAlgorithm {
 public:
-    GeneticAlgorithm(std::shared_ptr<IRepresentation> representation,
-                     std::shared_ptr<ISelection> selection,
-                     std::shared_ptr<ICrossover> crossover,
-                     std::shared_ptr<IMutation> mutation,
-                     std::shared_ptr<IReplacement> replacement,
-                     std::shared_ptr<IFitness> fitness,
-                     std::shared_ptr<IStopping> stopping,
-                     std::shared_ptr<IPopulationCache> cache);
+    GeneticAlgorithm(
+        std::shared_ptr<IRepresentation> representation,
+        std::shared_ptr<ISelection> selection,
+        std::shared_ptr<ICrossover> crossover,
+        std::shared_ptr<IMutation> mutation,
+        std::shared_ptr<IReplacement> replacement,
+        std::shared_ptr<IFitness> fitness,
+        std::shared_ptr<IStopping> stopping,
+        std::shared_ptr<IPopulationCache> cache,
+        GAConfig& config  // Add config parameter
+    );
 
     ~GeneticAlgorithm();
 
-    void run(const DNAInstance &instance);
+    void run(const DNAInstance& instance);
 
     void setProgressCallback(ProgressCallback callback) { 
         progressCallback = callback; 
@@ -63,7 +60,11 @@ public:
     // Po uruchomieniu GA można pobrać najlepsze DNA
     std::string getBestDNA() const { return m_bestDNA; }
 
+    double getBestFitness() const;
+    std::shared_ptr<std::vector<int>> getBestIndividual() const;
+
 private:
+    GAConfig& m_config;  // Store config reference
     void logGenerationStats(const std::vector<std::shared_ptr<std::vector<int>>>& pop,
                             const DNAInstance& instance,
                             int generation);

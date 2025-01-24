@@ -6,6 +6,8 @@
 #include "utils/logging.h"
 #include <random>
 #include <fstream>
+#include <algorithm>
+#include <numeric>
 
 /* **********************************************
  *          RandomGenerator – singleton
@@ -32,20 +34,18 @@ std::mt19937& RandomGenerator::get()
  * **********************************************/
 std::string DNAGenerator::generateDNA(int n, bool repAllowed)
 {
-    static const std::string nucleotides = "ACGT";
-    auto &rng = RandomGenerator::getInstance().get();
-    std::uniform_int_distribution<int> dist(0, 3);
-
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 3);
+    
+    const char nucleotides[] = {'A', 'C', 'G', 'T'};
     std::string dna;
     dna.reserve(n);
-
-    // Prosty wariant – generujemy dowolne znaki ACGT.
-    // Jeśli repAllowed = false, można np. kontrolować,
-    // by nie było 2-3 identycznych znaków pod rząd, itp.
-    for(int i = 0; i < n; ++i) {
-        dna.push_back(nucleotides[dist(rng)]);
+    
+    for (int i = 0; i < n; ++i) {
+        dna += nucleotides[dis(gen)];
     }
-
+    
     return dna;
 }
 
@@ -110,302 +110,98 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string &
 }
 
 /* **********************************************
- *          InstanceIO
- * **********************************************/
-bool InstanceIO::saveInstance(const DNAInstance &instance, const std::string &filename)
-{
-    std::ofstream out(filename);
-    if (!out.is_open()) {
-        return false;
-    }
-
-    out << instance.getN() << " " 
-        << instance.getK() << " "
-        << instance.getDeltaK() << " "
-        << instance.getLNeg() << " "
-        << instance.getLPoz() << " "
-        << (instance.isRepAllowed() ? 1 : 0) << " "
-        << instance.getProbablePositive() << "\n";
-
-    out << instance.getDNA() << "\n";
-
-    out << instance.getSpectrum().size() << "\n";
-    for (const auto &frag : instance.getSpectrum()) {
-        out << frag << "\n";
-    }
-
-    return true;
-}
-
-bool InstanceIO::loadInstance(const std::string &filename, DNAInstance &instance)
-{
-    std::ifstream in(filename);
-    if (!in.is_open()) {
-        return false;
-    }
-
-    int n, k, dk, ln, lp, rep, pp;
-    in >> n >> k >> dk >> ln >> lp >> rep >> pp;
-
-    instance.setN(n);
-    instance.setK(k);
-    instance.setDeltaK(dk);
-    instance.setLNeg(ln);
-    instance.setLPoz(lp);
-    instance.setRepAllowed(rep != 0);
-    instance.setProbablePositive(pp);
-
-    std::string dna;
-    in >> dna;
-    instance.setDNA(dna);
-
-    int count;
-    in >> count;
-    std::vector<std::string> spectrum;
-    spectrum.reserve(count);
-
-    for (int i = 0; i < count; i++) {
-        std::string frag;
-        in >> frag;
-        spectrum.push_back(frag);
-    }
-    instance.setSpectrum(spectrum);
-
-    return true;
-}
-
-/* **********************************************
- *          DNAInstanceBuilder
- * **********************************************/
-DNAInstanceBuilder& DNAInstanceBuilder::setN(int n)
-{
-    if(n < 300 || n > 700) {
-        n = 400;
-    }
-    instance.setN(n);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::setK(int k)
-{
-    if(k < 7 || k > 10) {
-        k = 8;
-    }
-    instance.setK(k);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::setDeltaK(int dk)
-{
-    if(dk < 0 || dk > 2) {
-        dk = 2;
-    }
-    instance.setDeltaK(dk);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::setLNeg(int ln)
-{
-    if(ln != 0 && ln < 10) {
-        ln = 0;
-    }
-    instance.setLNeg(ln);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::setLPoz(int lp) {
-    if(lp != 0) {
-        if(lp < 10) lp = 10;
-
-        if(!instance.getSpectrum().empty()) {
-            int maxErrors = instance.getSpectrum().size() / 2;
-            if(lp > maxErrors) lp = maxErrors;
-        }
-    }
-    instance.setLPoz(lp);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::setRepAllowed(bool rep)
-{
-    if(instance.getLNeg() > 0) {
-        rep = true;
-    }
-    instance.setRepAllowed(rep);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::setProbablePositive(int val)
-{
-    if(val != 0 && val != 1) {
-        val = 0;
-    }
-    instance.setProbablePositive(val);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::buildDNA()
-{
-    DNAGenerator dnaGen;
-    std::string dna = dnaGen.generateDNA(instance.getN(), instance.isRepAllowed());
-    instance.setDNA(dna);
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::buildSpectrum()
-{
-    SpectrumGenerator specGen;
-    auto spec = specGen.generateSpectrum(
-        instance.getDNA(),
-        instance.getK(),
-        instance.getDeltaK()
-    );
-    instance.setSpectrum(spec);
-
-    return *this;
-}
-
-DNAInstanceBuilder& DNAInstanceBuilder::applyError(IErrorIntroductionStrategy* strategy)
-{
-    errorCtx.setStrategy(strategy);
-    errorCtx.execute(instance);
-    return *this;
-}
-
-DNAInstance DNAInstanceBuilder::getInstance()
-{
-    return instance;
-}
-
-/* **********************************************
  *      NegativeErrorIntroducer
  * **********************************************/
-void NegativeErrorIntroducer::introduceErrors(DNAInstance &instance)
-{
-    auto &spectrum = instance.getSpectrum();
-    if(spectrum.empty() || lNeg <= 0) {
-        return;
-    }
-    // Ile fragmentów chcemy usunąć
-    int toRemove = std::min((int)spectrum.size() - 1, lNeg); 
-    // ^^^ odejmij 1, by nie usuwać startIndex, w razie w.
+void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
+    auto& spectrum = instance.getSpectrum();
+    if (spectrum.empty() || lNeg <= 0) return;
     
     int startIndex = instance.getStartIndex();
-    if (startIndex < 0 || startIndex >= (int)spectrum.size()) {
-        // Bezpiecznie: jeżeli startIndex jest out-of-range, wyjdź
-        return;
-    }
-
-    // Wektor do usunięcia fragmentów (bez startIndex):
-    std::vector<int> candidates;
-    candidates.reserve(spectrum.size()-1);
-
-    for (int i = 0; i < (int)spectrum.size(); i++) {
-        if (i != startIndex) {
-            candidates.push_back(i);
-        }
-    }
-    // Tasujemy indeksy kandydatów
-    std::shuffle(candidates.begin(), candidates.end(), RandomGenerator::getInstance().get());
-
-    // Usuwamy toRemove pierwszy(ych) z potasowanej listy
-    // Pozostałe dajemy do newSpectrum
-    std::unordered_set<int> toRemoveSet;
-    for (int i = 0; i < toRemove; i++) {
-        toRemoveSet.insert(candidates[i]);
-    }
-
+    if (startIndex < 0) startIndex = 0;
+    
+    // Create indices vector
+    std::vector<size_t> indices(spectrum.size());
+    std::iota(indices.begin(), indices.end(), 0);
+    
+    // Shuffle indices
+    auto& gen = RandomGenerator::getInstance().get();
+    std::shuffle(indices.begin(), indices.end(), gen);
+    
+    // Remove up to lNeg elements
+    int toRemove = std::min(lNeg, static_cast<int>(spectrum.size()));
     std::vector<std::string> newSpectrum;
     newSpectrum.reserve(spectrum.size() - toRemove);
-    // Zostaw startIndex zawsze
-    // (możesz go dodać w tej samej kolejności, co był)
-    for (int i = 0; i < (int)spectrum.size(); i++) {
-        if (toRemoveSet.find(i) == toRemoveSet.end()) {
-            newSpectrum.push_back(spectrum[i]);
-        }
+    
+    for (size_t i = toRemove; i < indices.size(); ++i) {
+        newSpectrum.push_back(spectrum[indices[i]]);
     }
+    
+    // Sort the remaining elements
+    std::sort(newSpectrum.begin(), newSpectrum.end());
     instance.setSpectrum(newSpectrum);
 }
 
 /* **********************************************
  *      PositiveErrorIntroducer
  * **********************************************/
-void PositiveErrorIntroducer::introduceErrors(DNAInstance &instance) {
-    auto &spectrum = instance.getSpectrum();
-    if(lPoz <= 0 || spectrum.empty()) {
-        return;
-    }
-
+void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
+    if (lPoz <= 0) return;
+    
+    auto& spectrum = instance.getSpectrum();
     int k = instance.getK();
     int deltaK = instance.getDeltaK();
-    int probablePositive = instance.getProbablePositive();
     
-    auto &rng = RandomGenerator::getInstance().get();
-    std::uniform_int_distribution<int> distDelta(0, deltaK);
-    std::uniform_int_distribution<int> distSign(0, 1);
-    std::uniform_int_distribution<int> nucDist(0, 3);
-    
-    static const std::string nucleotides = "ACGT";
-    std::unordered_set<std::string> uniqueSpectrum(spectrum.begin(), spectrum.end());
-    
-    auto generateRandomKmer = [&](int length) {
-        std::string kmer;
-        kmer.reserve(length);
-        for(int i=0; i<length; i++) {
-            kmer.push_back(nucleotides[nucDist(rng)]);
-        }
-        return kmer;
-    };
-    
-    int errorsAdded = 0;
-    int maxAttempts = lPoz * 10;
-    int attempts = 0;
-    
-    while(errorsAdded < lPoz && attempts < maxAttempts) {
-        attempts++;
+    // Choose error introduction method based on probablePositive
+    if (instance.getProbablePositive() == 0) {
+        // Add random sequences
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> lenDis(-deltaK, deltaK);
+        std::uniform_int_distribution<> nucDis(0, 3);
         
-        if(probablePositive == 0) {
-            int d = distDelta(rng);
-            int length = k;
-            if(d > 0) {
-                length = distSign(rng) ? k + d : k - d;
-                length = std::max(1, std::min(length, k + deltaK));
+        const char nucleotides[] = {'A', 'C', 'G', 'T'};
+        
+        for (int i = 0; i < lPoz; ++i) {
+            int len = k + lenDis(gen);
+            std::string newKmer;
+            newKmer.reserve(len);
+            
+            for (int j = 0; j < len; ++j) {
+                newKmer += nucleotides[nucDis(gen)];
             }
             
-            std::string newKmer = generateRandomKmer(length);
-            if(uniqueSpectrum.insert(newKmer).second) {
-                spectrum.push_back(newKmer);
-                errorsAdded++;
-            }
-        } else {
-            std::uniform_int_distribution<int> indexDist(0, spectrum.size() - 1);
-            int idx = indexDist(rng);
-            std::string original = spectrum[idx];
+            spectrum.push_back(newKmer);
+        }
+    } else {
+        // Modify existing k-mers
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> posDis(0, k-1);
+        std::uniform_int_distribution<> nucDis(0, 3);
+        
+        const char nucleotides[] = {'A', 'C', 'G', 'T'};
+        
+        for (int i = 0; i < lPoz && !spectrum.empty(); ++i) {
+            std::uniform_int_distribution<> kmerDis(0, spectrum.size()-1);
+            int idx = kmerDis(gen);
+            std::string modified = spectrum[idx];
             
-            std::string modified = original;
-            int posToChange = (distSign(rng) == 0) ? 
-                (int)modified.length() - 1 : 
-                (int)modified.length() / 2;
-                
-            char originalNuc = modified[posToChange];
-            char newNuc;
+            // Modify two random positions
+            int pos1 = posDis(gen);
+            int pos2;
             do {
-                newNuc = nucleotides[nucDist(rng)];
-            } while(newNuc == originalNuc);
+                pos2 = posDis(gen);
+            } while (pos2 == pos1);
             
-            modified[posToChange] = newNuc;
+            modified[pos1] = nucleotides[nucDis(gen)];
+            modified[pos2] = nucleotides[nucDis(gen)];
             
-            if(uniqueSpectrum.insert(modified).second) {
-                spectrum.push_back(modified);
-                errorsAdded++;
-            }
+            spectrum.push_back(modified);
         }
     }
     
-    if(errorsAdded < lPoz) {
-        LOG_WARNING("Warning: Could only add " + std::to_string(errorsAdded) + 
-                     " positive errors out of " + std::to_string(lPoz) + " requested");
-    }
+    // Sort the spectrum after adding errors
+    std::sort(spectrum.begin(), spectrum.end());
 }
 
 int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
@@ -424,43 +220,23 @@ int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
 }
 
 bool DNAGenerator::generate() {
-    LOG_INFO("Generating new DNA instance");
-    LOG_DEBUG("Parameters: N=" + std::to_string(n) + 
-              ", K=" + std::to_string(k) + 
-              ", deltaK=" + std::to_string(deltaK));
-    
     if (!validateParameters()) {
+        LOG_ERROR("Invalid parameters for DNA generation");
         return false;
     }
-    // Add implementation here
-    return true;  // Add return statement
+    return true;
 }
 
 DNAInstance DNAGenerator::generateRandomInstance(int size) {
-    LOG_INFO("Generating random DNA instance of size " + std::to_string(size));
-    
-    if (size <= 0) {
-        LOG_ERROR("Invalid size for DNA instance: " + std::to_string(size));
-        return DNAInstance();
-    }
-    
-    static std::mt19937 rng(std::random_device{}());
-    static const std::string nucleotides = "ACGT";
-    std::uniform_int_distribution<int> dist(0, nucleotides.size() - 1);
-    
     DNAInstance instance;
+    
+    // Set basic parameters
     instance.setSize(size);
-    std::string sequence;
-    sequence.reserve(size);
     
-    for (int i = 0; i < size; i++) {
-        sequence.push_back(nucleotides[dist(rng)]);
-    }
+    // Generate random DNA sequence
+    std::string sequence = generateDNA(size, instance.isRepAllowed());
+    instance.setDNA(sequence);
     instance.setTargetSequence(sequence);
-    
-    LOG_INFO("Successfully generated DNA instance");
-    DEBUG_LOG("First 10 nucleotides: " + 
-              instance.getTargetSequence().substr(0, std::min(10, size)));
     
     return instance;
 }

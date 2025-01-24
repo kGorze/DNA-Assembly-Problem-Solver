@@ -22,6 +22,7 @@
 #include "metaheuristics/replacement.h"
 #include "metaheuristics/selection.h"
 #include "metaheuristics/stopping_criteria.h"
+#include "metaheuristics/genetic_algorithm_runner.h"
 
 #include "benchmark/crossover_benchmark.h"
 
@@ -41,8 +42,6 @@
 #include "utils/logging.h"
 
 #include "metaheuristics/population_cache.h"
-
-// Start your main code here, remove the Logger class definition
 
 // Funkcja do wypisywania użycia programu:
 void printUsage() {
@@ -118,22 +117,6 @@ bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::s
     return InstanceIO::saveInstance(instance, outputFile);
 }
 
-void updateConfigWithInstanceParams(const DNAInstance& instance) {
-    auto& config = GAConfig::getInstance();
-    // Update all instance parameters
-    config.k = instance.getK();
-    config.deltaK = instance.getDeltaK();
-    config.lNeg = instance.getLNeg();
-    config.lPoz = instance.getLPoz();
-    config.repAllowed = instance.isRepAllowed();
-    config.probablePositive = instance.getProbablePositive();
-    
-    LOG_DEBUG("Updated instance parameters: k=" + std::to_string(config.k) + 
-              ", deltaK=" + std::to_string(config.deltaK) +
-              ", lNeg=" + std::to_string(config.lNeg) +
-              ", lPoz=" + std::to_string(config.lPoz));
-}
-
 int main(int argc, char* argv[]) {
     LOG_INFO("Starting program");
 
@@ -182,12 +165,12 @@ int main(int argc, char* argv[]) {
         }
 
         // Now load config and update with instance params
-        auto& config = GAConfig::getInstance();
+        GAConfig config;
         if (!config.loadFromFile("config.cfg")) {
             std::cerr << "Failed to load GA configuration\n";
             return 1;
         }
-        updateConfigWithInstanceParams(instance);
+        updateConfigWithInstanceParams(instance, config);
 
         // Create and run GA
         auto cache = std::make_shared<CachedPopulation>();
@@ -288,22 +271,20 @@ int main(int argc, char* argv[]) {
             std::cerr << "Failed to load instance from " << inputFile << std::endl;
             return 1;
         }
-
-        // Now load config and update with instance params
-        auto& config = GAConfig::getInstance();
+        
+        // Create config and run GA
+        GAConfig config;
         if (!config.loadFromFile("config.cfg")) {
             std::cerr << "Failed to load GA configuration\n";
             return 1;
         }
-        updateConfigWithInstanceParams(instance);
-
+        
+        // Update config with instance-specific parameters
+        updateConfigWithInstanceParams(instance, config);
+        
         // Create and run GA
-        auto cache = std::make_shared<CachedPopulation>();
-        config.setCache(cache);
-
-        // Run GA with the loaded instance
         runGeneticAlgorithm(instance, outputFile, processId, difficulty);
-
+        
         return 0;
 
     } else if (mode == "tuning") {
@@ -351,11 +332,17 @@ int main(int argc, char* argv[]) {
                 instance = builder.getInstance();
             }
             
+            // Create a new config instance
+            GAConfig cfg;
+            if (!cfg.loadFromFile("config.cfg")) {
+                std::cerr << "Failed to load GA configuration\n";
+                return TuningResult{ps, -1.0, -1.0};
+            }
+            
             // Update config with instance-specific parameters
-            updateConfigWithInstanceParams(instance);
+            updateConfigWithInstanceParams(instance, cfg);
             
             // Update GA parameters from parameter set
-            GAConfig &cfg = GAConfig::getInstance();
             for (const auto &[key, value] : ps.params) {
                 if (key == "populationSize") {
                     cfg.populationSize = std::stoi(value);
@@ -375,7 +362,7 @@ int main(int argc, char* argv[]) {
             auto end = std::chrono::high_resolution_clock::now();
             double durationSec = std::chrono::duration<double>(end - start).count();
 
-            // 6. Odczytanie finalnego fitness z GAConfig
+            // 6. Odczytanie finalnego fitness
             double finalFitness = cfg.getGlobalBestFitness();
 
             // 7. Stworzenie wyniku tuningu
@@ -429,8 +416,14 @@ int main(int argc, char* argv[]) {
                    .buildSpectrum();
             DNAInstance instance = builder.getInstance();
 
+            // Create a new config instance
+            GAConfig cfg;
+            if (!cfg.loadFromFile("config.cfg")) {
+                std::cerr << "Failed to load GA configuration\n";
+                return TuningResult{ps, -1.0, -1.0};
+            }
+
             // Ustawiamy parametry GA
-            auto &cfg = GAConfig::getInstance();
             for (const auto &[key, value] : ps.params) {
                 if (key == "populationSize") {
                     cfg.populationSize = std::stoi(value);

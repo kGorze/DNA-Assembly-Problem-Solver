@@ -27,7 +27,7 @@ public:
 
 class TournamentSelection : public ISelection {
 public:
-    TournamentSelection(int tournamentSize, std::shared_ptr<IPopulationCache> cache);
+    TournamentSelection(GAConfig& config, std::shared_ptr<IPopulationCache> cache);
     std::vector<std::shared_ptr<std::vector<int>>>
     select(const std::vector<std::shared_ptr<std::vector<int>>> &population,
            const DNAInstance &instance,
@@ -35,6 +35,7 @@ public:
            std::shared_ptr<IRepresentation> representation) override;
     int getTournamentSize() const { return m_tournamentSize; }
 private:
+    GAConfig& m_config;
     int m_tournamentSize;
     std::shared_ptr<IPopulationCache> m_cache;
 };

@@ -11,9 +11,9 @@
 #include <sstream>
 
 // ============== TournamentSelection ==============
-TournamentSelection::TournamentSelection(int tournamentSize, std::shared_ptr<IPopulationCache> cache) 
-        : m_tournamentSize(tournamentSize), m_cache(cache) {
-    LOG_INFO("TournamentSelection initialized with tournament size: " + std::to_string(tournamentSize));
+TournamentSelection::TournamentSelection(GAConfig& config, std::shared_ptr<IPopulationCache> cache) 
+        : m_config(config), m_tournamentSize(config.tournamentSize), m_cache(cache) {
+    LOG_INFO("TournamentSelection initialized with tournament size: " + std::to_string(m_tournamentSize));
 }
 
 std::vector<std::shared_ptr<std::vector<int>>> 
@@ -27,8 +27,7 @@ TournamentSelection::select(const std::vector<std::shared_ptr<std::vector<int>>>
         return {};
     }
 
-    const auto& config = GAConfig::getInstance();
-    int tournamentSize = config.getTournamentSize();
+    int tournamentSize = m_tournamentSize;
     
     // Ensure minimum tournament size
     if (tournamentSize <= 0) {

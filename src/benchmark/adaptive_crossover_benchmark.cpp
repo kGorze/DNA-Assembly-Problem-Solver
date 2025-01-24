@@ -33,6 +33,13 @@ void AdaptiveCrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
             for (int trials : config.minTrials) {
                 for (double minProb : config.minProbs) {
                     for (int run = 0; run < config.runsPerConfig; run++) {
+                        // Create a new config for each run
+                        GAConfig gaConfig;
+                        if (!gaConfig.loadFromFile("config.cfg")) {
+                            std::cerr << "Failed to load GA configuration\n";
+                            continue;
+                        }
+                        
                         // Configure adaptive crossover with current parameters
                         auto crossover = std::make_shared<AdaptiveCrossover>();
                         crossover->setParameters(inertia, interval, trials, minProb);
@@ -42,14 +49,15 @@ void AdaptiveCrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
                         
                         // Create and run GA
                         GeneticAlgorithm ga(
-                            GAConfig::getInstance().getRepresentation(),
-                            GAConfig::getInstance().getSelection(),
+                            gaConfig.getRepresentation(),
+                            gaConfig.getSelection(),
                             crossover,
-                            GAConfig::getInstance().getMutation(),
-                            GAConfig::getInstance().getReplacement(),
+                            gaConfig.getMutation(),
+                            gaConfig.getReplacement(),
                             std::make_shared<OptimizedGraphBasedFitness>(),
-                            std::make_shared<MaxGenerationsStopping>(config.maxGenerations),
-                            std::make_shared<CachedPopulation>()
+                            std::make_shared<MaxGenerationsStopping>(gaConfig),
+                            std::make_shared<CachedPopulation>(),
+                            gaConfig
                         );
                         
                         ga.run(instance);

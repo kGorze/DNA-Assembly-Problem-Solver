@@ -52,7 +52,16 @@ public:
         ParameterSet bestSoFar;
         double bestFitnessSoFar = -1e9;
 
-        for (int gen = 0; gen < config.maxGenerations; gen++) {
+        // Create a new config instance
+        GAConfig gaConfig;
+        if (!gaConfig.loadFromFile("config.cfg")) {
+            std::cerr << "Failed to load GA configuration\n";
+            return bestSoFar;
+        }
+        
+        int maxGenerations = gaConfig.getMaxGenerations();
+
+        for (int gen = 0; gen < maxGenerations; gen++) {
             Racing::Manager rm(racingCfg); // Korzystanie z namespace
             auto results = rm.runRacing(population, [&](const ParameterSet &ps){
                 return evaluateFunc(ps);
@@ -244,28 +253,52 @@ private:
     // z danym zestawem parametrów i zwraca TuningResult.
     TuningResult evaluateParamSet(const ParameterSet &ps, const DNAInstance &exampleInstance)
     {
-        // Ustawiamy GAConfig
-        auto &cfg = GAConfig::getInstance();
+        // Create a new config instance
+        GAConfig gaConfig;
+        if (!gaConfig.loadFromFile("config.cfg")) {
+            std::cerr << "Failed to load GA configuration\n";
+            TuningResult tr;
+            tr.parameterSet = ps;
+            tr.fitness = -1e9;
+            tr.executionTime = 0;
+            return tr;
+        }
 
+        // Update parameters
         for (auto &kv : ps.params) {
             if (kv.first == "populationSize") {
-                cfg.populationSize = std::stoi(kv.second);
+                gaConfig.populationSize = std::stoi(kv.second);
             } else if (kv.first == "mutationRate") {
-                cfg.mutationRate = std::stod(kv.second);
+                gaConfig.mutationRate = std::stod(kv.second);
             }
         }
 
         auto start = std::chrono::high_resolution_clock::now();
-        // Uruchamiamy GA (zdefiniowane w main)
-        runGeneticAlgorithm(exampleInstance, "temp_hybrid_out.txt", 0, "HybridOnePlusLambda");
+        
+        // Create and run GA
+        auto cache = std::make_shared<CachedPopulation>();
+        gaConfig.setCache(cache);
+        
+        GeneticAlgorithm ga(
+            gaConfig.getRepresentation(),
+            gaConfig.getSelection(),
+            gaConfig.getCrossover(gaConfig.crossoverType),
+            gaConfig.getMutation(),
+            gaConfig.getReplacement(),
+            gaConfig.getFitness(),
+            gaConfig.getStopping(),
+            cache,
+            gaConfig
+        );
+        
+        ga.run(exampleInstance);
+        
         auto end = std::chrono::high_resolution_clock::now();
         double durationSec = std::chrono::duration<double>(end - start).count();
 
-        double finalFitness = cfg.getGlobalBestFitness();
-
         TuningResult tr;
         tr.parameterSet = ps;
-        tr.fitness = finalFitness;
+        tr.fitness = ga.getBestFitness();
         tr.executionTime = durationSec;
 
         return tr;

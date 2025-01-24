@@ -19,6 +19,11 @@
 #include "meta_ea.h"
 #include "metaheuristics/genetic_algorithm.h"
 #include "../generator/dna_generator.h"
+#include "dna/dna_instance_builder.h"
+#include "configuration/genetic_algorithm_configuration.h"
+#include "utils/logging.h"
+#include <random>
+#include <algorithm>
 
 
 /**

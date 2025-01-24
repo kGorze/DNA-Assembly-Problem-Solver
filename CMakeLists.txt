@@ -13,45 +13,41 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 # Create library from source files
 add_library(${PROJECT_NAME}_lib STATIC
+        src/dna/dna_instance_builder.cpp
+        src/dna/dna_instance_io.cpp
         src/generator/dna_generator.cpp
         src/naive/naive_reconstruction.cpp
-        src/benchmark/naive_benchmark.cpp
+        src/utils/utility_functions.cpp
+        src/utils/performance_profilling_framework.cpp
+        src/utils/logging.cpp
         src/metaheuristics/genetic_algorithm.cpp
-        src/metaheuristics/selection.cpp
+        src/metaheuristics/genetic_algorithm_runner.cpp
         src/metaheuristics/crossover.cpp
         src/metaheuristics/mutation.cpp
+        src/metaheuristics/selection.cpp
         src/metaheuristics/replacement.cpp
         src/metaheuristics/fitness.cpp
         src/metaheuristics/stopping_criteria.cpp
-        src/metaheuristics/representation.cpp
-        src/benchmark/crossover_benchmark.cpp
-        src/utils/utility_functions.cpp
-        src/configuration/genetic_algorithm_configuration.cpp
-        src/utils/performance_profilling_framework.cpp
         src/metaheuristics/population_cache.cpp
-        src/utils/logging.cpp
-        src/metaheuristics/path_analyzer.cpp)
+        src/metaheuristics/adaptive_crossover.cpp
+        src/metaheuristics/path_analyzer.cpp
+        src/metaheuristics/representation.cpp
+        src/configuration/genetic_algorithm_configuration.cpp
+        src/benchmark/crossover_benchmark.cpp
+        src/benchmark/naive_benchmark.cpp
+        src/benchmark/adaptive_crossover_benchmark.cpp
+        src/tuning/parameter_tuning_manager.cpp
+        src/tuning/parameter_parser.cpp
+        src/tuning/tuning_structures.cpp
+)
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC 
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/include/metaheuristics
 )
 
 # Main executable
 add_executable(${PROJECT_NAME}
         src/main.cpp
-        include/metaheuristics/adaptive_crossover.h
-        src/metaheuristics/adaptive_crossover.cpp
-        include/benchmark/adaptive_crossover_benchmark.h
-        src/benchmark/adaptive_crossover_benchmark.cpp
-        src/tuning/tuning_structures.cpp
-        include/tuning/tuning_structures.h
-        include/tuning/parameters_parser.h
-        include/tuning/racing.h
-        include/tuning/meta_ea.h
-        include/tuning/parameter_tuning_manager.h
-        src/tuning/parameter_tuning_manager.cpp
-        src/tuning/parameter_parser.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
