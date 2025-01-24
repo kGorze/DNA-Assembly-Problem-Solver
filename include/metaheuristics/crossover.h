@@ -27,19 +27,37 @@ public:
 
 // Różne krzyżowania
 class OnePointCrossover : public ICrossover {
+private:
+    double m_crossoverRate;
+    
+    std::pair<std::shared_ptr<std::vector<int>>, std::shared_ptr<std::vector<int>>> 
+    performCrossover(const std::shared_ptr<std::vector<int>>& parent1,
+                    const std::shared_ptr<std::vector<int>>& parent2,
+                    const DNAInstance& instance);
+
 public:
-    std::vector<std::shared_ptr<std::vector<int>>> 
-    crossover(const std::vector<std::shared_ptr<std::vector<int>>>& parents,
-              const DNAInstance &instance,
-              std::shared_ptr<IRepresentation> representation) override;
+    explicit OnePointCrossover(double crossoverRate = 0.8) : m_crossoverRate(crossoverRate) {}
+    
+    std::vector<std::shared_ptr<std::vector<int>>> crossover(
+        const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
 };
 
 class OrderCrossover : public ICrossover {
 public:
-    std::vector<std::shared_ptr<std::vector<int>>> 
-    crossover(const std::vector<std::shared_ptr<std::vector<int>>>& parents,
-              const DNAInstance &instance,
-              std::shared_ptr<IRepresentation> representation) override;
+    std::vector<std::shared_ptr<std::vector<int>>> crossover(
+        const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
+
+private:
+
+
+    std::vector<int> performOrderCrossover(
+        const std::vector<int>& parent1,
+        const std::vector<int>& parent2,
+        size_t size);
 };
 
 class EdgeRecombination : public ICrossover {
@@ -72,5 +90,6 @@ private:
     };
 };
 
+bool isValidPermutation(const std::vector<int>& perm, int size);
 
 #endif //CROSSOVER_H

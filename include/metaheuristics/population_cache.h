@@ -11,9 +11,11 @@
 #include <memory>
 
 #include "generator/dna_generator.h"
-#include "metaheuristics/fitness.h"
 #include "metaheuristics/representation.h"
 #include "utils/zobrist_hasher.h"
+
+// Forward declaration
+class IFitness;
 
 class IPopulationCache {
 public:

@@ -28,9 +28,11 @@ add_library(${PROJECT_NAME}_lib STATIC
         src/utils/utility_functions.cpp
         src/configuration/genetic_algorithm_configuration.cpp
         src/utils/performance_profilling_framework.cpp
-        src/metaheuristics/population_cache.cpp)
+        src/metaheuristics/population_cache.cpp
+        src/utils/logging.cpp)
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME}_lib PRIVATE ${CMAKE_SOURCE_DIR}/include/tuning)
 
 # Main executable
 add_executable(${PROJECT_NAME}

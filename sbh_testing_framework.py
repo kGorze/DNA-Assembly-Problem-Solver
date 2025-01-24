@@ -14,29 +14,37 @@ import signal
 import re
 import curses
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Optional, Dict, Any
 from display_manager import UnifiedDisplayManager
 
 # Global reference to the framework instance
 framework_instance = None
 
-logging.basicConfig(
-    filename='sbh_framework.log',
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    level=logging.INFO,
-    # Set filemode to 'a' for append (default) instead of 'w' for overwrite
-    filemode='a'
-)
+def setup_logger():
+    # Konfiguracja głównego loggera
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    
+    # Usuń wszystkie istniejące handlery
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+    
+    # Utworzenie nowego handlera pliku z trybem 'w' (nadpisywanie)
+    file_handler = logging.FileHandler('sbh_framework.log', mode='w', encoding='utf-8')
+    file_handler.setLevel(logging.INFO)
+    
+    # Format logów
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    
+    # Dodanie handlera do loggera
+    logger.addHandler(file_handler)
+    
+    return logger
 
-handler = RotatingFileHandler(
-    'sbh_framework.log',
-    maxBytes=1024*1024,  # 1MB
-    backupCount=5
-)
-handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-logging.getLogger().addHandler(handler)
-logging.getLogger().setLevel(logging.INFO)
+# Użyj na początku programu
+logger = setup_logger()
 
 def cleanup_and_exit(signum, frame):
     if framework_instance and framework_instance.display_manager:
@@ -72,6 +80,12 @@ progress_pattern_expanded = re.compile(
 # 6 -> edgeScore
 # 7 -> theoreticalMax
 
+def to_windows_path(path: Path) -> str:
+    """Convert a path to Windows format."""
+    if sys.platform == 'win32':
+        return str(PureWindowsPath(path))
+    return str(path)
+
 def solver_subprocess(
         solver_path: str,
         instance_path: Path,
@@ -86,10 +100,10 @@ def solver_subprocess(
 
     try:
         cmd = [
-            solver_path,
+            to_windows_path(Path(solver_path)),
             "test_instance",
-            "-i", str(instance_path),
-            "-o", str(instance_path.with_name("results.txt")),
+            "-i", to_windows_path(instance_path),
+            "-o", to_windows_path(instance_path.with_name("results.txt")),
             "-pid", str(process_id)
         ]
         # Możesz dodać "-diff" wg nazwy trudności, np. z bazy
@@ -259,7 +273,7 @@ class SBHTestingFramework:
 
         test_configs: Dict[str, Dict[str, Any]] = {
             "easy": {
-                "counts": 20,
+                "counts": 5,
                 "params": [
                     {"n": 300, "k": 7, "dk": 0, "ln": 10, "lp": 10},
                     {"n": 325, "k": 7, "dk": 0, "ln": 11, "lp": 11},
@@ -268,7 +282,7 @@ class SBHTestingFramework:
                 ]
             },
             "medium": {
-                "counts": 15,
+                "counts": 5,
                 "params": [
                     {"n": 400, "k": 8, "dk": 1, "ln": 15, "lp": 15},
                     {"n": 425, "k": 8, "dk": 1, "ln": 16, "lp": 16},
@@ -277,7 +291,7 @@ class SBHTestingFramework:
                 ]
             },
             "hard": {
-                "counts": 10,
+                "counts": 5,
                 "params": [
                     {"n": 500, "k": 9, "dk": 2, "ln": 20, "lp": 20},
                     {"n": 550, "k": 9, "dk": 2, "ln": 22, "lp": 22},

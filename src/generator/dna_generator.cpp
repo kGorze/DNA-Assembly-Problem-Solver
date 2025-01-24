@@ -3,6 +3,9 @@
 // SMART
 
 #include "generator/dna_generator.h"
+#include "utils/logging.h"
+#include <random>
+#include <fstream>
 
 /* **********************************************
  *          RandomGenerator – singleton
@@ -53,34 +56,36 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string &
 {
     std::vector<std::string> spectrum;
     if ((int)dna.size() < k) {
-        // Jeżeli łańcuch jest krótszy niż k, nic nie tworzymy
         return spectrum;
     }
 
     auto &rng = RandomGenerator::getInstance().get();
     std::uniform_int_distribution<int> distDelta(0, deltaK);
-    std::uniform_int_distribution<int> distSign(0, 1); // 0 => minus, 1 => plus
+    std::uniform_int_distribution<int> distSign(0, 1);
 
-    // Pierwszy oligo zawsze ma długość k
     int startPos = 0;
     int currentOligoLength = k;
 
+    // Calculate fixed zone start (last k+2 oligonucleotides)
     int endFixedZoneStart = dna.size() - (k + 2);
     if(endFixedZoneStart < 0) {
         endFixedZoneStart = 0;
     }
 
     while (startPos + k <= (int)dna.size()) {
-        // Sprawdzamy, czy jesteśmy już w strefie ostatnich (k+2) oligonów
         if (startPos <= endFixedZoneStart) {
             if (startPos == 0) {
+                // First oligo always has length k
                 currentOligoLength = k;
             } else {
                 int d = distDelta(rng);
                 if (d > 0) {
                     int sign = distSign(rng);
+                    // For negative delta, ensure minimum length is k-d
                     if (sign == 0) {
-                        currentOligoLength = std::max(k - d, 1); 
+                        currentOligoLength = k - d;
+                        // Ensure minimum length is at least k-deltaK
+                        currentOligoLength = std::max(currentOligoLength, k - deltaK);
                     } else {
                         currentOligoLength = std::min(k + d, (int)dna.size() - startPos);
                     }
@@ -89,9 +94,7 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string &
                 }
             }
         } else {
-            if (startPos + k > (int)dna.size()) {
-                break;
-            }
+            // Last k+2 oligonucleotides always have length k
             currentOligoLength = k;
         }
 
@@ -100,7 +103,6 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string &
         }
 
         spectrum.push_back(dna.substr(startPos, currentOligoLength));
-
         startPos += 1;
     }
 
@@ -284,13 +286,45 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance &instance)
     if(spectrum.empty() || lNeg <= 0) {
         return;
     }
+    // Ile fragmentów chcemy usunąć
+    int toRemove = std::min((int)spectrum.size() - 1, lNeg); 
+    // ^^^ odejmij 1, by nie usuwać startIndex, w razie w.
+    
+    int startIndex = instance.getStartIndex();
+    if (startIndex < 0 || startIndex >= (int)spectrum.size()) {
+        // Bezpiecznie: jeżeli startIndex jest out-of-range, wyjdź
+        return;
+    }
 
-    int toRemove = std::min((int)spectrum.size(), lNeg);
+    // Wektor do usunięcia fragmentów (bez startIndex):
+    std::vector<int> candidates;
+    candidates.reserve(spectrum.size()-1);
 
-    auto &rng = RandomGenerator::getInstance().get();
-    std::shuffle(spectrum.begin(), spectrum.end(), rng);
+    for (int i = 0; i < (int)spectrum.size(); i++) {
+        if (i != startIndex) {
+            candidates.push_back(i);
+        }
+    }
+    // Tasujemy indeksy kandydatów
+    std::shuffle(candidates.begin(), candidates.end(), RandomGenerator::getInstance().get());
 
-    spectrum.erase(spectrum.begin(), spectrum.begin() + toRemove);
+    // Usuwamy toRemove pierwszy(ych) z potasowanej listy
+    // Pozostałe dajemy do newSpectrum
+    std::unordered_set<int> toRemoveSet;
+    for (int i = 0; i < toRemove; i++) {
+        toRemoveSet.insert(candidates[i]);
+    }
+
+    std::vector<std::string> newSpectrum;
+    newSpectrum.reserve(spectrum.size() - toRemove);
+    // Zostaw startIndex zawsze
+    // (możesz go dodać w tej samej kolejności, co był)
+    for (int i = 0; i < (int)spectrum.size(); i++) {
+        if (toRemoveSet.find(i) == toRemoveSet.end()) {
+            newSpectrum.push_back(spectrum[i]);
+        }
+    }
+    instance.setSpectrum(newSpectrum);
 }
 
 /* **********************************************
@@ -369,7 +403,95 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance &instance) {
     }
     
     if(errorsAdded < lPoz) {
-        std::cerr << "Warning: Could only add " << errorsAdded 
-                  << " positive errors out of " << lPoz << " requested\n";
+        LOG_WARNING("Warning: Could only add " + std::to_string(errorsAdded) + 
+                     " positive errors out of " + std::to_string(lPoz) + " requested");
     }
+}
+
+int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
+    const std::string& startFragment = instance.getDNA().substr(0, instance.getK());
+    const auto& spectrum = instance.getSpectrum();
+
+    // Znajdź indeks fragmentu startowego w spektrum
+    auto it = std::find(spectrum.begin(), spectrum.end(), startFragment);
+    
+    if (it != spectrum.end()) {
+        return std::distance(spectrum.begin(), it);
+    }
+
+    // Jeśli nie znaleziono, zwróć -1 lub obsłuż błąd
+    return -1;
+}
+
+bool DNAGenerator::generate() {
+    LOG_INFO("Generating new DNA instance");
+    LOG_DEBUG("Parameters: N=" + std::to_string(n) + 
+              ", K=" + std::to_string(k) + 
+              ", deltaK=" + std::to_string(deltaK));
+    
+    if (!validateParameters()) {
+        return false;
+    }
+    // Add implementation here
+    return true;  // Add return statement
+}
+
+DNAInstance DNAGenerator::generateRandomInstance(int size) {
+    LOG_INFO("Generating random DNA instance of size " + std::to_string(size));
+    
+    if (size <= 0) {
+        LOG_ERROR("Invalid size for DNA instance: " + std::to_string(size));
+        return DNAInstance();
+    }
+    
+    static std::mt19937 rng(std::random_device{}());
+    static const std::string nucleotides = "ACGT";
+    std::uniform_int_distribution<int> dist(0, nucleotides.size() - 1);
+    
+    DNAInstance instance;
+    instance.setSize(size);
+    std::string sequence;
+    sequence.reserve(size);
+    
+    for (int i = 0; i < size; i++) {
+        sequence.push_back(nucleotides[dist(rng)]);
+    }
+    instance.setTargetSequence(sequence);
+    
+    LOG_INFO("Successfully generated DNA instance");
+    DEBUG_LOG("First 10 nucleotides: " + 
+              instance.getTargetSequence().substr(0, std::min(10, size)));
+    
+    return instance;
+}
+
+bool DNAGenerator::saveToFile(const DNAInstance& instance, const std::string& filename) {
+    std::ofstream file(filename);
+    if (!file) return false;
+    
+    file << instance.getSize() << "\n";
+    file << instance.getTargetSequence() << "\n";
+    return true;
+}
+
+DNAInstance DNAGenerator::loadFromFile(const std::string& filename) {
+    std::ifstream file(filename);
+    DNAInstance instance;
+    
+    int size;
+    std::string sequence;
+    
+    file >> size;
+    file >> sequence;
+    
+    if (file.fail() || sequence.size() != size_t(size)) {
+        LOG_ERROR("Failed to load DNA instance from file");
+        return DNAInstance();
+    }
+    
+    instance.setSize(size);
+    instance.setTargetSequence(sequence);
+    
+    LOG_INFO("Successfully loaded DNA instance of size " + std::to_string(instance.getSize()));
+    return instance;
 }

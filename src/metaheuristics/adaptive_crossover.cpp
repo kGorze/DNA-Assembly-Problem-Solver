@@ -2,6 +2,7 @@
 // Created by konrad_guest on 10/01/2025.
 // SMART
 #include "metaheuristics/adaptive_crossover.h"
+#include "metaheuristics/crossover.h"
 #include <random>
 #include <iostream>
 #include <algorithm>
@@ -171,6 +172,7 @@ std::vector<std::shared_ptr<std::vector<int>>> AdaptiveCrossover::crossover(
     std::shared_ptr<IRepresentation> representation) 
 {
     if (parents.empty()) {
+        std::cerr << "[ERROR] Empty parents in crossover\n";
         return {};
     }
     
@@ -178,14 +180,29 @@ std::vector<std::shared_ptr<std::vector<int>>> AdaptiveCrossover::crossover(
     if (!selectedCrossover) {
         return {};
     }
+    auto offspring = selectedCrossover->crossover(parents, instance, representation);
+    int startIndex = instance.getStartIndex();
+    
+    // Validate and fix offspring
+    for (auto it = offspring.begin(); it != offspring.end();) {
+        if (!(*it) || (*it)->empty() || !isValidPermutation(**it, instance.getSpectrum().size())) {
+            it = offspring.erase(it);
+        } else {
+            // Ensure startIndex is at the beginning
+            auto startIt = std::find((*it)->begin(), (*it)->end(), startIndex);
+            if (startIt != (*it)->begin()) {
+                std::iter_swap((*it)->begin(), startIt);
+            }
+            ++it;
+        }
+    }
     
     generationCount++;
     
     if (generationCount % ADAPTATION_INTERVAL == 0) {
         adjustProbabilities();
     }
-    
-    return selectedCrossover->crossover(parents, instance, representation);
+    return offspring;
 }
 
 void AdaptiveCrossover::updateFeedback(double currentBestFitness) {

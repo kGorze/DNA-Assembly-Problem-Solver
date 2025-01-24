@@ -3,6 +3,7 @@
 // SMART
 
 #include "metaheuristics/representation.h"
+#include "utils/logging.h"
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -57,74 +58,95 @@ DirectDNARepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individua
  *  PermutationRepresentation
  ************************************************/
 std::vector<std::shared_ptr<std::vector<int>>>
-PermutationRepresentation::initializePopulation(int popSize, const DNAInstance &instance)
+PermutationRepresentation::initializePopulation(
+    int populationSize,
+    const DNAInstance& instance) 
 {
+    const size_t spectrumSize = instance.getSpectrum().size();
     std::vector<std::shared_ptr<std::vector<int>>> population;
-    population.reserve(popSize);
+    population.reserve(populationSize);
 
-    const auto &spec = instance.getSpectrum();
-    int length = (int)spec.size();
-    if (length <= 0) {
-        return population;
-    }
-
-    for(int i = 0; i < popSize; i++){
-        auto perm = std::make_shared<std::vector<int>>();
-        perm->reserve(length);
-        for(int idx = 0; idx < length; idx++){
-            perm->push_back(idx);
+    for (int i = 0; i < populationSize; ++i) {
+        auto individual = std::make_shared<std::vector<int>>(spectrumSize);
+        // Initialize with sequential numbers
+        std::iota(individual->begin(), individual->end(), 0);
+        // Shuffle the sequence
+        std::random_shuffle(individual->begin(), individual->end());
+        
+        // Validate the individual
+        bool valid = true;
+        for (size_t j = 0; j < individual->size(); ++j) {
+            if ((*individual)[j] < 0 || (*individual)[j] >= static_cast<int>(spectrumSize)) {
+                valid = false;
+                break;
+            }
         }
-        std::shuffle(perm->begin(), perm->end(), std::mt19937(std::random_device{}()));
-        population.push_back(perm);
+        
+        if (valid) {
+            population.push_back(individual);
+        } else {
+            --i; // Try again for this position
+        }
     }
     return population;
 }
 
-std::string 
-PermutationRepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individual, 
-                                       const DNAInstance &instance)
+std::string PermutationRepresentation::decodeToDNA(
+    std::shared_ptr<std::vector<int>> individual,
+    const DNAInstance &instance)
 {
     if (!individual || individual->empty()) {
+        std::cerr << "[ERROR decodeToDNA] Individual is nullptr or empty\n";
         return "";
     }
-
     const auto &spec = instance.getSpectrum();
-    if (spec.empty()) {
-        return "";
-    }
-
     int k = instance.getK();
-    if (k <= 0) {
+    int n = instance.getN();
+    if (k <= 0 || n <= 0) {
+        std::cerr << "[ERROR decodeToDNA] Invalid k or n (k=" << k << ", n=" << n << ")\n";
         return "";
-    }
-
-    // Sprawdzamy, czy rozmiar permutacji zgadza się z rozmiarem spektrum
-    if ((int)individual->size() != (int)spec.size()) {
-        // np. ostrzeżenie
-        //std::cerr << "[PermutationRepresentation] Warning: mismatch sizes.\n";
-        // i wczytujemy minimalnie
     }
 
     int firstIndex = (*individual)[0];
     if (firstIndex < 0 || firstIndex >= (int)spec.size()) {
-        return ""; // błąd
+        std::cerr << "[ERROR decodeToDNA] firstIndex out-of-range: " << firstIndex << "\n";
+        return "";
     }
 
-    std::string result = spec[firstIndex];
+    std::string result = spec[firstIndex]; // ma długość co najmniej k (z założenia)
 
     for (size_t i = 1; i < individual->size(); i++) {
-        int idx = (*individual)[i];
-        if (idx < 0 || idx >= (int)spec.size()) {
-            // pomijamy
+        int fragIdx = (*individual)[i];
+        if (fragIdx < 0 || fragIdx >= (int)spec.size()) {
+            std::cerr << "[ERROR decodeToDNA] fragIdx out-of-range: " << fragIdx << " at position " << i << "\n";
+            result.push_back('N'); 
             continue;
         }
-        const std::string &km = spec[idx];
-        if ((int)km.size() < k - 1) {
+
+        const std::string &frag = spec[fragIdx];
+        if ((int)frag.size() < k - 2) { // Allow for deltaK=2
+            std::cerr << "[WARNING decodeToDNA] Fragment size " << frag.size() 
+                     << " smaller than k-deltaK (" << k-2 << ")\n";
             continue;
         }
-        // doklejamy last (k-1) znaków
-        result += km.substr(k - 1);
+
+        // For variable length fragments, always take the last character
+        result.push_back(frag.back());
     }
+
+    // Ensure result length matches target length
+    if ((int)result.size() > n) {
+        std::cerr << "[WARNING decodeToDNA] Reconstructed DNA longer than n, resizing from " << result.size() << " to " << n << "\n";
+        result.resize(n);
+    } else while ((int)result.size() < n) {
+        result.push_back('N');
+    }
+
+    // **Finalny Debug Log**: Wypisz pierwszy i ostatni kilka znaków DNA
+    std::cout << "[DEBUG decodeToDNA] Reconstructed DNA (first 10 chars): " 
+              << result.substr(0, 10) << "...\n";
+    std::cout << "[DEBUG decodeToDNA] Reconstructed DNA (last 10 chars): " 
+              << result.substr(result.size() - 10, 10) << "\n";
 
     return result;
 }
@@ -138,14 +160,24 @@ GraphPathRepresentation::initializePopulation(int popSize, const DNAInstance &in
     std::vector<std::shared_ptr<std::vector<int>>> population;
     population.reserve(popSize);
 
-    int length = 50;  // w oryg. stała – do poprawy dla lepszej jakości
+    // Calculate required length based on n and k
+    int k = instance.getK();
+    int n = instance.getN();
+    int requiredLength = n - k + 1;  // This ensures we get exactly n characters after decoding
+    
     for(int i = 0; i < popSize; i++) {
         auto path = std::make_shared<std::vector<int>>();
-        path->reserve(length);
-        for(int idx = 0; idx < length; idx++) {
+        path->reserve(requiredLength);
+        
+        // Fill with indices from 0 to spectrum.size()-1
+        for(int idx = 0; idx < (int)instance.getSpectrum().size(); idx++) {
             path->push_back(idx);
         }
+        
+        // Shuffle and resize to required length
         std::shuffle(path->begin(), path->end(), std::mt19937(std::random_device{}()));
+        path->resize(requiredLength);
+        
         population.push_back(path);
     }
 
@@ -165,11 +197,9 @@ GraphPathRepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individua
     }
 
     int k = instance.getK();
-    if (k <= 0) {
-        return "";
-    }
-
-    // Podobnie jak w PermutationRepresentation
+    int n = instance.getN();
+    
+    // Get first fragment
     int firstIndex = (*individual)[0];
     if (firstIndex < 0 || firstIndex >= (int)spec.size()) {
         return "";
@@ -177,12 +207,27 @@ GraphPathRepresentation::decodeToDNA(std::shared_ptr<std::vector<int>> individua
 
     std::string result = spec[firstIndex];
 
+    // Add remaining characters
     for (size_t i = 1; i < individual->size(); i++) {
-        int idx = (*individual)[i];
-        if (idx < 0 || idx >= (int)spec.size()) {
+        int fragIdx = (*individual)[i];
+        if (fragIdx < 0 || fragIdx >= (int)spec.size()) {
             continue;
         }
-        result += spec[idx].substr(k - 1);
+
+        const std::string &frag = spec[fragIdx];
+        if ((int)frag.size() < k - 2) { // Allow for deltaK=2
+            std::cerr << "[WARNING decodeToDNA] Fragment size " << frag.size() 
+                     << " smaller than k-deltaK (" << k-2 << ")\n";
+            continue;
+        }
+        result.push_back(frag.back());
+    }
+
+    // Result should be exactly n characters
+    if ((int)result.size() != n) {
+        LOG_WARNING("Decoded DNA length (" + std::to_string(result.size()) + 
+                   ") differs from required length (" + std::to_string(n) + ")");
+        return "";  // Return empty string to indicate invalid solution
     }
 
     return result;

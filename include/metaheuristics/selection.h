@@ -6,9 +6,13 @@
 #define SELECTION_H
 #include <vector>
 #include <memory>
-#include "metaheuristics/fitness.h"
-#include "metaheuristics/representation.h"
-#include "metaheuristics/population_cache.h"
+
+// Forward declaration
+class GAConfig;
+class DNAInstance;
+class IFitness;
+class IRepresentation;
+class IPopulationCache;
 
 class ISelection {
 public:
@@ -29,6 +33,7 @@ public:
            const DNAInstance &instance,
            std::shared_ptr<IFitness> fitness,
            std::shared_ptr<IRepresentation> representation) override;
+    int getTournamentSize() const { return m_tournamentSize; }
 private:
     int m_tournamentSize;
     std::shared_ptr<IPopulationCache> m_cache;

@@ -8,6 +8,8 @@
 #include "metaheuristics/representation.h"
 #include "generator/dna_generator.h"
 #include "utils/utility_functions.h"
+#include "metaheuristics/population_cache.h"
+#include "metaheuristics/path_analyzer.h"
 
 #include <unordered_map>
 #include <vector>
@@ -28,6 +30,8 @@ public:
                             const DNAInstance &instance,
                             std::shared_ptr<IRepresentation> representation) const = 0;
 };
+
+#include "metaheuristics/population_cache.h"
 
 /**
  * Bardzo prosta funkcja fitness – liczy liczbę k-merów
@@ -67,6 +71,16 @@ public:
     double evaluate(std::shared_ptr<std::vector<int>> individual, 
                     const DNAInstance& instance,
                     std::shared_ptr<IRepresentation> representation) const override;
+};
+
+
+struct PreprocessedEdge {
+    int to;
+    int weight;
+    bool exists;
+
+    PreprocessedEdge() : to(-1), weight(0), exists(false) {}
+    PreprocessedEdge(int t, int w, bool e) : to(t), weight(w), exists(e) {}
 };
 
 /**
@@ -124,6 +138,10 @@ private:
     // Konwersja permutacji na "ścieżkę"
     const std::vector<int>& permutationToPath(std::shared_ptr<std::vector<int>> individual) const;
 
+    // Budowa macierzy sąsiedztwa z grafu
+    std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(
+        const std::vector<std::vector<Edge>>& graph) const;
+
 public:
 
         
@@ -155,6 +173,21 @@ public:
         graphCache.clear();
         nodeUsageBuffer.clear();
     }
+};
+
+class Fitness : public IFitness {
+private:
+    std::shared_ptr<IPopulationCache> m_cache;
+
+protected:
+    double calculateFitness(const std::vector<char>& dna, const DNAInstance& instance) const;
+
+public:
+    explicit Fitness(std::shared_ptr<IPopulationCache> cache = nullptr) : m_cache(cache) {}
+    
+    double evaluate(std::shared_ptr<std::vector<int>> individual,
+                   const DNAInstance& instance,
+                   std::shared_ptr<IRepresentation> representation) const override;
 };
 
 #endif //FITNESS_H

@@ -38,7 +38,11 @@ PartialReplacement::replace(const std::vector<std::shared_ptr<std::vector<int>>>
     const size_t oldSize = oldPop.size();
     const size_t offSize = offspring.size();
     const size_t targetSize = std::max(oldSize, offSize);
-    int requiredSize = (int)instance.getSpectrum().size();
+    
+    // Calculate required length based on n and k (same as in PermutationRepresentation)
+    int k = instance.getK();
+    int n = instance.getN();
+    int requiredLength = n - k + 1;  // This is the correct length for Permutation representation
 
     struct Individual {
         std::shared_ptr<std::vector<int>> ptr;
@@ -51,9 +55,9 @@ PartialReplacement::replace(const std::vector<std::shared_ptr<std::vector<int>>>
     std::vector<Individual> allIndividuals;
     allIndividuals.reserve(oldSize + offSize);
     
-    // Pomocnicza lambda do weryfikacji rozmiaru
+    // Lambda for size verification
     auto isValidSize = [&](std::shared_ptr<std::vector<int>> ind){
-        return (ind && (int)ind->size() == requiredSize);
+        return (ind && (int)ind->size() == requiredLength);
     };
 
     // 1. Zbieramy stare + nowe

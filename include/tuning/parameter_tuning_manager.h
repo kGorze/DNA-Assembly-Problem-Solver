@@ -5,21 +5,20 @@
 #ifndef PARAMETER_TUNING_MANAGER_H
 #define PARAMETER_TUNING_MANAGER_H
 
-
-#include "racing.h"
-#include "parameters_parser.h"
-#include "tuning_structures.h"
-#include "meta_ea.h"
-#include "metaheuristics/genetic_algorithm.h"
-#include "../generator/dna_generator.h"
-
-
+// System includes
 #include <fstream>
 #include <functional>
 #include <vector>
 #include <string>
 #include <chrono>
 
+// Project includes
+#include "racing.h"
+#include "parameters_parser.h"
+#include "tuning_structures.h"
+#include "meta_ea.h"
+#include "metaheuristics/genetic_algorithm.h"
+#include "../generator/dna_generator.h"
 
 
 /**
@@ -91,53 +90,37 @@ private:
      *    - Albo ładujesz nowy plik .cfg
      *    - Zwracasz TuningResult (fitness, czas, ewentualnie coverage).
      */
-    TuningResult runOneEvaluation(const ParameterSet &ps)
-    {
-        // 1. Parametry -> GAConfig (lub inny Twój config)
-        auto &cfg = GAConfig::getInstance();
-        if (ps.params.find("populationSize") != ps.params.end()) {
-            cfg.populationSize = std::stoi(ps.params.at("populationSize"));
+    TuningResult runOneEvaluation(const ParameterSet& params) {
+        TuningResult result;
+        try {
+            // Create a test instance using DNAInstanceBuilder instead
+            DNAInstanceBuilder builder;
+            builder.setN(100)
+                   .setK(7)
+                   .setDeltaK(1)
+                   .setLNeg(0)
+                   .setLPoz(0)
+                   .setRepAllowed(true)
+                   .buildDNA()
+                   .buildSpectrum();
+            
+            DNAInstance instance = builder.getInstance();
+            
+            // Run GA with these parameters
+            auto start = std::chrono::high_resolution_clock::now();
+            double fitness = runGeneticAlgorithmWrapper(instance);
+            auto end = std::chrono::high_resolution_clock::now();
+            
+            result.fitness = fitness;
+            result.executionTime = std::chrono::duration<double>(end - start).count();
+            result.parameterSet = params;
+            
+        } catch (const std::exception& e) {
+            result.fitness = 0.0;  // or some other invalid fitness value
+            result.executionTime = 0.0;
+            result.parameterSet = params;
         }
-        if (ps.params.find("mutationRate") != ps.params.end()) {
-            cfg.mutationRate = std::stod(ps.params.at("mutationRate"));
-        }
-        if (ps.params.find("selectionMethod") != ps.params.end()) {
-            cfg.selectionMethod = ps.params.at("selectionMethod");
-        }
-        // Można obsłużyć tutaj inne parametry (np. crossoverRate, itp.)
-
-        // 2. Uruchamiamy Twój algorytm:
-        auto start = std::chrono::high_resolution_clock::now();
-
-        // Tworzymy instancję DNA (lub wczytujemy z pliku), np.:
-        DNAInstance instance;
-        // Przykładowo wypełniamy 10 genów losowymi liczbami:
-        instance.genes.resize(10, 0.0);
-        {
-            static std::mt19937 rng(std::random_device{}());
-            std::uniform_real_distribution<double> dist(0.0, 1.0);
-            for (auto &g : instance.genes) {
-                g = dist(rng);
-            }
-        }
-
-        // Uruchamiamy GA:
-        double finalFitness = runGeneticAlgorithmWrapper(instance);
-
-        auto end = std::chrono::high_resolution_clock::now();
-        double durationSec = std::chrono::duration<double>(end - start).count();
-
-        // 3. Zwracamy wynik w strukturze TuningResult
-        TuningResult tr;
-        tr.parameterSet = ps;
-        tr.fitness = finalFitness;
-        tr.executionTime = durationSec;
-
-        // ewentualnie wypełnić "dodatkowe metryki"
-        tr.extraMetrics["Coverage"] = 50.0; // przykładowa stała
-        tr.extraMetrics["EdgeScore"] = 10.0; // j.w.
-
-        return tr;
+        return result;
     }
 
     /**

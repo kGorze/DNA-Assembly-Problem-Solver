@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <cmath>
+#include "utils/logging.h"
 
 /**
  * Struktura przechowująca całą instancję: DNA, parametry i wygenerowane spektrum.
@@ -28,21 +29,49 @@ private:
     int lPoz;             // liczba błędów pozytywnych
     bool repAllowed;      // czy dozwolone powtórzenia w DNA
     int probablePositive; // sposób generowania błędów pozytywnych
-
+    int startIndex;       // Nowy atrybut
     std::vector<std::string> spectrum;
+    std::string targetSequence;
+    int size;
 
 public:
-    std::vector<double> genes;  // Keep the existing implementation
+    DNAInstance() : n(0), k(0), deltaK(0), lNeg(0), lPoz(0), 
+                   repAllowed(false), probablePositive(0), 
+                   startIndex(-1), size(0) {}
 
-    
+    // Add these getters/setters
+    const std::string& getTargetSequence() const { return targetSequence; }
+    void setTargetSequence(const std::string& seq) { targetSequence = seq; }
+    void setSize(int s) { size = s; }
+    int getSize() const { return size; }
+
     // get/set
+
+    int getStartIndex() const { return startIndex; }
+    void setStartIndex(int index) { startIndex = index; }
+    
     void setDNA(const std::string &d) { dna = d; }
     std::string getDNA() const { return dna; }
 
     void setN(int val) { n = val; }
     int getN() const { return n; }
 
-    void setK(int val) { k = val; }
+    void setK(int val) {
+        if (val <= 0) {
+            throw std::invalid_argument("K must be positive");
+        }
+        k = val;
+        
+        // Validate existing spectrum if any
+        for (const auto& fragment : spectrum) {
+            if (fragment.size() < k - deltaK || fragment.size() > k + deltaK) {
+                std::string msg = "Fragment size " + std::to_string(fragment.size()) + 
+                                " outside allowed range [" + std::to_string(k-deltaK) + 
+                                "," + std::to_string(k+deltaK) + "]";
+                LOG_WARNING(msg);
+            }
+        }
+    }
     int getK() const { return k; }
 
     void setDeltaK(int val) { deltaK = val; }
@@ -64,6 +93,10 @@ public:
     void setSpectrum(const std::vector<std::string> &s) { spectrum = s; }
     std::vector<std::string>& getSpectrum() { return spectrum; }
     const std::vector<std::string>& getSpectrum() const { return spectrum; }
+    int findStartVertexIndex(const DNAInstance& instance);
+
+
+    
 };
 
 /**
@@ -73,8 +106,29 @@ public:
  * "powtórzeń").
  */
 class DNAGenerator {
+private:
+    int n;
+    int k;
+    int deltaK;
+    
+    bool validateParameters() {
+        return (n > 0 && k > 0 && deltaK >= 0);
+    }
+
 public:
+    DNAGenerator() : n(0), k(0), deltaK(0) {}
+    void setParameters(int n_, int k_, int deltaK_) {
+        n = n_;
+        k = k_;
+        deltaK = deltaK_;
+    }
+    
+    // Add missing method declarations
     std::string generateDNA(int n, bool repAllowed);
+    bool generate();
+    DNAInstance generateRandomInstance(int size);
+    bool saveToFile(const DNAInstance& instance, const std::string& filename);
+    DNAInstance loadFromFile(const std::string& filename);
 };
 
 /**

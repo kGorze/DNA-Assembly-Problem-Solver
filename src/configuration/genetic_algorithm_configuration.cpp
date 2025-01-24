@@ -41,8 +41,15 @@ GAConfig::GAConfig()
     alpha = 0.7;
     beta  = 0.3;
 
-    // Najlepszy fitness domyślnie -∞
+    // DNA Generation parameters - wartości domyślne
+    k = 8;                  // długość oligo
+    deltaK = 2;             // maksymalna zmiana długości oligo
+    lNeg = 0;               // liczba błędów negatywnych
+    lPoz = 0;               // liczba błędów pozytywnych
+    repAllowed = true;      // czy dozwolone powtórzenia w DNA
+    probablePositive = 0;   // sposób generowania błędów pozytywnych
 
+    // Najlepszy fitness domyślnie -∞
     m_globalBestFit = -std::numeric_limits<double>::infinity();
 }
 
@@ -178,6 +185,20 @@ bool GAConfig::loadFromFile(const std::string& filePath)
                         alpha = std::stod(value);
                     } else if (key == "beta") {
                         beta = std::stod(value);
+                    
+                    // Instance parameters
+                    } else if (key == "k") {
+                        k = std::stoi(value);
+                    } else if (key == "deltaK") {
+                        deltaK = std::stoi(value);
+                    } else if (key == "lNeg") {
+                        lNeg = std::stoi(value);
+                    } else if (key == "lPoz") {
+                        lPoz = std::stoi(value);
+                    } else if (key == "repAllowed") {
+                        repAllowed = (value == "true" || value == "1");
+                    } else if (key == "probablePositive") {
+                        probablePositive = std::stoi(value);
                     
                     // Obsługa parametrów adaptacyjnego krzyżowania (przykład):
                     } else if (key == "adaptive.inertia") {

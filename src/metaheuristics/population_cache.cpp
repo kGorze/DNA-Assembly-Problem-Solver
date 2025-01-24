@@ -2,6 +2,7 @@
 // Created by konrad_guest on 09/01/2025.
 // SMART
 #include "metaheuristics/population_cache.h"
+#include "metaheuristics/fitness.h"
 #include <algorithm>
 #include <chrono>
 

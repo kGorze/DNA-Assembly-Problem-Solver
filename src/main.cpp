@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 #include <memory>
+#include <ctime>
 
 // Pliki projektu
 #include "generator/dna_generator.h"
@@ -37,8 +38,11 @@
 #include "tuning/racing.h"
 #include "tuning/meta_ea.h"
 
+#include "utils/logging.h"
 
+#include "metaheuristics/population_cache.h"
 
+// Start your main code here, remove the Logger class definition
 
 // Funkcja do wypisywania użycia programu:
 void printUsage() {
@@ -71,12 +75,7 @@ void printUsage() {
 }
 
 // Funkcja pomocnicza do generowania instancji
-bool generateInstance(int n,
-                      int k,
-                      int deltaK,
-                      int lNeg,
-                      int lPoz,
-                      const std::string& outputFile)
+bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::string &outputFile)
 {
     DNAInstanceBuilder builder;
     builder.setN(n)
@@ -89,22 +88,55 @@ bool generateInstance(int n,
            .buildDNA()
            .buildSpectrum();
 
-    if(lNeg > 0) {
-        NegativeErrorIntroducer negErr(lNeg);
-        builder.applyError(&negErr);
-    }
-
-    if(lPoz > 0) {
-        PositiveErrorIntroducer posErr(lPoz);
-        builder.applyError(&posErr);
-    }
-
     DNAInstance instance = builder.getInstance();
+    
+    // Introduce errors AFTER setting start index
+    auto startFrag = instance.getDNA().substr(0, k);
+    const auto& spectrum = instance.getSpectrum();
+    
+    int startIdx = -1;
+    for (int i = 0; i < (int)spectrum.size(); i++) {
+        if (spectrum[i] == startFrag) {
+            startIdx = i;
+            break;
+        }
+    }
+    
+    instance.setStartIndex(startIdx);
+
+    // Now introduce errors
+    if (lNeg > 0) {
+        NegativeErrorIntroducer negErr(lNeg);
+        negErr.introduceErrors(instance);
+    }
+
+    if (lPoz > 0) {
+        PositiveErrorIntroducer posErr(lPoz);
+        posErr.introduceErrors(instance);
+    }
+
     return InstanceIO::saveInstance(instance, outputFile);
 }
 
+void updateConfigWithInstanceParams(const DNAInstance& instance) {
+    auto& config = GAConfig::getInstance();
+    // Update all instance parameters
+    config.k = instance.getK();
+    config.deltaK = instance.getDeltaK();
+    config.lNeg = instance.getLNeg();
+    config.lPoz = instance.getLPoz();
+    config.repAllowed = instance.isRepAllowed();
+    config.probablePositive = instance.getProbablePositive();
+    
+    LOG_DEBUG("Updated instance parameters: k=" + std::to_string(config.k) + 
+              ", deltaK=" + std::to_string(config.deltaK) +
+              ", lNeg=" + std::to_string(config.lNeg) +
+              ", lPoz=" + std::to_string(config.lPoz));
+}
 
 int main(int argc, char* argv[]) {
+    LOG_INFO("Starting program");
+
     if (argc < 2) {
         printUsage();
         return 1;
@@ -127,50 +159,44 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Wczytujemy parametry GA z pliku, np. "config.cfg"
-    auto& config = GAConfig::getInstance();
-    if (!config.loadFromFile(configFile)) {
-        std::cerr << "Failed to load GA configuration from " << configFile << "\n";
-        return 1;
-    }
-
-    if (mode == "debug") {
-        int n = 400;
-        int k = 8;
-        int deltaK = 1;
-        int lNeg = 10;
-        int lPoz = 10;
-
+    if (argc > 1 && strcmp(argv[1], "debug") == 0) {
+        // Create a debug instance first
         DNAInstanceBuilder builder;
-        builder.setN(n)
-               .setK(k)
-               .setDeltaK(deltaK)
-               .setLNeg(lNeg)
-               .setLPoz(lPoz)
+        builder.setN(400)
+               .setK(8)
+               .setDeltaK(2)
+               .setLNeg(0)
+               .setLPoz(0)
                .setRepAllowed(true)
                .setProbablePositive(0)
                .buildDNA()
                .buildSpectrum();
 
-        if(lNeg > 0) {
-            NegativeErrorIntroducer negErr(lNeg);
-            builder.applyError(&negErr);
-        }
-
-        if(lPoz > 0) {
-            PositiveErrorIntroducer posErr(lPoz);
-            builder.applyError(&posErr);
-        }
-
         DNAInstance instance = builder.getInstance();
-        bool saved = InstanceIO::saveInstance(instance, "debug_instance.txt");
 
-        if(!saved) {
+        // Save debug instance
+        std::string debugInstanceFile = "debug_instance.txt";
+        if (!InstanceIO::saveInstance(instance, debugInstanceFile)) {
             std::cerr << "Failed to save debug instance!\n";
             return 1;
         }
 
-        runGeneticAlgorithm(instance, "");
+        // Now load config and update with instance params
+        auto& config = GAConfig::getInstance();
+        if (!config.loadFromFile("config.cfg")) {
+            std::cerr << "Failed to load GA configuration\n";
+            return 1;
+        }
+        updateConfigWithInstanceParams(instance);
+
+        // Create and run GA
+        auto cache = std::make_shared<CachedPopulation>();
+        config.setCache(cache);
+
+        // Run GA with the debug instance
+        runGeneticAlgorithm(instance, "debug_output.txt", 0, "DEBUG");
+
+        return 0;
 
     } else if (mode == "generate_instance") {
         int n = 400, k = 8, deltaK = 1, lNeg = 10, lPoz = 10;
@@ -256,19 +282,29 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
+        // Load instance first
         DNAInstance instance;
         if (!InstanceIO::loadInstance(inputFile, instance)) {
             std::cerr << "Failed to load instance from " << inputFile << std::endl;
             return 1;
         }
 
-        std::cout << "CURRENT_TEST:"
-                  << processId << ":"
-                  << difficulty << ":"
-                  << inputFile
-                  << std::endl;
+        // Now load config and update with instance params
+        auto& config = GAConfig::getInstance();
+        if (!config.loadFromFile("config.cfg")) {
+            std::cerr << "Failed to load GA configuration\n";
+            return 1;
+        }
+        updateConfigWithInstanceParams(instance);
 
+        // Create and run GA
+        auto cache = std::make_shared<CachedPopulation>();
+        config.setCache(cache);
+
+        // Run GA with the loaded instance
         runGeneticAlgorithm(instance, outputFile, processId, difficulty);
+
+        return 0;
 
     } else if (mode == "tuning") {
         std::string tuningOutputFile = "tuning_results.csv";
@@ -299,66 +335,57 @@ int main(int argc, char* argv[]) {
 
         // Funkcja ewaluacji (korzysta z runGeneticAlgorithm)
         auto evaluateFunc = [&](const ParameterSet &ps) -> TuningResult {
-                // 1. Generowanie testowej instancji DNA
+            // Load instance parameters from file or use builder
+            DNAInstance instance;
+            if (!InstanceIO::loadInstance("test_instance.txt", instance)) {
+                // If no test instance file, create one with reasonable parameters
                 DNAInstanceBuilder builder;
-                builder.setN(400)
-                       .setK(8)
-                       .setDeltaK(2)
+                builder.setN(300)
+                       .setK(8)  // Default k if no instance provided
+                       .setDeltaK(1)
                        .setLNeg(0)
                        .setLPoz(0)
                        .setRepAllowed(true)
                        .buildDNA()
                        .buildSpectrum();
-                DNAInstance instance = builder.getInstance();
-
-                // 2. Przekazywanie parametrów do GAConfig
-                GAConfig &cfg = GAConfig::getInstance();
-                for (const auto &[key, value] : ps.params) {
-                    if (key == "populationSize") {
-                        cfg.populationSize = std::stoi(value);
-                    } else if (key == "mutationRate") {
-                        cfg.mutationRate = std::stod(value);
-                    } else if (key == "selectionMethod") {
-                        cfg.selectionMethod = value;
-                    } else if (key == "replacementRatio") {
-                        cfg.replacementRatio = std::stod(value);
-                    } else if (key == "tournamentSize") {
-                        cfg.tournamentSize = std::stoi(value);
-                    } else if (key == "crossoverType") {
-                        cfg.crossoverType = value;
-                    } else if (key == "adaptive.inertia") {
-                        cfg.adaptiveParams.inertia = std::stod(value);
-                    } else if (key == "adaptive.adaptationInterval") {
-                        cfg.adaptiveParams.adaptationInterval = std::stoi(value);
-                    } else if (key == "adaptive.minTrials") {
-                        cfg.adaptiveParams.minTrials = std::stoi(value);
-                    } else if (key == "adaptive.minProb") {
-                        cfg.adaptiveParams.minProb = std::stod(value);
-                    }
-                    // Dodaj inne parametry w razie potrzeby
+                instance = builder.getInstance();
+            }
+            
+            // Update config with instance-specific parameters
+            updateConfigWithInstanceParams(instance);
+            
+            // Update GA parameters from parameter set
+            GAConfig &cfg = GAConfig::getInstance();
+            for (const auto &[key, value] : ps.params) {
+                if (key == "populationSize") {
+                    cfg.populationSize = std::stoi(value);
+                } else if (key == "mutationRate") {
+                    cfg.mutationRate = std::stod(value);
                 }
+                // Don't override k-mer related parameters here
+            }
+            
+            // 3. Start pomiaru czasu
+            auto start = std::chrono::high_resolution_clock::now();
 
-                // 3. Start pomiaru czasu
-                auto start = std::chrono::high_resolution_clock::now();
+            // 4. Uruchomienie Algorytmu Genetycznego
+            runGeneticAlgorithm(instance, "temp_output.txt", 0, "Tuning");
 
-                // 4. Uruchomienie Algorytmu Genetycznego
-                runGeneticAlgorithm(instance, "temp_output.txt", 0, "Tuning");
+            // 5. Zakończenie pomiaru czasu
+            auto end = std::chrono::high_resolution_clock::now();
+            double durationSec = std::chrono::duration<double>(end - start).count();
 
-                // 5. Zakończenie pomiaru czasu
-                auto end = std::chrono::high_resolution_clock::now();
-                double durationSec = std::chrono::duration<double>(end - start).count();
+            // 6. Odczytanie finalnego fitness z GAConfig
+            double finalFitness = cfg.getGlobalBestFitness();
 
-                // 6. Odczytanie finalnego fitness z GAConfig
-                double finalFitness = cfg.getGlobalBestFitness();
+            // 7. Stworzenie wyniku tuningu
+            TuningResult tr; 
+            tr.parameterSet = ps;
+            tr.fitness = finalFitness;
+            tr.executionTime = durationSec;
 
-                // 7. Stworzenie wyniku tuningu
-                TuningResult tr; 
-                tr.parameterSet = ps;
-                tr.fitness = finalFitness;
-                tr.executionTime = durationSec;
-
-                return tr;
-            };
+            return tr;
+        };
 
         // Uruchamiamy Racing
         tuner.runRacingOnly(candidateParams, rc, evaluateFunc);

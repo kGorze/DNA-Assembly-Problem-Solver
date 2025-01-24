@@ -4,9 +4,12 @@
 
 
 #include "benchmark/crossover_benchmark.h"
+#include "utils/logging.h"
 
 void CrossoverBenchmark::runBenchmark(const DNAInstance &instance)
 {
+    LOG_INFO("Starting crossover benchmark");
+    
     // We create a list of crossovers to test
     std::vector<std::pair<std::string, std::shared_ptr<ICrossover>>> crossovers = {
         {"OnePoint",          std::make_shared<OnePointCrossover>()},
@@ -28,11 +31,12 @@ void CrossoverBenchmark::runBenchmark(const DNAInstance &instance)
         const std::string &coName = co.first;
         auto coPtr = co.second;
 
-        std::cout << "\n--- Testing " << coName << " ---\n";
+        LOG_DEBUG("Running test case: " + coName);
         int distance = runOneGA(instance, coPtr, coName);
 
         std::cout << "Crossover: " << coName 
                   << ", Final Levenshtein distance = " << distance << "\n";
+        LOG_INFO("Test results: " + std::to_string(distance));
     }
 }
 

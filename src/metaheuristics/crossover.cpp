@@ -3,6 +3,7 @@
 // SMART
 
 #include "metaheuristics/crossover.h"
+#include "utils/logging.h"
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -33,11 +34,14 @@ static bool validateAndClampChromosome(std::shared_ptr<std::vector<int>> indiv, 
     return true;
 }
 
-static bool isValidPermutation(const std::vector<int>& vec, int size) {
-    if ((int)vec.size() != size) return false;
+bool isValidPermutation(const std::vector<int>& perm, int size) {
+    if (perm.size() != static_cast<size_t>(size)) return false;
+    
     std::vector<bool> used(size, false);
-    for (int val : vec) {
-        if (val < 0 || val >= size || used[val]) return false;
+    for (int val : perm) {
+        if (val < 0 || val >= size || used[val]) {
+            return false;
+        }
         used[val] = true;
     }
     return true;
@@ -52,49 +56,68 @@ OnePointCrossover::crossover(
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation)
 {
+    LOG_DEBUG("Starting crossover operation with " + std::to_string(parents.size()) + " parents");
+    
+    if (parents.size() < 2) {
+        LOG_ERROR("Insufficient parents for crossover. Need at least 2, got " + std::to_string(parents.size()));
+        return parents;
+    }
+    
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     offspring.reserve(parents.size());
-
-    // Zakładamy, że rozmiar = instance.getSpectrum().size()
-    int requiredSize = (int)instance.getSpectrum().size();
-
-    // Krzyżujemy parami: (0,1), (2,3), ...
-    for (size_t i = 0; i + 1 < parents.size(); i += 2) {
-        auto p1 = parents[i];
-        auto p2 = parents[i + 1];
-        if (!p1 || !p2) {
+    
+    static std::mt19937 rng(std::random_device{}());
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    
+    for (size_t i = 0; i < parents.size(); i += 2) {
+        if (i + 1 >= parents.size()) {
+            LOG_WARNING("Odd number of parents, copying last parent directly");
+            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
             continue;
         }
-        // weryfikacja
-        bool ok1 = validateAndClampChromosome(p1, requiredSize);
-        bool ok2 = validateAndClampChromosome(p2, requiredSize);
-        if (!ok1 || !ok2) {
-            // Skopiuj rodziców bez krzyżowania
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
-            continue;
+        
+        if (dist(rng) < m_crossoverRate) {
+            DEBUG_LOG("Performing crossover between parents " + std::to_string(i) + 
+                     " and " + std::to_string(i + 1));
+            
+            auto children = performCrossover(parents[i], parents[i + 1], instance);
+            
+            if (children.first && children.second) {
+                offspring.push_back(children.first);
+                offspring.push_back(children.second);
+            } else {
+                LOG_ERROR("Crossover failed, using parents instead");
+                offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
+                offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
+            }
+        } else {
+            DEBUG_LOG("Skipping crossover for parents " + std::to_string(i) + 
+                     " and " + std::to_string(i + 1));
+            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
+            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
         }
-
-        int size = (int)p1->size();
-
-        // Losujemy punkt podziału
-        std::mt19937 gen(std::random_device{}());
-        std::uniform_int_distribution<int> dist(0, size - 1);
-        int crossPoint = dist(gen);
-
-        auto child1 = std::make_shared<std::vector<int>>(*p1);
-        auto child2 = std::make_shared<std::vector<int>>(*p2);
-
-        for (int idx = crossPoint; idx < size; idx++) {
-            (*child1)[idx] = (*p2)[idx];
-            (*child2)[idx] = (*p1)[idx];
-        }
-
-        offspring.push_back(child1);
-        offspring.push_back(child2);
     }
-
+    
+    LOG_INFO("Crossover complete. Generated " + std::to_string(offspring.size()) + " offspring");
     return offspring;
+}
+
+std::pair<std::shared_ptr<std::vector<int>>, std::shared_ptr<std::vector<int>>> 
+OnePointCrossover::performCrossover(const std::shared_ptr<std::vector<int>>& parent1,
+                                  const std::shared_ptr<std::vector<int>>& parent2,
+                                  const DNAInstance& instance) {
+    // Implementation of one-point crossover
+    auto child1 = std::make_shared<std::vector<int>>(*parent1);
+    auto child2 = std::make_shared<std::vector<int>>(*parent2);
+    
+    int crossPoint = std::uniform_int_distribution<int>(0, parent1->size()-1)(RandomGenerator::getInstance().get());
+    
+    for (size_t i = crossPoint; i < parent1->size(); ++i) {
+        (*child1)[i] = (*parent2)[i];
+        (*child2)[i] = (*parent1)[i];
+    }
+    
+    return {child1, child2};
 }
 
 // ========================================
@@ -106,89 +129,28 @@ OrderCrossover::crossover(
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation)
 {
+    const size_t spectrumSize = instance.getSpectrum().size();
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
-    offspring.reserve(parents.size());
+    
+    if (parents.size() < 2) {
+        std::cerr << "[ERROR OrderCrossover] Not enough parents for crossover\n";
+        return offspring;
+    }
 
-    int requiredSize = (int)instance.getSpectrum().size();
-
-    for (size_t i = 0; i + 1 < parents.size(); i += 2) {
-        auto p1 = parents[i];
-        auto p2 = parents[i+1];
-        if (!p1 || !p2) continue;
-
-        // Sprawdzamy czy rodzice są poprawnymi permutacjami
-        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+    for (size_t i = 0; i < parents.size() - 1; i += 2) {
+        if (!parents[i] || !parents[i + 1] || 
+            parents[i]->size() != spectrumSize || 
+            parents[i + 1]->size() != spectrumSize) {
+            std::cerr << "[ERROR OrderCrossover] Invalid parent sizes or null parents\n";
             continue;
         }
 
-        int size = requiredSize;
-        
-        std::mt19937 gen(std::random_device{}());
-        std::uniform_int_distribution<int> distIndex(0, size - 1);
-        int start = distIndex(gen);
-        int end = distIndex(gen);
-        if (start > end) std::swap(start, end);
-
-        // Inicjalizacja potomków
-        auto c1 = std::make_shared<std::vector<int>>(size, -1);
-        auto c2 = std::make_shared<std::vector<int>>(size, -1);
-
-        std::vector<bool> used1(size, false);
-        std::vector<bool> used2(size, false);
-
-        // Kopiowanie segmentu
-        for (int j = start; j <= end; j++) {
-            (*c1)[j] = (*p1)[j];
-            used1[(*p1)[j]] = true;
-
-            (*c2)[j] = (*p2)[j];
-            used2[(*p2)[j]] = true;
-        }
-
-        // Wypełnianie pozostałych pozycji
-        int remainingCount1 = size - (end - start + 1);
-        int remainingCount2 = remainingCount1;
-        int curr1 = (end + 1) % size;
-        int curr2 = (end + 1) % size;
-        int pos1 = (end + 1) % size;
-        int pos2 = (end + 1) % size;
-
-        // Bezpieczne wypełnianie c1
-        while (remainingCount1 > 0) {
-            int val = (*p2)[pos2];
-            if (!used1[val]) {
-                (*c1)[curr1] = val;
-                used1[val] = true;
-                remainingCount1--;
-                curr1 = (curr1 + 1) % size;
-            }
-            pos2 = (pos2 + 1) % size;
-        }
-
-        // Bezpieczne wypełnianie c2
-        while (remainingCount2 > 0) {
-            int val = (*p1)[pos1];
-            if (!used2[val]) {
-                (*c2)[curr2] = val;
-                used2[val] = true;
-                remainingCount2--;
-                curr2 = (curr2 + 1) % size;
-            }
-            pos1 = (pos1 + 1) % size;
-        }
-
-        // Weryfikacja potomków
-        if (isValidPermutation(*c1, size) && isValidPermutation(*c2, size)) {
-            offspring.push_back(c1);
-            offspring.push_back(c2);
-        } else {
-            // Jeśli coś poszło nie tak, zwracamy kopie rodziców
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+        auto child = performOrderCrossover(*parents[i], *parents[i + 1], spectrumSize);
+        if (isValidPermutation(child, spectrumSize)) {
+            offspring.push_back(std::make_shared<std::vector<int>>(child));
         }
     }
+
     return offspring;
 }
 
@@ -204,7 +166,7 @@ EdgeRecombination::crossover(
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     offspring.reserve(parents.size());
 
-    int requiredSize = (int)instance.getSpectrum().size();
+    int requiredSize = parents.empty() ? 0 : (int)parents[0]->size();
 
     for (size_t i = 0; i + 1 < parents.size(); i += 2) {
         auto p1 = parents[i];
@@ -293,8 +255,19 @@ EdgeRecombination::crossover(
             
             offspring.push_back(childPtr1);
             offspring.push_back(childPtr2);
+            for (auto& child : offspring) {
+                if (child) {
+                    for (int gene : *child) {
+                        if (gene < 0 || gene >= requiredSize) {
+                            std::cerr << "[ERROR] child has out-of-range gene = " << gene 
+                                      << " (valid range: 0-" << (requiredSize-1) << ")" << std::endl;
+                        }
+                    }
+                }
+            }
         } else {
             // Fallback do kopii rodziców
+            std::cerr << "[ERROR] Invalid offspring from EdgeRecombination!" << std::endl;
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
         }
@@ -315,14 +288,20 @@ PMXCrossover::crossover(
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     offspring.reserve(parents.size());
 
-    int requiredSize = (int)instance.getSpectrum().size();
+    int requiredSize = parents.empty() ? 0 : (int)parents[0]->size();
 
     for (size_t i = 0; i + 1 < parents.size(); i += 2) {
         auto p1 = parents[i];
         auto p2 = parents[i+1];
+        // **Debug Log**: Sprawdzenie rozmiarów rodziców
+        std::cout << "[DEBUG PMX] Parent1 size: " << p1->size() 
+                  << ", Parent2 size: " << p2->size() << "\n";
+
         if (!p1 || !p2) continue;
 
         if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
+            std::cerr << "[ERROR PMX] Invalid permutation size for parents\n";
+
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
             continue;
@@ -369,7 +348,19 @@ PMXCrossover::crossover(
         if (isValidPermutation(*c1, size) && isValidPermutation(*c2, size)) {
             offspring.push_back(c1);
             offspring.push_back(c2);
+            // **Debug Log**: Sprawdzenie potomków
+            for(auto &child : {c1, c2}) {
+                std::cout << "[DEBUG PMX] Child size: " << child->size() << ", genes: ";
+                for(auto gene : *child){
+                    std::cout << gene << " ";
+                    if(gene < 0 || gene >= (int)instance.getSpectrum().size()){
+                        std::cerr << "\n[ERROR PMX] Child has out-of-range gene: " << gene << "\n";
+                    }
+                }
+                std::cout << "\n";
+            }
         } else {
+            std::cerr << "[ERROR] Invalid offspring from PMXCrossover!" << std::endl;
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
         }
@@ -407,7 +398,7 @@ DistancePreservingCrossover::crossover(
     std::vector<std::shared_ptr<std::vector<int>>> offspring;
     offspring.reserve(parents.size());
 
-    int requiredSize = (int)instance.getSpectrum().size();
+    int requiredSize = parents.empty() ? 0 : (int)parents[0]->size();
 
     std::mt19937 gen(std::random_device{}());
     std::vector<bool> used(requiredSize);
@@ -481,11 +472,62 @@ DistancePreservingCrossover::crossover(
             auto child2 = std::make_shared<std::vector<int>>(*child);
             std::reverse(child2->begin(), child2->end());
             offspring.push_back(child2);
+            for (auto& child : offspring) {
+                if (child) {
+                    for (int gene : *child) {
+                        if (gene < 0 || gene >= requiredSize) {
+                            std::cerr << "[ERROR] child has out-of-range gene = " << gene 
+                                      << " (valid range: 0-" << (requiredSize-1) << ")" << std::endl;
+                        }
+                    }
+                }
+            }
         } else {
+            std::cerr << "[ERROR] Invalid offspring from DistancePreservingCrossover!" << std::endl;
             offspring.push_back(std::make_shared<std::vector<int>>(*p1));
             offspring.push_back(std::make_shared<std::vector<int>>(*p2));
         }
     }
 
     return offspring;
+    
+}
+
+std::vector<int> OrderCrossover::performOrderCrossover(
+    const std::vector<int>& parent1,
+    const std::vector<int>& parent2,
+    size_t size) 
+{
+    std::vector<int> child(size, -1);
+    std::vector<bool> used(size, false);
+    
+    // Wybierz losowy segment
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<int> dist(0, size - 1);
+    int start = dist(gen);
+    int end = dist(gen);
+    if (start > end) std::swap(start, end);
+    
+    // Skopiuj segment z pierwszego rodzica
+    for (int i = start; i <= end; i++) {
+        child[i] = parent1[i];
+        used[parent1[i]] = true;
+    }
+    
+    // Wypełnij pozostałe pozycje genami z drugiego rodzica
+    int j = (end + 1) % size;
+    for (size_t i = 0; i < size; i++) {
+        int pos = (end + 1 + i) % size;
+        if (child[pos] == -1) {
+            // Znajdź następny nieużyty gen z parent2
+            while (used[parent2[j]]) {
+                j = (j + 1) % size;
+            }
+            child[pos] = parent2[j];
+            used[parent2[j]] = true;
+            j = (j + 1) % size;
+        }
+    }
+    
+    return child;
 }

@@ -71,6 +71,7 @@ private:
     void updateGlobalBest(const std::vector<std::shared_ptr<std::vector<int>>> &pop,
                           const DNAInstance &instance);
     void calculateTheoreticalMaxFitness(const DNAInstance &instance);
+    void evolve(const DNAInstance& instance);
 
     double getGlobalBestFitness() const {
         return m_globalBestFit;
