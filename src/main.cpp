@@ -85,6 +85,10 @@ void printUsage() {
 // Funkcja pomocnicza do generowania instancji
 DNAInstance generateInstance(int n, int k, int deltaK, int lNeg, int lPoz) {
     try {
+        // Create both negative and positive error introducers
+        auto negativeErrorIntroducer = ErrorIntroducerFactory::createNegativeErrorIntroducer(lNeg);
+        auto positiveErrorIntroducer = ErrorIntroducerFactory::createPositiveErrorIntroducer(lPoz, k);
+
         DNAInstanceBuilder builder;
         builder.setN(n)
                .setK(k)
@@ -95,7 +99,8 @@ DNAInstance generateInstance(int n, int k, int deltaK, int lNeg, int lPoz) {
                .setProbablePositive(0)
                .buildDNA()
                .buildSpectrum()
-               .introduceErrors();  // Use the new error introduction method
+               .applyError(negativeErrorIntroducer.get())  // Apply negative errors
+               .applyError(positiveErrorIntroducer.get()); // Apply positive errors
 
         return builder.getInstance();
     } catch (const std::exception& e) {
@@ -113,7 +118,7 @@ void runGeneticAlgorithm(const DNAInstance& instance,
 
 int main(int argc, char* argv[]) {
     // Initialize logger first
-    Logger::init();
+    Logger::initialize("log.txt");
 
     try {
         // Initialize variables with proper construction
@@ -276,14 +281,17 @@ int main(int argc, char* argv[]) {
             DNAInstance instance;
             try {
                 LOG_INFO("Loading instance from: " + inputFile);
-                if (!InstanceIO::loadInstance(inputFile, instance)) {
-                    LOG_ERROR("Failed to load instance from file: format error or corrupted data");
+                // Load instance from file
+                try {
+                    instance = InstanceIO::loadInstance(inputFile);
+                } catch (const std::exception& e) {
+                    std::cerr << "Error loading instance: " << e.what() << std::endl;
                     return 1;
                 }
                 
-                // Validate instance data
-                if (!instance.isValid()) {
-                    LOG_ERROR("Loaded instance is invalid: missing or incorrect data");
+                // Validate instance
+                if (instance.getSpectrum().empty() || instance.getDNA().empty() || instance.getK() <= 0) {
+                    LOG_ERROR("Invalid instance: missing required data");
                     return 1;
                 }
                 
@@ -416,25 +424,26 @@ int main(int argc, char* argv[]) {
                     config.setCrossoverProbability(ps.getDouble("crossoverProb"));
                 }
                 
-                // Create and run GA
-                GeneticAlgorithm ga(
-                    config.getRepresentation(),
-                    config.getSelection(),
-                    config.getCrossover("order"), // Specify crossover type
-                    config.getMutation(),
-                    config.getReplacement(),
-                    config.getFitness(),
-                    config.getStopping(),
-                    config.getCache(),
-                    config
-                );
+                // Create genetic algorithm with configuration
+                GeneticConfig gaConfig;
+                gaConfig.populationSize = config.populationSize;
+                gaConfig.maxGenerations = config.maxGenerations;
+                gaConfig.mutationProbability = config.mutationProbability;
+                gaConfig.crossoverProbability = config.crossoverProbability;
+                gaConfig.targetFitness = config.targetFitness;
+                gaConfig.tournamentSize = config.tournamentSize;
+
+                GeneticAlgorithm ga(std::move(config.getRepresentation()), gaConfig);
                 
-                ga.run(testInstance);
+                // Run the algorithm
+                std::string result = ga.run(testInstance);
+                result.fitness = calculateFitness(result, testInstance);
                 
-                TuningResult result;
-                result.parameterSet = ps;
-                result.fitness = ga.getBestFitness();
-                return result;
+                TuningResult tr;
+                tr.parameterSet = ps;
+                tr.fitness = result.fitness;
+                tr.executionTime = 0.0;
+                return tr;
             };
             
             // Run racing

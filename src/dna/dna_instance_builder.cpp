@@ -33,7 +33,7 @@ DNAInstanceBuilder& DNAInstanceBuilder::setRepAllowed(bool value) {
     return *this;
 }
 
-DNAInstanceBuilder& DNAInstanceBuilder::setProbablePositive(int value) {
+DNAInstanceBuilder& DNAInstanceBuilder::setProbablePositive(double value) {
     m_instance.setProbablePositive(value);
     return *this;
 }
@@ -78,7 +78,7 @@ DNAInstanceBuilder& DNAInstanceBuilder::applyError(IErrorIntroductionStrategy* s
     return *this;
 }
 
-DNAInstance DNAInstanceBuilder::build() {
+DNAInstance DNAInstanceBuilder::build() const {
     // Create a new instance
     DNAInstance result;
     

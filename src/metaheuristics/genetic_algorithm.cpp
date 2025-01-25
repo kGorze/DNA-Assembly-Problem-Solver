@@ -194,7 +194,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
     // Convert best solution to DNA string
     auto bestIndividual = *std::max_element(m_population.begin(), m_population.end(),
         [](const auto& a, const auto& b) { return a->getFitness() < b->getFitness(); });
-    return m_representation->toString(bestIndividual);
+    return m_representation->toString(bestIndividual, instance);
 }
 
 void GeneticAlgorithm::evaluatePopulation(const DNAInstance& instance, const std::vector<std::shared_ptr<Individual>>& population) {
@@ -213,7 +213,7 @@ double GeneticAlgorithm::calculateFitness(const std::shared_ptr<Individual>& ind
         return -std::numeric_limits<double>::infinity();
     }
 
-    std::string dna = m_representation->toDNA(individual);
+    std::string dna = m_representation->toDNA(individual, instance);
     if (dna.empty()) {
         return -std::numeric_limits<double>::infinity();
     }

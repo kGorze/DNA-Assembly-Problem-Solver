@@ -14,7 +14,8 @@ TEST(ErrorIntroductionTest, PositiveErrorIntroducer) {
     instance.setSpectrum(spectrum);
     
     // Introduce positive errors
-    auto modifiedSpectrum = introducer.introduceErrors(instance);
+    introducer.introduceErrors(instance);
+    const auto& modifiedSpectrum = instance.getSpectrum();
     
     // Verify that the modified spectrum is not empty
     EXPECT_FALSE(modifiedSpectrum.empty());
@@ -51,7 +52,8 @@ TEST(ErrorIntroductionTest, NegativeErrorIntroducer) {
     instance.setSpectrum(spectrum);
     
     // Introduce negative errors
-    auto modifiedSpectrum = introducer.introduceErrors(instance);
+    introducer.introduceErrors(instance);
+    const auto& modifiedSpectrum = instance.getSpectrum();
     
     // Verify that the modified spectrum is not empty
     EXPECT_FALSE(modifiedSpectrum.empty());
@@ -81,10 +83,12 @@ TEST(ErrorIntroductionTest, EmptySpectrum) {
     DNAInstance instance;
     
     // Test with empty spectrum
-    auto modifiedSpectrumPos = positiveIntroducer.introduceErrors(instance);
+    positiveIntroducer.introduceErrors(instance);
+    const auto& modifiedSpectrumPos = instance.getSpectrum();
     EXPECT_TRUE(modifiedSpectrumPos.empty());
     
-    auto modifiedSpectrumNeg = negativeIntroducer.introduceErrors(instance);
+    negativeIntroducer.introduceErrors(instance);
+    const auto& modifiedSpectrumNeg = instance.getSpectrum();
     EXPECT_TRUE(modifiedSpectrumNeg.empty());
 }
 
@@ -98,9 +102,11 @@ TEST(ErrorIntroductionTest, InvalidParameters) {
     instance.setSpectrum(spectrum);
     
     // Test error introduction with invalid parameters
-    auto modifiedSpectrumPos = positiveIntroducer.introduceErrors(instance);
+    positiveIntroducer.introduceErrors(instance);
+    const auto& modifiedSpectrumPos = instance.getSpectrum();
     EXPECT_EQ(modifiedSpectrumPos, spectrum);  // Should return original spectrum
     
-    auto modifiedSpectrumNeg = negativeIntroducer.introduceErrors(instance);
+    negativeIntroducer.introduceErrors(instance);
+    const auto& modifiedSpectrumNeg = instance.getSpectrum();
     EXPECT_EQ(modifiedSpectrumNeg, spectrum);  // Should return original spectrum
 } 

@@ -51,7 +51,9 @@ int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
     return -1;
 }
 
-DNAInstance::DNAInstance(int n_val, int k_val, int lNeg_val, int lPoz_val, int maxErrors, bool allowNegative, double errorProb, int seed) {
+DNAInstance::DNAInstance(int n_val, int k_val, int lNeg_val, int lPoz_val, 
+                        [[maybe_unused]] int maxErrors, bool allowNegative, 
+                        double errorProb, int seed) {
     n = n_val;
     k = k_val;
     lNeg = lNeg_val;

@@ -34,12 +34,6 @@ struct MetaEAConfig {
     }
 };
 
-struct TuningResult {
-    double fitness = 0.0;
-    double time = 0.0;
-    bool success = false;
-};
-
 class IMetaEA {
 public:
     virtual ~IMetaEA() = default;
@@ -104,7 +98,41 @@ public:
             throw std::runtime_error("Failed to load configuration");
         }
         
-        // ... rest of the method implementation ...
+        // Create result object
+        TuningResult result;
+        result.parameterSet = params;
+        result.fitness = 0.0;
+        result.executionTime = 0.0;
+        
+        try {
+            auto start = std::chrono::high_resolution_clock::now();
+            
+            // Run genetic algorithm with parameters
+            GeneticConfig gaConfig;
+            gaConfig.populationSize = params.getInt("populationSize");
+            gaConfig.mutationProbability = params.getDouble("mutationRate");
+            
+            // Create representation
+            auto representation = std::make_unique<DirectDNARepresentation>();
+
+            // Create genetic algorithm
+            GeneticAlgorithm ga(std::move(representation), gaConfig);
+
+            // Run the algorithm
+            auto solution = ga.run(instance);
+            
+            auto end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> diff = end - start;
+            
+            result.fitness = calculateFitness(solution, instance);
+            result.executionTime = diff.count();
+            result.extraMetrics["converged"] = 1.0; // Success
+        } catch (const std::exception& e) {
+            result.extraMetrics["converged"] = 0.0; // Failure
+            LOG_ERROR("Error in evaluateParamSet: " + std::string(e.what()));
+        }
+        
+        return result;
     }
 
 private:
@@ -224,85 +252,84 @@ public:
      */
     ParameterSet runHybridOnePlusLambdaEA(const ParameterSet &parent, const DNAInstance &exampleInstance)
     {
-        // Implementacja pozostaje bez zmian, ale używamy Racing::Configuration
-        // Bierzemy parent -> oceniamy (jeśli trzeba).
+        // Evaluate parent first
         TuningResult parentResult = evaluateParamSet(parent, exampleInstance);
-
+        
         ParameterSet bestSoFar = parent;
         double bestFitSoFar = parentResult.fitness;
 
-        // Definiujemy config do Racing
-        Racing::Configuration rc; // Korzystanie z namespace
+        // Define racing config
+        Racing::Configuration rc;
         rc.significanceLevel = 0.05;
         rc.maxTrialsPerCandidate = 10;
         rc.minTrialsBeforeElimination = 3;
         rc.useBootstrap = false;
 
-        // Główna pętla – np. 5 iteracji
+        // Main loop - 5 iterations
         for (int iteration = 0; iteration < 5; iteration++) {
-            // Tworzymy populację kandydatów = parent + λ mutacji
+            // Create candidate population = parent + λ mutations
             std::vector<ParameterSet> candidates;
             candidates.push_back(bestSoFar);
             for (int i = 0; i < lambda; i++) {
                 candidates.push_back(mutateParameterSet(bestSoFar));
             }
 
-            // Racing
-            Racing::Manager rm(rc); // Korzystanie z namespace
-            auto results = rm.runRacing(candidates, [&](const ParameterSet &ps){
+            // Run racing
+            Racing::Manager rm(rc);
+            auto results = rm.runRacing(candidates, [&](const ParameterSet &ps) {
                 return evaluateParamSet(ps, exampleInstance);
             });
 
-            // Szukamy najlepszego
-            double localBestFit = -1e9;
-            ParameterSet localBestSet;
-            for (auto &r : results) {
-                if (r.fitness > localBestFit) {
-                    localBestFit = r.fitness;
-                    localBestSet = r.parameterSet;
+            // Update best if found better
+            for (const auto &result : results) {
+                if (result.fitness > bestFitSoFar) {
+                    bestFitSoFar = result.fitness;
+                    bestSoFar = result.parameterSet;
                 }
             }
-
-            // Jeśli lepszy od obecnego "bestSoFar" – aktualizujemy
-            if (localBestFit > bestFitSoFar) {
-                bestFitSoFar = localBestFit;
-                bestSoFar = localBestSet;
-            }
         }
-
+        
         return bestSoFar;
     }
 
     TuningResult evaluateParamSet(const ParameterSet& params, const DNAInstance& instance) override {
         TuningResult result;
+        result.parameterSet = params;
+        result.fitness = 0.0;
+        result.executionTime = 0.0;
         
-        // Create genetic algorithm configuration
-        GeneticConfig config;
-        config.populationSize = params.populationSize;
-        config.maxGenerations = params.maxGenerations;
-        config.mutationProbability = params.mutationRate;
-        config.crossoverProbability = params.crossoverRate;
-        config.targetFitness = params.targetFitness;
-        config.tournamentSize = params.tournamentSize;
+        try {
+            // Create genetic algorithm configuration
+            GeneticConfig config;
+            config.populationSize = params.getInt("populationSize");
+            config.maxGenerations = params.getInt("maxGenerations");
+            config.mutationProbability = params.getDouble("mutationRate");
+            config.crossoverProbability = params.getDouble("crossoverRate");
+            config.targetFitness = params.getDouble("targetFitness");
+            config.tournamentSize = params.getInt("tournamentSize");
 
-        // Create representation
-        auto representation = std::make_unique<DirectDNARepresentation>();
+            // Create representation
+            auto representation = std::make_unique<DirectDNARepresentation>();
 
-        // Create genetic algorithm
-        GeneticAlgorithm ga(std::move(representation), config);
+            // Create genetic algorithm
+            GeneticAlgorithm ga(std::move(representation), config);
 
-        // Run the algorithm
-        auto startTime = std::chrono::high_resolution_clock::now();
-        std::string result_str = ga.run(instance);
-        auto endTime = std::chrono::high_resolution_clock::now();
+            // Run the algorithm
+            auto startTime = std::chrono::high_resolution_clock::now();
+            auto solution = ga.run(instance);
+            auto endTime = std::chrono::high_resolution_clock::now();
 
-        // Calculate elapsed time
-        std::chrono::duration<double> elapsed = endTime - startTime;
-        result.time = elapsed.count();
+            // Calculate elapsed time
+            std::chrono::duration<double> elapsed = endTime - startTime;
+            result.executionTime = elapsed.count();
 
-        // Get the best fitness
-        result.fitness = std::stod(result_str.substr(result_str.find("Best Fitness: ") + 13));
-        result.success = true;
+            // Calculate fitness
+            result.fitness = calculateFitness(solution, instance);
+            result.extraMetrics["converged"] = 1.0; // Success
+        } catch (const std::exception& e) {
+            result.extraMetrics["converged"] = 0.0; // Failure
+            LOG_ERROR("Error in evaluateParamSet: " + std::string(e.what()));
+        }
 
         return result;
     }

@@ -166,7 +166,7 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
         indices.push_back(i);
     }
 
-    std::shuffle(indices.begin(), indices.end(), m_rng);
+    std::shuffle(indices.begin(), indices.end(), m_random);
 
     int toRemove = std::min(m_lNeg, static_cast<int>(spectrum.size()));
     indices.resize(toRemove);
@@ -199,7 +199,7 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
         }
 
         for (int i = 0; i < m_lPoz && !spectrum.empty(); ++i) {
-            int length = lengthDist(m_rng);
+            int length = lengthDist(m_random);
             std::string oligo;
             oligo.reserve(length);
             bool found = false;
@@ -209,7 +209,7 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
             while (!found && attempts < maxAttempts) {
                 oligo.clear();
                 for (int j = 0; j < length; ++j) {
-                    oligo += "ACGT"[baseDist(m_rng)];
+                    oligo += "ACGT"[baseDist(m_random)];
                 }
                 if (uniqueOligos.find(oligo) == uniqueOligos.end()) {
                     found = true;
@@ -221,11 +221,11 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
         }
     } else {
         for (int i = 0; i < m_lPoz; ++i) {
-            int length = lengthDist(m_rng);
+            int length = lengthDist(m_random);
             std::string oligo;
             oligo.reserve(length);
             for (int j = 0; j < length; ++j) {
-                oligo += "ACGT"[baseDist(m_rng)];
+                oligo += "ACGT"[baseDist(m_random)];
             }
             spectrum.push_back(oligo);
         }

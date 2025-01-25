@@ -17,7 +17,10 @@ bool BaseErrorIntroducer::validateInstance(const DNAInstance& instance) const {
 }
 
 NegativeErrorIntroducer::NegativeErrorIntroducer(int lNeg)
-    : m_lNeg(lNeg), m_random(std::random_device{}()) {}
+    : m_lNeg(lNeg)
+    , m_random(std::random_device{}())
+{
+}
 
 void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
     if (instance.getLNeg() <= 0) {
@@ -38,7 +41,7 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
         do {
             kmer.clear();
             for (int j = 0; j < instance.getK(); ++j) {
-                kmer += nucleotides[dist(m_random->getGenerator())];
+                kmer += nucleotides[dist(m_random)];
             }
             unique = std::find(spectrum.begin(), spectrum.end(), kmer) == spectrum.end();
         } while (!unique);
@@ -51,16 +54,20 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
 }
 
 PositiveErrorIntroducer::PositiveErrorIntroducer(int lPoz, int k)
-    : m_lPoz(lPoz), m_k(k), m_random(std::random_device{}()) {}
+    : m_lPoz(lPoz)
+    , m_k(k)
+    , m_random(std::random_device{}())
+{
+}
 
-std::string PositiveErrorIntroducer::generateRandomKmer(int length) const {
+std::string PositiveErrorIntroducer::generateRandomKmer(int length) {
     const std::string nucleotides = "ACGT";
     std::uniform_int_distribution<> dist(0, 3);
     std::string kmer;
     kmer.reserve(length);
     
     for (int i = 0; i < length; ++i) {
-        kmer += nucleotides[dist(m_random->getGenerator())];
+        kmer += nucleotides[dist(m_random)];
     }
     
     return kmer;
@@ -79,7 +86,7 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
     std::uniform_int_distribution<> dist(0, spectrum.size() - 1);
     
     for (int i = 0; i < std::min(instance.getLPoz(), static_cast<int>(spectrum.size())); ++i) {
-        int index = dist(m_random->getGenerator());
+        int index = dist(m_random);
         spectrum.erase(spectrum.begin() + index);
     }
     

@@ -57,7 +57,7 @@ public:
         }
 
         try {
-            auto& rng = RandomGenerator::getInstance();
+            auto& rng = Random::instance();
             auto genes = individual->getGenes();
             bool mutated = false;
 
@@ -66,7 +66,7 @@ public:
 
             // Try to mutate each position with probability m_mutationRate
             for (size_t i = 0; i < genes.size(); ++i) {
-                if (rng.getRandomReal() < m_mutationRate) {
+                if (rng.generateProbability() < m_mutationRate) {
                     int oldValue = genes[i];
                     int newValue;
                     do {

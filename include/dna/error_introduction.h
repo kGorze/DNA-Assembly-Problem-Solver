@@ -36,36 +36,30 @@ protected:
 
 // Strategy for introducing negative errors (removing k-mers)
 class NegativeErrorIntroducer : public BaseErrorIntroducer {
-private:
-    int m_lNeg;
-    std::unique_ptr<Random> m_random;
-
 public:
-    explicit NegativeErrorIntroducer(int lNeg) : m_lNeg(lNeg) {
-        m_random = std::make_unique<Random>();
-    }
+    explicit NegativeErrorIntroducer(int lNeg);
     // Add default constructor for testing
-    NegativeErrorIntroducer() : NegativeErrorIntroducer(2) {}
+    NegativeErrorIntroducer() : m_lNeg(2), m_random(std::random_device{}()) {}
 
     void introduceErrors(DNAInstance& instance) override;
+private:
+    int m_lNeg;
+    mutable std::mt19937 m_random;
 };
 
 // Strategy for introducing positive errors (adding incorrect k-mers)
 class PositiveErrorIntroducer : public BaseErrorIntroducer {
+public:
+    PositiveErrorIntroducer(int lPoz, int k);
+    // Add default constructor for testing
+    PositiveErrorIntroducer() : m_lPoz(2), m_k(5), m_random(std::random_device{}()) {}
+
+    void introduceErrors(DNAInstance& instance) override;
+    std::string generateRandomKmer(int length);
 private:
     int m_lPoz;
     int m_k;
-    std::unique_ptr<Random> m_random;
-
-public:
-    PositiveErrorIntroducer(int lPoz, int k) : m_lPoz(lPoz), m_k(k) {
-        m_random = std::make_unique<Random>();
-    }
-    // Add default constructor for testing
-    PositiveErrorIntroducer() : PositiveErrorIntroducer(2, 5) {}
-
-    void introduceErrors(DNAInstance& instance) override;
-    std::string generateRandomKmer(int length) const;
+    mutable std::mt19937 m_random;
 };
 
 // Factory for creating error introducers

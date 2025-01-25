@@ -30,26 +30,25 @@ protected:
 
 TEST_F(DNAInstanceIOTest, SaveAndLoadInstance) {
     // Save the instance
-    EXPECT_NO_THROW(InstanceIO::saveInstance(*instance, testFilePath));
+    EXPECT_TRUE(InstanceIO::saveInstance(*instance, testFilePath));
     
     // Verify file exists
     EXPECT_TRUE(std::filesystem::exists(testFilePath));
     
     // Load the instance
-    auto loadedInstance = std::make_unique<DNAInstance>();
-    EXPECT_NO_THROW(InstanceIO::loadInstance(*loadedInstance, testFilePath));
+    DNAInstance loadedInstance = InstanceIO::loadInstance(testFilePath);
     
     // Verify loaded instance matches original
-    EXPECT_EQ(loadedInstance->getN(), instance->getN());
-    EXPECT_EQ(loadedInstance->getK(), instance->getK());
-    EXPECT_EQ(loadedInstance->getDeltaK(), instance->getDeltaK());
-    EXPECT_EQ(loadedInstance->getLNeg(), instance->getLNeg());
-    EXPECT_EQ(loadedInstance->getLPoz(), instance->getLPoz());
-    EXPECT_EQ(loadedInstance->isRepAllowed(), instance->isRepAllowed());
-    EXPECT_EQ(loadedInstance->getProbablePositive(), instance->getProbablePositive());
-    EXPECT_EQ(loadedInstance->getStartIndex(), instance->getStartIndex());
-    EXPECT_EQ(loadedInstance->getDNA(), instance->getDNA());
-    EXPECT_EQ(loadedInstance->getSpectrum(), instance->getSpectrum());
+    EXPECT_EQ(loadedInstance.getN(), instance->getN());
+    EXPECT_EQ(loadedInstance.getK(), instance->getK());
+    EXPECT_EQ(loadedInstance.getDeltaK(), instance->getDeltaK());
+    EXPECT_EQ(loadedInstance.getLNeg(), instance->getLNeg());
+    EXPECT_EQ(loadedInstance.getLPoz(), instance->getLPoz());
+    EXPECT_EQ(loadedInstance.isRepAllowed(), instance->isRepAllowed());
+    EXPECT_EQ(loadedInstance.getProbablePositive(), instance->getProbablePositive());
+    EXPECT_EQ(loadedInstance.getStartIndex(), instance->getStartIndex());
+    EXPECT_EQ(loadedInstance.getDNA(), instance->getDNA());
+    EXPECT_EQ(loadedInstance.getSpectrum(), instance->getSpectrum());
 }
 
 TEST_F(DNAInstanceIOTest, SaveToNonexistentDirectory) {
@@ -59,20 +58,18 @@ TEST_F(DNAInstanceIOTest, SaveToNonexistentDirectory) {
 
 TEST_F(DNAInstanceIOTest, LoadNonexistentFile) {
     std::string nonexistentFile = "nonexistent_file.txt";
-    auto loadedInstance = std::make_unique<DNAInstance>();
-    EXPECT_THROW(InstanceIO::loadInstance(*loadedInstance, nonexistentFile), std::runtime_error);
+    EXPECT_THROW(InstanceIO::loadInstance(nonexistentFile), std::runtime_error);
 }
 
 TEST_F(DNAInstanceIOTest, SaveEmptyInstance) {
     auto emptyInstance = std::make_unique<DNAInstance>();
-    EXPECT_NO_THROW(InstanceIO::saveInstance(*emptyInstance, testFilePath));
+    EXPECT_TRUE(InstanceIO::saveInstance(*emptyInstance, testFilePath));
     
     // Load and verify empty instance
-    auto loadedInstance = std::make_unique<DNAInstance>();
-    EXPECT_NO_THROW(InstanceIO::loadInstance(*loadedInstance, testFilePath));
+    DNAInstance loadedInstance = InstanceIO::loadInstance(testFilePath);
     
-    EXPECT_TRUE(loadedInstance->getDNA().empty());
-    EXPECT_TRUE(loadedInstance->getSpectrum().empty());
+    EXPECT_TRUE(loadedInstance.getDNA().empty());
+    EXPECT_TRUE(loadedInstance.getSpectrum().empty());
 }
 
 TEST_F(DNAInstanceIOTest, LoadCorruptedFile) {
@@ -81,6 +78,5 @@ TEST_F(DNAInstanceIOTest, LoadCorruptedFile) {
     corruptedFile << "This is not a valid DNA instance file format";
     corruptedFile.close();
     
-    auto loadedInstance = std::make_unique<DNAInstance>();
-    EXPECT_THROW(InstanceIO::loadInstance(*loadedInstance, testFilePath), std::runtime_error);
+    EXPECT_THROW(InstanceIO::loadInstance(testFilePath), std::runtime_error);
 } 

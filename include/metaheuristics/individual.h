@@ -12,16 +12,29 @@
 class Individual {
 public:
     // Constructors
-    Individual() = default;
-    Individual(std::vector<int> genes) : m_genes(std::move(genes)) {}
+    Individual() : m_fitness(0.0) {}
+    explicit Individual(std::vector<int> genes) : m_genes(std::move(genes)), m_fitness(0.0) {}
     
     // Delete copy operations due to mutex member
     Individual(const Individual&) = delete;
     Individual& operator=(const Individual&) = delete;
     
     // Allow move operations
-    Individual(Individual&&) noexcept = default;
-    Individual& operator=(Individual&&) noexcept = default;
+    Individual(Individual&& other) noexcept {
+        std::lock_guard<std::mutex> lock(other.m_mutex);
+        m_genes = std::move(other.m_genes);
+        m_fitness = other.m_fitness;
+    }
+    
+    Individual& operator=(Individual&& other) noexcept {
+        if (this != &other) {
+            std::lock_guard<std::mutex> lock1(m_mutex);
+            std::lock_guard<std::mutex> lock2(other.m_mutex);
+            m_genes = std::move(other.m_genes);
+            m_fitness = other.m_fitness;
+        }
+        return *this;
+    }
     
     virtual ~Individual() = default;
 
@@ -31,17 +44,7 @@ public:
         return m_genes;
     }
     
-    std::vector<int>& getGenes() {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_genes;
-    }
-    
-    void setGenes(const std::vector<int>& genes) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_genes = genes;
-    }
-    
-    void setGenes(std::vector<int>&& genes) {
+    void setGenes(std::vector<int> genes) {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_genes = std::move(genes);
     }
@@ -95,7 +98,7 @@ private:
     void validateGenesVector(const std::vector<int>& genes);
 
     std::vector<int> m_genes;
-    double m_fitness = 0.0;
+    double m_fitness;
     bool m_isValid = false;
     mutable std::mutex m_mutex;  // For thread safety
 }; 

@@ -73,23 +73,23 @@ public:
         return result;
     }
 
-    std::vector<char> toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
-        if (!individual) return std::vector<char>();
+    std::string toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+        if (!individual) return "";
         
         const auto& genes = individual->getGenes();
-        if (genes.empty()) return std::vector<char>();
+        if (genes.empty()) return "";
 
-        std::vector<char> dna;
+        std::string dna;
         dna.reserve(genes.size());
         
         // Convert numeric genes to nucleotides
         for (int gene : genes) {
             switch (gene) {
-                case 0: dna.push_back('A'); break;
-                case 1: dna.push_back('C'); break;
-                case 2: dna.push_back('G'); break;
-                case 3: dna.push_back('T'); break;
-                default: dna.push_back('N'); break;
+                case 0: dna += 'A'; break;
+                case 1: dna += 'C'; break;
+                case 2: dna += 'G'; break;
+                case 3: dna += 'T'; break;
+                default: dna += 'N'; break;
             }
         }
         
@@ -105,7 +105,10 @@ public:
 
     bool initializeIndividual(
         Individual& individual,
-        const DNAInstance& instance) override;
+        const DNAInstance& instance) {
+        // Implementation here
+        return true;
+    }
 
     bool isValid(
         const std::shared_ptr<Individual>& solution,
@@ -115,7 +118,7 @@ public:
         const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance) const override;
 
-    std::vector<char> toDNA(
+    std::string toDNA(
         const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance) const override;
 
@@ -222,28 +225,28 @@ public:
         return result;
     }
 
-    std::vector<char> toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
-        if (!individual) return std::vector<char>();
+    std::string toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+        if (!individual) return "";
         
         const auto& genes = individual->getGenes();
-        if (genes.empty()) return std::vector<char>();
+        if (genes.empty()) return "";
 
         const auto& spectrum = instance.getSpectrum();
-        if (spectrum.empty()) return std::vector<char>();
+        if (spectrum.empty()) return "";
 
         // Convert path through spectrum to DNA sequence
-        std::vector<char> dna;
+        std::string dna;
         dna.reserve(instance.getN());  // Reserve estimated size
         
         // Add first oligonucleotide completely
         const auto& first = spectrum[genes[0]];
-        dna.insert(dna.end(), first.begin(), first.end());
+        dna += first;
         
         // For subsequent oligonucleotides, add only non-overlapping part
         for (size_t i = 1; i < genes.size(); ++i) {
             const auto& oligo = spectrum[genes[i]];
             if (oligo.size() > instance.getK()) {
-                dna.insert(dna.end(), oligo.begin() + instance.getK(), oligo.end());
+                dna += oligo.substr(instance.getK());
             }
         }
         

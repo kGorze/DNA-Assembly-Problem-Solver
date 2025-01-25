@@ -64,7 +64,7 @@ public:
         try {
             std::vector<std::shared_ptr<Individual>> selected;
             selected.reserve(m_config.getParentCount());
-            auto& rng = RandomGenerator::getInstance();
+            auto& rng = Random::instance();
 
             // Run tournaments until we have enough parents
             while (selected.size() < m_config.getParentCount()) {

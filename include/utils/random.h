@@ -2,6 +2,7 @@
 
 #include <random>
 #include <chrono>
+#include <mutex>
 
 class Random {
 private:
@@ -15,12 +16,22 @@ public:
 
     explicit Random(int seed) : m_generator(seed) {}
 
+    static Random& instance() {
+        static Random instance;
+        return instance;
+    }
+
     std::mt19937& getGenerator() {
         return m_generator;
     }
 
     double generateProbability() {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
+        return dist(m_generator);
+    }
+
+    int getRandomInt(int min, int max) {
+        std::uniform_int_distribution<int> dist(min, max);
         return dist(m_generator);
     }
 }; 
