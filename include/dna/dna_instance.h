@@ -1,6 +1,6 @@
-#ifndef DNA_INSTANCE_H
-#define DNA_INSTANCE_H
+#pragma once
 
+#include "utils/logging.h"
 #include <string>
 #include <vector>
 #include <mutex>
@@ -155,6 +155,4 @@ private:
     std::string m_originalDNA;
     
     mutable std::mutex m_mutex;  // For thread-safe access to DNA and spectrum
-};
-
-#endif // DNA_INSTANCE_H 
+}; 

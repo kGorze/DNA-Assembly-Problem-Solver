@@ -1,11 +1,11 @@
-#ifndef ERROR_INTRODUCTION_H
-#define ERROR_INTRODUCTION_H
+#pragma once
 
-#include "dna_instance.h"
+#include "utils/logging.h"
+#include <algorithm>
 #include <random>
-#include <mutex>
-#include <memory>
 #include <stdexcept>
+#include <memory>
+#include "dna/dna_instance.h"
 
 // Interface for error introduction strategies
 class IErrorIntroductionStrategy {
@@ -52,8 +52,12 @@ protected:
 
 // Strategy for introducing negative errors (removing k-mers)
 class NegativeErrorIntroducer : public BaseErrorIntroducer {
+private:
+    int m_lNeg;
+    mutable std::mt19937 m_rng;
+
 public:
-    explicit NegativeErrorIntroducer(int lNeg) : m_lNeg(std::max(0, lNeg)) {}
+    explicit NegativeErrorIntroducer(int lNeg) : m_lNeg(lNeg), m_rng(std::random_device{}()) {}
     
     void introduceErrors(DNAInstance& instance) override {
         if (m_lNeg <= 0) return;
@@ -83,15 +87,17 @@ public:
             throw;
         }
     }
-    
-private:
-    const int m_lNeg;
 };
 
 // Strategy for introducing positive errors (adding incorrect k-mers)
 class PositiveErrorIntroducer : public BaseErrorIntroducer {
+private:
+    int m_lPoz;
+    int m_k;
+    mutable std::mt19937 m_rng;
+
 public:
-    explicit PositiveErrorIntroducer(int lPoz) : m_lPoz(std::max(0, lPoz)) {}
+    PositiveErrorIntroducer(int lPoz, int k) : m_lPoz(lPoz), m_k(k), m_rng(std::random_device{}()) {}
     
     void introduceErrors(DNAInstance& instance) override {
         if (m_lPoz <= 0) return;
@@ -103,12 +109,11 @@ public:
             }
             
             auto spectrum = instance.getSpectrum();
-            const int k = instance.getK();
             const int deltaK = instance.getDeltaK();
             
             // Add random k-mers
             for (int i = 0; i < m_lPoz; ++i) {
-                int len = k + getRandomNumber(-deltaK, deltaK);
+                int len = m_k + getRandomNumber(-deltaK, deltaK);
                 std::string newKmer = generateRandomKmer(len);
                 spectrum.push_back(newKmer);
             }
@@ -123,8 +128,6 @@ public:
     }
     
 private:
-    const int m_lPoz;
-    
     std::string generateRandomKmer(int length) const {
         static const char nucleotides[] = {'A', 'C', 'G', 'T'};
         std::string kmer;
@@ -145,9 +148,7 @@ public:
         return std::make_unique<NegativeErrorIntroducer>(lNeg);
     }
     
-    static std::unique_ptr<IErrorIntroductionStrategy> createPositiveErrorIntroducer(int lPoz) {
-        return std::make_unique<PositiveErrorIntroducer>(lPoz);
+    static std::unique_ptr<IErrorIntroductionStrategy> createPositiveErrorIntroducer(int lPoz, int k) {
+        return std::make_unique<PositiveErrorIntroducer>(lPoz, k);
     }
-};
-
-#endif // ERROR_INTRODUCTION_H 
+}; 

@@ -2,8 +2,7 @@
 // Created by konrad_guest on 28/12/2024.
 // SMART
 
-#ifndef DNA_GENERATOR_H
-#define DNA_GENERATOR_H
+#pragma once
 
 #include <string>
 #include <vector>
@@ -16,6 +15,7 @@
 #include <cmath>
 #include <mutex>
 #include <stdexcept>
+#include <memory>
 #include "utils/logging.h"
 #include "dna/dna_instance.h"
 #include "dna/dna_instance_io.h"
@@ -65,103 +65,9 @@ public:
         m_deltaK = deltaK;
     }
     
-    std::string generateDNA(int length, bool repAllowed = true) const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        try {
-            if (length <= 0) {
-                throw std::invalid_argument("DNA length must be positive");
-            }
-            
-            static thread_local std::random_device rd;
-            static thread_local std::mt19937 gen(rd());
-            std::uniform_int_distribution<> dis(0, 3);
-            
-            const char nucleotides[] = {'A', 'C', 'G', 'T'};
-            std::string dna;
-            dna.reserve(length);
-            
-            for (int i = 0; i < length; ++i) {
-                dna.push_back(nucleotides[dis(gen)]);
-            }
-            
-            if (!repAllowed) {
-                LOG_WARNING("Repetition prevention not implemented");
-            }
-            
-            return dna;
-        } catch (const std::exception& e) {
-            LOG_ERROR("Error generating DNA: " + std::string(e.what()));
-            throw;
-        }
-    }
-    
-    DNAInstance generateRandomInstance(int size, int lNeg = 0, int lPoz = 0) const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        try {
-            if (size <= 0) {
-                throw std::invalid_argument("Instance size must be positive");
-            }
-            if (!validateParameters()) {
-                throw std::runtime_error("Invalid generator parameters");
-            }
-            
-            DNAInstance instance;
-            instance.setN(size);
-            instance.setK(m_k);
-            instance.setDeltaK(m_deltaK);
-            instance.setLNeg(lNeg);
-            instance.setLPoz(lPoz);
-            
-            // Generate DNA and spectrum
-            std::string dna = generateDNA(size);
-            instance.setDNA(dna);
-            
-            SpectrumGenerator specGen;
-            auto spectrum = specGen.generateSpectrum(dna, m_k, m_deltaK);
-            instance.setSpectrum(spectrum);
-            
-            // Find start index before introducing errors
-            std::string startFrag = dna.substr(0, m_k);
-            int startIdx = -1;
-            for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
-                if (spectrum[i] == startFrag) {
-                    startIdx = i;
-                    break;
-                }
-            }
-            instance.setStartIndex(startIdx);
-            
-            // Introduce errors if requested
-            if (lNeg > 0) {
-                auto negErr = ErrorIntroducerFactory::createNegativeErrorIntroducer(lNeg);
-                negErr->introduceErrors(instance);
-            }
-            
-            if (lPoz > 0) {
-                auto posErr = ErrorIntroducerFactory::createPositiveErrorIntroducer(lPoz);
-                posErr->introduceErrors(instance);
-            }
-            
-            return instance;
-        } catch (const std::exception& e) {
-            LOG_ERROR("Error generating random instance: " + std::string(e.what()));
-            throw;
-        }
-    }
-    
-    bool saveToFile(const DNAInstance& instance, const std::string& filename) const {
-        if (filename.empty()) {
-            throw std::invalid_argument("Filename cannot be empty");
-        }
-        
-        std::lock_guard<std::mutex> lock(m_mutex);
-        try {
-            return InstanceIO::saveInstance(instance, filename);
-        } catch (const std::exception& e) {
-            LOG_ERROR("Error saving instance to file: " + std::string(e.what()));
-            throw;
-        }
-    }
+    std::string generateDNA(int length, bool repAllowed = true) const;
+    DNAInstance generateRandomInstance(int size, int lNeg = 0, int lPoz = 0) const;
+    bool saveToFile(const DNAInstance& instance, const std::string& filename) const;
 };
 
 /**
@@ -178,7 +84,7 @@ public:
      *  - Ostatnich k+2 oligonukleotydów zawsze ma długość k.
      *  - Okno przesuwamy zawsze o 1 pozycję w prawo.
      */
-    std::vector<std::string> generateSpectrum(const std::string &dna, int k, int deltaK);
+    std::vector<std::string> generateSpectrum(const std::string& dna, int k, int deltaK);
 };
 
 /**
@@ -263,5 +169,3 @@ public:
     PositiveErrorIntroducer(int numPoz) : lPoz(numPoz) {}
     void introduceErrors(DNAInstance &instance) override;
 };
-
-#endif // DNA_GENERATOR_H

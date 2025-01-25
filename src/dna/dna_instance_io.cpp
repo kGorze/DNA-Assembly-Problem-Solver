@@ -1,74 +1,100 @@
 #include "dna/dna_instance_io.h"
 #include "utils/logging.h"
 #include <fstream>
-#include <sstream>
-
-bool InstanceIO::loadInstance(const std::string& filename, DNAInstance& instance) {
-    std::ifstream in(filename);
-    if (!in) {
-        LOG_ERROR("Could not open file for reading: " + filename);
-        return false;
-    }
-
-    // Read parameters
-    int n, k, deltaK, lNeg, lPoz, probablePositive;
-    bool repAllowed;
-    in >> n >> k >> deltaK >> lNeg >> lPoz >> repAllowed >> probablePositive;
-
-    instance.setN(n);
-    instance.setK(k);
-    instance.setDeltaK(deltaK);
-    instance.setLNeg(lNeg);
-    instance.setLPoz(lPoz);
-    instance.setRepAllowed(repAllowed);
-    instance.setProbablePositive(probablePositive);
-
-    // Read DNA sequence
-    std::string dna;
-    in >> dna;
-    instance.setDNA(dna);
-
-    // Read spectrum
-    int spectrumSize;
-    in >> spectrumSize;
-    std::vector<std::string> spectrum;
-    spectrum.reserve(spectrumSize);
-
-    std::string oligo;
-    for (int i = 0; i < spectrumSize; ++i) {
-        in >> oligo;
-        spectrum.push_back(oligo);
-    }
-    instance.setSpectrum(spectrum);
-
-    return true;
-}
+#include <stdexcept>
 
 bool InstanceIO::saveInstance(const DNAInstance& instance, const std::string& filename) {
-    std::ofstream out(filename);
-    if (!out) {
-        LOG_ERROR("Could not open file for writing: " + filename);
+    try {
+        std::ofstream file(filename);
+        if (!file) {
+            LOG_ERROR("Could not open file for writing: " + filename);
+            return false;
+        }
+
+        // Write basic parameters
+        file << instance.getN() << "\n";
+        file << instance.getK() << "\n";
+        file << instance.getDeltaK() << "\n";
+        file << instance.getLNeg() << "\n";
+        file << instance.getLPoz() << "\n";
+        file << instance.isRepAllowed() << "\n";
+        file << instance.getProbablePositive() << "\n";
+
+        // Write DNA sequence
+        file << instance.getDNA() << "\n";
+
+        // Write spectrum
+        const auto& spectrum = instance.getSpectrum();
+        file << spectrum.size() << "\n";
+        for (const auto& kmer : spectrum) {
+            file << kmer << "\n";
+        }
+
+        // Write start index
+        file << instance.getStartIndex() << "\n";
+
+        return true;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error saving instance: " + std::string(e.what()));
         return false;
     }
+}
 
-    // Write parameters
-    out << instance.getN() << " "
-        << instance.getK() << " "
-        << instance.getDeltaK() << " "
-        << instance.getLNeg() << " "
-        << instance.getLPoz() << " "
-        << instance.isRepAllowed() << " "
-        << instance.getProbablePositive() << "\n";
+DNAInstance InstanceIO::loadInstance(const std::string& filename) {
+    try {
+        std::ifstream file(filename);
+        if (!file) {
+            throw std::runtime_error("Could not open file for reading: " + filename);
+        }
 
-    // Write DNA sequence
-    out << instance.getDNA() << "\n";
+        DNAInstance instance;
+        int value;
 
-    // Write spectrum
-    const auto& spectrum = instance.getSpectrum();
-    out << spectrum.size() << "\n";
-    for (const auto& oligo : spectrum) {
-        out << oligo << "\n";
+        // Read basic parameters
+        file >> value;
+        instance.setN(value);
+        file >> value;
+        instance.setK(value);
+        file >> value;
+        instance.setDeltaK(value);
+        file >> value;
+        instance.setLNeg(value);
+        file >> value;
+        instance.setLPoz(value);
+        
+        bool repAllowed;
+        file >> repAllowed;
+        instance.setRepAllowed(repAllowed);
+        
+        file >> value;
+        instance.setProbablePositive(value);
+
+        // Read DNA sequence
+        std::string dna;
+        file >> dna;
+        instance.setDNA(dna);
+
+        // Read spectrum
+        int spectrumSize;
+        file >> spectrumSize;
+        std::vector<std::string> spectrum;
+        spectrum.reserve(spectrumSize);
+        
+        std::string kmer;
+        for (int i = 0; i < spectrumSize; ++i) {
+            file >> kmer;
+            spectrum.push_back(kmer);
+        }
+        instance.setSpectrum(spectrum);
+
+        // Read start index
+        int startIndex;
+        file >> startIndex;
+        instance.setStartIndex(startIndex);
+
+        return instance;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error loading instance: " + std::string(e.what()));
+        throw;
     }
-
-    return true;
 } 

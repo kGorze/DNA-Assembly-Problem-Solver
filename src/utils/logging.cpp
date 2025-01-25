@@ -1,94 +1,85 @@
-#include "../../include/utils/logging.h"
+#include "utils/logging.h"
+#include <fstream>
+#include <iostream>
+#include <mutex>
 #include <ctime>
+#include <sstream>
 #include <iomanip>
-#include <filesystem>
 
-// Define static members
-std::ofstream Logger::logFile;
-std::streambuf* Logger::coutBuffer = nullptr;
-std::streambuf* Logger::cerrBuffer = nullptr;
-bool Logger::initialized = false;
-std::mutex Logger::logMutex;
-
-void Logger::init(const std::string& logFilePath) {
-    std::lock_guard<std::mutex> lock(logMutex);
-    if (initialized) return;
+namespace {
+    std::mutex logMutex;
+    std::ofstream logFile;
+    bool isInitialized = false;
+    LogLevel currentLevel = LogLevel::INFO;
     
-    logFile.open(logFilePath, std::ios::out | std::ios::trunc);
-    if (logFile.is_open()) {
-        coutBuffer = std::cout.rdbuf();
-        cerrBuffer = std::cerr.rdbuf();
-        std::cout.rdbuf(logFile.rdbuf());
-        std::cerr.rdbuf(logFile.rdbuf());
-        initialized = true;
+    std::string getCurrentTimestamp() {
+        auto now = std::chrono::system_clock::now();
+        auto time = std::chrono::system_clock::to_time_t(now);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()) % 1000;
+            
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S")
+           << '.' << std::setfill('0') << std::setw(3) << ms.count();
+        return ss.str();
+    }
+    
+    std::string levelToString(LogLevel level) {
+        switch (level) {
+            case LogLevel::DEBUG: return "DEBUG";
+            case LogLevel::INFO: return "INFO";
+            case LogLevel::WARNING: return "WARNING";
+            case LogLevel::ERROR: return "ERROR";
+            default: return "UNKNOWN";
+        }
+    }
+}
+
+void Logger::initialize(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(logMutex);
+    if (!isInitialized) {
+        logFile.open(filename, std::ios::out | std::ios::app);
+        if (!logFile.is_open()) {
+            std::cerr << "Failed to open log file: " << filename << std::endl;
+            return;
+        }
+        isInitialized = true;
     }
 }
 
 void Logger::cleanup() {
     std::lock_guard<std::mutex> lock(logMutex);
-    if (!initialized) return;
-    
-    if (logFile.is_open()) {
-        std::cout.rdbuf(coutBuffer);
-        std::cerr.rdbuf(cerrBuffer);
+    if (isInitialized && logFile.is_open()) {
         logFile.close();
+        isInitialized = false;
     }
-    initialized = false;
-    coutBuffer = nullptr;
-    cerrBuffer = nullptr;
 }
 
-void Logger::log(const std::string& level, const std::string& message) {
+void Logger::setLogLevel(LogLevel level) {
     std::lock_guard<std::mutex> lock(logMutex);
-    if (!initialized || !logFile.is_open()) return;
-
-    try {
-        auto now = std::time(nullptr);
-        if (auto* timeinfo = std::localtime(&now)) {
-            char timestamp[26] = {0};
-            if (std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo) > 0) {
-                logFile << timestamp << " - " << level << " - " << message << std::endl;
-                logFile.flush();
-            }
-        }
-    } catch (const std::exception&) {
-        // Silently fail if logging fails
-    }
+    currentLevel = level;
 }
 
-void Logger::log(const std::string& message, const std::string& category, 
-                const std::string& file, int line, const std::string& function) {
+void Logger::log(LogLevel level, const std::string& message, const char* file, int line) {
+    if (level < currentLevel) return;
+    
     std::lock_guard<std::mutex> lock(logMutex);
-    if (!initialized || !logFile.is_open()) return;
-
-    try {
-        auto now = std::time(nullptr);
-        if (auto* timeinfo = std::localtime(&now)) {
-            char timestamp[26] = {0};
-            if (std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo) > 0) {
-                logFile << timestamp << " - " << category << " - " 
-                       << file << ":" << line << " - " 
-                       << function << " - " << message << std::endl;
-                logFile.flush();
-            }
-        }
-    } catch (const std::exception&) {
-        // Silently fail if logging fails
+    if (!isInitialized) {
+        std::cerr << "Logger not initialized" << std::endl;
+        return;
     }
-}
-
-void Logger::logDebug(const std::string& message) {
-    log("DEBUG", message);
-}
-
-void Logger::logInfo(const std::string& message) {
-    log("INFO", message);
-}
-
-void Logger::logWarning(const std::string& message) {
-    log("WARNING", message);
-}
-
-void Logger::logError(const std::string& message) {
-    log("ERROR", message);
+    
+    std::stringstream ss;
+    ss << getCurrentTimestamp() << " ["
+       << std::setw(7) << std::left << levelToString(level) << "] "
+       << file << ":" << line << " - "
+       << message << std::endl;
+       
+    logFile << ss.str();
+    logFile.flush();
+    
+    // Also print to console for ERROR level
+    if (level == LogLevel::ERROR) {
+        std::cerr << ss.str();
+    }
 }

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <mutex>
 
 /* **********************************************
  *          RandomGenerator – singleton
@@ -32,21 +33,34 @@ std::mt19937& RandomGenerator::get()
 /* **********************************************
  *          DNAGenerator
  * **********************************************/
-std::string DNAGenerator::generateDNA(int n, bool repAllowed)
-{
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, 3);
-    
-    const char nucleotides[] = {'A', 'C', 'G', 'T'};
-    std::string dna;
-    dna.reserve(n);
-    
-    for (int i = 0; i < n; ++i) {
-        dna += nucleotides[dis(gen)];
+std::string DNAGenerator::generateDNA(int length, bool repAllowed) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    try {
+        if (length <= 0) {
+            throw std::invalid_argument("DNA length must be positive");
+        }
+        
+        static thread_local std::random_device rd;
+        static thread_local std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, 3);
+        
+        const char nucleotides[] = {'A', 'C', 'G', 'T'};
+        std::string dna;
+        dna.reserve(length);
+        
+        for (int i = 0; i < length; ++i) {
+            dna.push_back(nucleotides[dis(gen)]);
+        }
+        
+        if (!repAllowed) {
+            LOG_WARNING("Repetition prevention not implemented");
+        }
+        
+        return dna;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error generating DNA: " + std::string(e.what()));
+        throw;
     }
-    
-    return dna;
 }
 
 /* **********************************************
@@ -227,27 +241,72 @@ bool DNAGenerator::generate() {
     return true;
 }
 
-DNAInstance DNAGenerator::generateRandomInstance(int size) {
-    DNAInstance instance;
-    
-    // Set basic parameters
-    instance.setSize(size);
-    
-    // Generate random DNA sequence
-    std::string sequence = generateDNA(size, instance.isRepAllowed());
-    instance.setDNA(sequence);
-    instance.setTargetSequence(sequence);
-    
-    return instance;
+DNAInstance DNAGenerator::generateRandomInstance(int size, int lNeg, int lPoz) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    try {
+        if (size <= 0) {
+            throw std::invalid_argument("Instance size must be positive");
+        }
+        if (!validateParameters()) {
+            throw std::runtime_error("Invalid generator parameters");
+        }
+        
+        DNAInstance instance;
+        instance.setN(size);
+        instance.setK(m_k);
+        instance.setDeltaK(m_deltaK);
+        instance.setLNeg(lNeg);
+        instance.setLPoz(lPoz);
+        
+        // Generate DNA and spectrum
+        std::string dna = generateDNA(size);
+        instance.setDNA(dna);
+        
+        SpectrumGenerator specGen;
+        auto spectrum = specGen.generateSpectrum(dna, m_k, m_deltaK);
+        instance.setSpectrum(spectrum);
+        
+        // Find start index before introducing errors
+        std::string startFrag = dna.substr(0, m_k);
+        int startIdx = -1;
+        for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
+            if (spectrum[i] == startFrag) {
+                startIdx = i;
+                break;
+            }
+        }
+        instance.setStartIndex(startIdx);
+        
+        // Introduce errors if requested
+        if (lNeg > 0) {
+            auto negErr = std::make_unique<NegativeErrorIntroducer>(lNeg);
+            negErr->introduceErrors(instance);
+        }
+        
+        if (lPoz > 0) {
+            auto posErr = std::make_unique<PositiveErrorIntroducer>(lPoz, m_k);
+            posErr->introduceErrors(instance);
+        }
+        
+        return instance;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error generating random instance: " + std::string(e.what()));
+        throw;
+    }
 }
 
-bool DNAGenerator::saveToFile(const DNAInstance& instance, const std::string& filename) {
-    std::ofstream file(filename);
-    if (!file) return false;
+bool DNAGenerator::saveToFile(const DNAInstance& instance, const std::string& filename) const {
+    if (filename.empty()) {
+        throw std::invalid_argument("Filename cannot be empty");
+    }
     
-    file << instance.getSize() << "\n";
-    file << instance.getTargetSequence() << "\n";
-    return true;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    try {
+        return InstanceIO::saveInstance(instance, filename);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error saving instance to file: " + std::string(e.what()));
+        throw;
+    }
 }
 
 DNAInstance DNAGenerator::loadFromFile(const std::string& filename) {

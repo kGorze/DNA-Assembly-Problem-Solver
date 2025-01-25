@@ -1,65 +1,82 @@
 #include "dna/dna_instance_builder.h"
 #include "generator/dna_generator.h"
 #include "utils/logging.h"
+#include <stdexcept>
 
 DNAInstanceBuilder& DNAInstanceBuilder::setN(int value) {
-    n = value;
+    m_instance.setN(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::setK(int value) {
-    instance.setK(value);
+    m_instance.setK(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::setDeltaK(int value) {
-    instance.setDeltaK(value);
+    m_instance.setDeltaK(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::setLNeg(int value) {
-    instance.setLNeg(value);
+    m_instance.setLNeg(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::setLPoz(int value) {
-    instance.setLPoz(value);
+    m_instance.setLPoz(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::setRepAllowed(bool value) {
-    instance.setRepAllowed(value);
+    m_instance.setRepAllowed(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::setProbablePositive(int value) {
-    instance.setProbablePositive(value);
+    m_instance.setProbablePositive(value);
     return *this;
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
-    DNAGenerator generator;
-    generator.setParameters(n, instance.getK(), instance.getDeltaK());
-    std::string dna = generator.generateDNA(n, instance.isRepAllowed());
-    instance.setDNA(dna);
-    instance.setN(n);
-    return *this;
+    try {
+        m_generator.setParameters(m_instance.getN(), m_instance.getK(), m_instance.getDeltaK());
+        std::string dna = m_generator.generateDNA(m_instance.getN(), m_instance.isRepAllowed());
+        m_instance.setDNA(dna);
+        return *this;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error building DNA: " + std::string(e.what()));
+        throw;
+    }
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::buildSpectrum() {
-    SpectrumGenerator generator;
-    std::vector<std::string> spectrum = generator.generateSpectrum(
-        instance.getDNA(), 
-        instance.getK(), 
-        instance.getDeltaK()
-    );
-    instance.setSpectrum(spectrum);
-    return *this;
+    try {
+        auto spectrum = m_generator.generateSpectrum(
+            m_instance.getDNA(), 
+            m_instance.getK(), 
+            m_instance.getDeltaK()
+        );
+        m_instance.setSpectrum(spectrum);
+        return *this;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error building spectrum: " + std::string(e.what()));
+        throw;
+    }
 }
 
 DNAInstanceBuilder& DNAInstanceBuilder::applyError(IErrorIntroductionStrategy* strategy) {
     if (strategy) {
-        strategy->introduceErrors(instance);
+        try {
+            strategy->introduceErrors(m_instance);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Error applying error strategy: " + std::string(e.what()));
+            throw;
+        }
     }
     return *this;
+}
+
+DNAInstance DNAInstanceBuilder::build() const {
+    return m_instance;
 } 
