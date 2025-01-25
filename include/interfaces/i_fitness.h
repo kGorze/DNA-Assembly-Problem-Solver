@@ -1,18 +1,13 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 #include "../dna/dna_instance.h"
-#include "i_representation.h"
+#include "../metaheuristics/individual.h"
 
 class IFitness {
 public:
     virtual ~IFitness() = default;
     
-    // Calculate fitness for a solution
-    virtual double calculateFitness(
-        const std::shared_ptr<std::vector<int>>& solution,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) const = 0;
+    virtual double evaluate(const std::shared_ptr<Individual>& individual,
+                          const DNAInstance& instance) = 0;
 }; 

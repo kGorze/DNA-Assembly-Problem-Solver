@@ -10,6 +10,7 @@
 #include <vector>
 #include <chrono>
 #include <stdexcept>
+#include <initializer_list>
 
 /**
  * Reprezentacja zestawu parametrów do tuningu.
@@ -17,9 +18,41 @@
  * Przykładowo: "populationSize=100", "mutationRate=0.1", "selectionMethod=tournament" itd.
  */
 struct ParameterSet {
-    // Aby ułatwić, możemy przechowywać w mapie string->string,
-    // a interpretacją typów (int, double, itp.) zająć się osobno.
     std::unordered_map<std::string, std::string> params;
+    
+    // Add default constructor
+    ParameterSet() {
+        // Reserve space for typical number of parameters
+        params.reserve(10);
+    }
+    
+    // Add copy constructor
+    ParameterSet(const ParameterSet& other) {
+        params.reserve(other.params.size());
+        params = other.params;
+    }
+    
+    // Add move constructor
+    ParameterSet(ParameterSet&& other) noexcept 
+        : params(std::move(other.params)) {}
+    
+    // Add assignment operator
+    ParameterSet& operator=(const ParameterSet& other) {
+        if (this != &other) {
+            params.clear();
+            params.reserve(other.params.size());
+            params = other.params;
+        }
+        return *this;
+    }
+    
+    // Add move assignment operator
+    ParameterSet& operator=(ParameterSet&& other) noexcept {
+        if (this != &other) {
+            params = std::move(other.params);
+        }
+        return *this;
+    }
     
     bool contains(const std::string& key) const {
         return params.find(key) != params.end();
@@ -57,6 +90,9 @@ struct ParameterSet {
         }
         return result;
     }
+    
+    // Add destructor
+    ~ParameterSet() = default;
 };
 
 /**

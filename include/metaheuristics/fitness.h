@@ -11,12 +11,18 @@
 #include "../utils/utility_functions.h"
 #include "../metaheuristics/path_analyzer.h"
 #include "../metaheuristics/preprocessed_edge.h"
+#include "../metaheuristics/individual.h"
+#include "../utils/logger.h"
+#include "../dna/dna_instance.h"
 
 #include <unordered_map>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <memory>
+#include <mutex>
+#include <cmath>
+#include <limits>
 
 /**
  * Bardzo prosta funkcja fitness – liczy liczbę k-merów
@@ -63,67 +69,98 @@ private:
     int smithWaterman(const std::string& seq1, const std::string& seq2) const;
 };
 
-class OptimizedGraphBasedFitness : public IFitness {
+class IFitness {
 public:
-    struct Edge {
-        int to;
-        int weight;
-        Edge(int t, int w) : to(t), weight(w) {}
-    };
-
-    struct PreprocessedEdge {
-        int to;
-        int weight;
-        bool exists;
-        PreprocessedEdge() : to(-1), weight(0), exists(false) {}
-        PreprocessedEdge(int t, int w, bool e) : to(t), weight(w), exists(e) {}
-    };
-
-    struct PathAnalysis {
-        int edgesWeight1;
-        int edgesWeight2or3;
-        int uniqueNodesUsed;
-        int repeatNodeUsages;
-        PathAnalysis() : edgesWeight1(0), edgesWeight2or3(0), uniqueNodesUsed(0), repeatNodeUsages(0) {}
-        PathAnalysis(int w1, int w23, int unique, int repeat) 
-            : edgesWeight1(w1), edgesWeight2or3(w23), uniqueNodesUsed(unique), repeatNodeUsages(repeat) {}
-    };
-
-    double calculateFitness(
-        const std::shared_ptr<std::vector<int>>& solution,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) const override;
-
-private:
-    mutable std::vector<int> nodeUsageBuffer;
-    mutable std::unordered_map<std::string, std::vector<std::vector<Edge>>> graphCache;
-
-    void initBuffers(size_t size) const;
-    std::string createCacheKey(const std::vector<std::string>& spectrum, int k) const;
-    std::vector<std::vector<Edge>> buildSpectrumGraph(const std::vector<std::string>& spectrum, int k) const;
-    int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
-    PathAnalysis analyzePath(const std::vector<int>& path, const std::vector<std::vector<PreprocessedEdge>>& adjacencyMatrix) const;
-    const std::vector<int>& permutationToPath(std::shared_ptr<std::vector<int>> individual) const;
-    std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(
-        const std::vector<std::vector<Edge>>& graph
-    ) const;
+    virtual ~IFitness() = default;
+    virtual double evaluate(const std::shared_ptr<Individual>& individual,
+                          const DNAInstance& instance) = 0;
 };
 
-class Fitness : public IFitness, public std::enable_shared_from_this<const IFitness> {
-private:
-    std::shared_ptr<IPopulationCache> m_cache;
-
+class Fitness : public IFitness {
 protected:
-    virtual double calculateDNAFitness(const std::vector<char>& dna, const DNAInstance& instance) const;
-    int levenshteinDistance(const std::string& s1, const std::string& s2) const;
-
-public:
-    explicit Fitness(std::shared_ptr<IPopulationCache> cache = nullptr) : m_cache(cache) {}
+    std::shared_ptr<IPopulationCache> m_cache;
     
-    double calculateFitness(
-        const std::shared_ptr<std::vector<int>>& solution,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) const override;
+    virtual double calculateDNAFitness(const std::string& dna, const DNAInstance& instance) const = 0;
+    
+    double levenshteinDistance(const std::string& s1, const std::string& s2) const {
+        if (s1.empty()) return s2.length();
+        if (s2.empty()) return s1.length();
+        
+        std::vector<std::vector<double>> dp(s1.length() + 1, 
+                                          std::vector<double>(s2.length() + 1));
+        
+        for (size_t i = 0; i <= s1.length(); i++) dp[i][0] = i;
+        for (size_t j = 0; j <= s2.length(); j++) dp[0][j] = j;
+        
+        for (size_t i = 1; i <= s1.length(); i++) {
+            for (size_t j = 1; j <= s2.length(); j++) {
+                dp[i][j] = std::min({
+                    dp[i-1][j] + 1,
+                    dp[i][j-1] + 1,
+                    dp[i-1][j-1] + (s1[i-1] != s2[j-1])
+                });
+            }
+        }
+        
+        return dp[s1.length()][s2.length()];
+    }
+    
+public:
+    explicit Fitness(std::shared_ptr<IPopulationCache> cache) : m_cache(std::move(cache)) {}
+    virtual ~Fitness() = default;
+    
+    double evaluate(const std::shared_ptr<Individual>& individual,
+                   const DNAInstance& instance) override {
+        if (!individual) {
+            LOG_ERROR("Cannot evaluate null individual");
+            return -std::numeric_limits<double>::infinity();
+        }
+        
+        if (!m_cache) {
+            LOG_ERROR("Cache not initialized");
+            return -std::numeric_limits<double>::infinity();
+        }
+        
+        try {
+            return m_cache->getOrCalculateFitness(individual, instance);
+        } catch (const std::exception& e) {
+            LOG_ERROR("Fitness evaluation failed: " + std::string(e.what()));
+            return -std::numeric_limits<double>::infinity();
+        }
+    }
+};
+
+struct PreprocessedEdge {
+    bool exists = false;
+    double weight = 0.0;
+    
+    PreprocessedEdge() = default;
+    PreprocessedEdge(bool e, double w) : exists(e), weight(w) {}
+};
+
+class OptimizedGraphBasedFitness : public IFitness {
+private:
+    static constexpr size_t maxCacheSize = 10000;
+    std::unordered_map<std::string, double> cache;
+    std::mutex graphCacheMutex;
+    
+    // Pre-allocated buffers for performance
+    std::vector<int> nodeUsageBuffer;
+    std::vector<bool> coveredBuffer;
+    std::vector<std::vector<PreprocessedEdge>> adjacencyMatrixBuffer;
+    
+    void ensureBufferSizes(size_t size);
+    void buildGraph(const std::vector<int>& genes, const DNAInstance& instance);
+    bool areNodesConnected(int node1, int node2, const DNAInstance& instance) const;
+    double calculateConnectivityScore() const;
+    double calculateSpectrumCoverageScore(const std::vector<int>& genes, const DNAInstance& instance) const;
+    double calculateLengthPenalty(const std::vector<int>& genes, const DNAInstance& instance) const;
+    void cleanupCache();
+    
+public:
+    OptimizedGraphBasedFitness() = default;
+    ~OptimizedGraphBasedFitness() override = default;
+    
+    double evaluate(const std::shared_ptr<Individual>& individual,
+                   const DNAInstance& instance) override;
 };

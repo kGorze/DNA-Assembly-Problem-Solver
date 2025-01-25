@@ -77,45 +77,53 @@ std::vector<ParameterSet> ParameterParser::generateRandomCandidates(int numCandi
 // Implementacja generateGridOfCandidates
 std::vector<ParameterSet> ParameterParser::generateGridOfCandidatesWithout() {
     std::vector<ParameterSet> result;
+    
+    // Reduce parameter ranges to prevent memory exhaustion
+    std::vector<int> popSizes = {50, 100, 200, 300};
+    std::vector<double> replacementRatios = {0.2, 0.4, 0.6};
+    std::vector<int> tournamentSizes = {3, 5, 10};
+    std::vector<double> mutRates = {0.1, 0.3, 0.5};
+    std::vector<double> inertias = {0.6, 0.7};
+    std::vector<int> intervals = {5, 10};
+    std::vector<int> minTrials = {3, 5};
+    std::vector<double> minProbs = {0.1, 0.2};
 
-    // Definicje zakresów parametrów
-    std::vector<int> popSizes = {20,50,80,100,130,150,170,190,200,250,300,400,500};
-    std::vector<double> replacementRatios = {0.1,0.2,0.3,0.4,0.5, 0.6,0.7,0.8};
-    std::vector<int> tournamentSizes = {1,2,3,4,5,10,15};
-    std::vector<double> mutRates = {0.05, 0.1, 0.2, 0.3,0.4,0.6,0.7,0.8,0.9};
-    std::vector<double> inertias = {0.5, 0.6, 0.7, 0.8};
-    std::vector<int> intervals = {5, 10, 20};
-    std::vector<int> minTrials = {3, 5, 10};
-    std::vector<double> minProbs = {0.05, 0.1, 0.2};
+    // Pre-calculate total size and reserve memory
+    size_t totalCombinations = popSizes.size() * replacementRatios.size() * 
+                              tournamentSizes.size() * mutRates.size() * 
+                              inertias.size() * intervals.size() * 
+                              minTrials.size() * minProbs.size();
+    
+    // Reserve space to prevent reallocation
+    result.reserve(totalCombinations);
 
-    // Generowanie kombinacji parametrów
+    // Generate combinations with proper initialization
     for (int ps : popSizes) {
         for (double mr : mutRates) {
-            for (double rr : replacementRatios) {          // Dodano replacementRatio
-                for (int ts : tournamentSizes) {           // Dodano tournamentSize
+            for (double rr : replacementRatios) {
+                for (int ts : tournamentSizes) {
                     for (double in : inertias) {
                         for (int ai : intervals) {
                             for (int mt : minTrials) {
                                 for (double mp : minProbs) {
                                     ParameterSet pset;
-                                    pset.params["populationSize"] = std::to_string(ps);
-                                    pset.params["mutationRate"]   = std::to_string(mr);
-                                    pset.params["replacementRatio"] = std::to_string(rr);
-                                    pset.params["tournamentSize"]  = std::to_string(ts);
-
-                                    // Ustawienie typu krzyżowania na adaptacyjne
-                                    pset.params["crossoverType"] = "adaptive";
-
-                                    // Parametry adaptacyjnego krzyżowania
-                                    pset.params["adaptive.inertia"] = std::to_string(in);
-                                    pset.params["adaptive.adaptationInterval"] = std::to_string(ai);
-                                    pset.params["adaptive.minTrials"] = std::to_string(mt);
-                                    pset.params["adaptive.minProb"]   = std::to_string(mp);
-
-                                    // Parametry selekcji
-                                    pset.params["selectionMethod"] = "tournament";
-
-                                    result.push_back(pset);
+                                    
+                                    // Initialize map with exact size needed
+                                    pset.params.reserve(10);
+                                    
+                                    // Use emplace to avoid extra copies
+                                    pset.params.emplace("populationSize", std::to_string(ps));
+                                    pset.params.emplace("mutationRate", std::to_string(mr));
+                                    pset.params.emplace("replacementRatio", std::to_string(rr));
+                                    pset.params.emplace("tournamentSize", std::to_string(ts));
+                                    pset.params.emplace("crossoverType", "adaptive");
+                                    pset.params.emplace("adaptive.inertia", std::to_string(in));
+                                    pset.params.emplace("adaptive.adaptationInterval", std::to_string(ai));
+                                    pset.params.emplace("adaptive.minTrials", std::to_string(mt));
+                                    pset.params.emplace("adaptive.minProb", std::to_string(mp));
+                                    pset.params.emplace("selectionMethod", "tournament");
+                                    
+                                    result.push_back(std::move(pset));
                                 }
                             }
                         }
@@ -124,6 +132,7 @@ std::vector<ParameterSet> ParameterParser::generateGridOfCandidatesWithout() {
             }
         }
     }
+    
     return result;
 }
 

@@ -10,14 +10,14 @@ Set-Location -Path "build_valgrind"
 
 # Configure with CMake
 Write-Host "Configuring CMake for Valgrind build..."
-cmake -DCMAKE_BUILD_TYPE=Debug `
+& "C:\Program Files\JetBrains\CLion 2023.3.4\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_BUILD_TYPE=Debug `
       -DCMAKE_CXX_FLAGS="-g -O0 -fno-inline -fno-omit-frame-pointer" `
       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
       ..
 
 # Build the project
 Write-Host "Building project..."
-cmake --build . --config Debug
+& "C:\Program Files\JetBrains\CLion 2023.3.4\bin\cmake\win\x64\bin\cmake.exe" --build . --config Debug
 
 # Return to original directory
 Set-Location -Path ".."

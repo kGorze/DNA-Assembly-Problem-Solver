@@ -85,45 +85,50 @@ void printUsage() {
 // Funkcja pomocnicza do generowania instancji
 bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::string &outputFile)
 {
-    DNAInstanceBuilder builder;
-    builder.setN(n)
-           .setK(k)
-           .setDeltaK(deltaK)
-           .setLNeg(lNeg)
-           .setLPoz(lPoz)
-           .setRepAllowed(true)
-           .setProbablePositive(0)
-           .buildDNA()
-           .buildSpectrum();
+    try {
+        DNAInstanceBuilder builder;
+        builder.setN(n)
+               .setK(k)
+               .setDeltaK(deltaK)
+               .setLNeg(lNeg)
+               .setLPoz(lPoz)
+               .setRepAllowed(true)
+               .setProbablePositive(0)
+               .buildDNA()
+               .buildSpectrum();
 
-    DNAInstance instance = builder.getInstance();
-    
-    // Introduce errors AFTER setting start index
-    auto startFrag = instance.getDNA().substr(0, k);
-    const auto& spectrum = instance.getSpectrum();
-    
-    int startIdx = -1;
-    for (int i = 0; i < (int)spectrum.size(); i++) {
-        if (spectrum[i] == startFrag) {
-            startIdx = i;
-            break;
+        DNAInstance instance = builder.getInstance();
+        
+        // Introduce errors AFTER setting start index
+        std::string startFrag = instance.getDNA().substr(0, k);
+        const auto& spectrum = instance.getSpectrum();
+        
+        int startIdx = -1;
+        for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
+            if (spectrum[i] == startFrag) {
+                startIdx = i;
+                break;
+            }
         }
-    }
-    
-    instance.setStartIndex(startIdx);
+        
+        instance.setStartIndex(startIdx);
 
-    // Now introduce errors
-    if (lNeg > 0) {
-        NegativeErrorIntroducer negErr(lNeg);
-        negErr.introduceErrors(instance);
-    }
+        // Now introduce errors
+        if (lNeg > 0) {
+            NegativeErrorIntroducer negErr(lNeg);
+            negErr.introduceErrors(instance);
+        }
 
-    if (lPoz > 0) {
-        PositiveErrorIntroducer posErr(lPoz);
-        posErr.introduceErrors(instance);
-    }
+        if (lPoz > 0) {
+            PositiveErrorIntroducer posErr(lPoz);
+            posErr.introduceErrors(instance);
+        }
 
-    return InstanceIO::saveInstance(instance, outputFile);
+        return InstanceIO::saveInstance(instance, outputFile);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to generate instance: " + std::string(e.what()));
+        return false;
+    }
 }
 
 // Declare the function (it's defined in genetic_algorithm_runner.cpp)
@@ -134,308 +139,280 @@ void runGeneticAlgorithm(const DNAInstance& instance,
                         bool debugMode);
 
 int main(int argc, char* argv[]) {
-    LOG_INFO("Starting program with " + std::to_string(argc) + " arguments");
-    
-    if (argc < 2) {
-        LOG_ERROR("No mode specified (argc < 2)");
-        printUsage();
-        return 1;
-    }
+    // Initialize logger first
+    Logger::init();
 
-    std::string mode = argv[1];
-    LOG_INFO("Mode: " + mode);
-    
-    // Domyślna ścieżka do pliku config
-    std::string configFile = "config.cfg";
-    bool debugMode = false;
+    try {
+        // Initialize variables with proper construction
+        std::string mode;
+        std::string configFile;
+        bool debugMode = false;
 
-    // Log all arguments
-    for (int i = 0; i < argc; ++i) {
-        LOG_INFO("argv[" + std::to_string(i) + "]: " + std::string(argv[i]));
-    }
+        // Log program start with properly constructed strings
+        LOG_INFO("Starting program with " + std::to_string(argc) + " arguments");
 
-    // Parsujemy argumenty w poszukiwaniu -cfg i --debug
-    for (int i = 2; i < argc; ++i) {
-        if (std::strcmp(argv[i], "-cfg") == 0) {
-            if (i + 1 < argc) {
-                configFile = argv[i + 1];
-                LOG_INFO("Config file path set to: " + configFile);
-                ++i; // pomijamy wartość
-            } else {
-                LOG_ERROR("Error: -cfg requires a file path");
-                return 1;
-            }
-        } else if (std::strcmp(argv[i], "--debug") == 0) {
-            debugMode = true;
-            LOG_INFO("Debug output enabled");
+        // Log mode with properly constructed strings
+        if (argc > 1) {
+            mode = argv[1];  // Direct assignment is safe here
+            LOG_INFO("Mode set to: " + mode);
         }
-    }
 
-    // Validate config file
-    if (!std::filesystem::exists(configFile)) {
-        LOG_ERROR("Config file not found: " + configFile);
-        return 1;
-    }
-    LOG_INFO("Config file exists: " + configFile);
+        // Log all arguments with properly constructed strings
+        std::string argsMsg = "Arguments:";
+        for (int i = 0; i < argc; ++i) {
+            argsMsg += "\n  " + std::to_string(i) + ": " + argv[i];
+        }
+        LOG_INFO(argsMsg);
 
-    if (mode == "test_instance") {
-        LOG_INFO("Entering test_instance mode");
-        
-        std::string inputFile;
-        std::string outputFile;
-        int processId = -1;
-        std::string difficulty;
-        
-        // Parse test_instance specific arguments
-        for (int i = 2; i < argc; ++i) {
-            if (std::strcmp(argv[i], "-i") == 0 && i + 1 < argc) {
-                inputFile = argv[i + 1];
-                LOG_INFO("Input file set to: " + inputFile);
-                ++i;
-            } else if (std::strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
-                outputFile = argv[i + 1];
-                LOG_INFO("Output file set to: " + outputFile);
-                ++i;
-            } else if (std::strcmp(argv[i], "-pid") == 0 && i + 1 < argc) {
-                try {
-                    processId = std::stoi(argv[i + 1]);
-                    LOG_INFO("Process ID set to: " + std::to_string(processId));
-                } catch (const std::exception& e) {
-                    LOG_ERROR("Invalid process ID: " + std::string(argv[i + 1]));
+        // Parse arguments with proper string handling
+        for (int i = 1; i < argc; ++i) {
+            const std::string arg = argv[i];  // Direct assignment
+            if (arg == "-c" && i + 1 < argc) {
+                configFile = argv[++i];  // Direct assignment
+                LOG_INFO("Config file set to: " + configFile);
+            } else if (arg == "-d") {
+                debugMode = true;
+                LOG_INFO("Debug mode enabled");
+            }
+        }
+
+        // Validate config file path with proper error handling
+        if (!configFile.empty()) {
+            try {
+                std::filesystem::path configPath(configFile);
+                if (!std::filesystem::exists(configPath)) {
+                    std::string errMsg = "Config file not found: " + configFile;
+                    LOG_ERROR(errMsg);
                     return 1;
                 }
-                ++i;
-            } else if (std::strcmp(argv[i], "-diff") == 0 && i + 1 < argc) {
-                difficulty = argv[i + 1];
-                LOG_INFO("Difficulty set to: " + difficulty);
-                ++i;
-            }
-        }
-        
-        // Validate required arguments
-        if (inputFile.empty()) {
-            LOG_ERROR("No input file specified (-i)");
-            return 1;
-        }
-        if (outputFile.empty()) {
-            LOG_ERROR("No output file specified (-o)");
-            return 1;
-        }
-        if (processId == -1) {
-            LOG_ERROR("No process ID specified (-pid)");
-            return 1;
-        }
-        if (difficulty.empty()) {
-            LOG_ERROR("No difficulty specified (-diff)");
-            return 1;
-        }
-        
-        // Validate input file exists
-        if (!std::filesystem::exists(inputFile)) {
-            LOG_ERROR("Input file not found: " + inputFile);
-            return 1;
-        }
-        LOG_INFO("Input file exists: " + inputFile);
-        
-        // Create output directory if needed
-        auto outputDir = std::filesystem::path(outputFile).parent_path();
-        if (!outputDir.empty()) {
-            std::error_code ec;
-            std::filesystem::create_directories(outputDir, ec);
-            if (ec) {
-                LOG_ERROR("Failed to create output directory: " + outputDir.string() + " - " + ec.message());
+                std::string existsMsg = "Config file exists: " + configFile;
+                LOG_INFO(existsMsg);
+            } catch (const std::exception& e) {
+                std::string errMsg = "Invalid config file path: " + std::string(e.what());
+                LOG_ERROR(errMsg);
                 return 1;
             }
-            LOG_INFO("Created output directory: " + outputDir.string());
         }
-        
-        // Load and validate instance
-        DNAInstance instance;
-        try {
-            LOG_INFO("Loading instance from: " + inputFile);
-            if (!InstanceIO::loadInstance(inputFile, instance)) {
-                LOG_ERROR("Failed to load instance from file");
+
+        if (mode == "test_instance") {
+            LOG_INFO("Entering test_instance mode");
+            
+            // Initialize all variables with proper construction
+            std::string inputFile = "";
+            std::string outputFile = "";
+            int processId = -1;
+            std::string difficulty = "";
+            
+            // Parse test_instance specific arguments with better error handling
+            for (int i = 2; i < argc; ++i) {
+                if (i + 1 >= argc) continue;  // Prevent buffer overrun
+                
+                const std::string arg = argv[i];
+                const std::string value = argv[i + 1];
+                
+                if (arg == "-i") {
+                    inputFile = value;
+                    LOG_INFO("Input file set to: " + inputFile);
+                    ++i;
+                } else if (arg == "-o") {
+                    outputFile = value;
+                    LOG_INFO("Output file set to: " + outputFile);
+                    ++i;
+                } else if (arg == "-pid") {
+                    try {
+                        processId = std::stoi(value);
+                        if (processId < 0) {
+                            LOG_ERROR("Process ID must be non-negative");
+                            return 1;
+                        }
+                        LOG_INFO("Process ID set to: " + std::to_string(processId));
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("Invalid process ID: " + value + " - " + e.what());
+                        return 1;
+                    }
+                    ++i;
+                } else if (arg == "-diff") {
+                    difficulty = value;
+                    // Validate difficulty level
+                    std::vector<std::string> validDifficulties = {"Easy", "Medium", "Hard"};
+                    if (std::find(validDifficulties.begin(), validDifficulties.end(), difficulty) 
+                        == validDifficulties.end()) {
+                        LOG_ERROR("Invalid difficulty level: " + difficulty + ". Must be one of: Easy, Medium, Hard");
+                        return 1;
+                    }
+                    LOG_INFO("Difficulty set to: " + difficulty);
+                    ++i;
+                }
+            }
+            
+            // Validate required arguments
+            std::vector<std::pair<std::string, std::string>> requiredArgs = {
+                {"input file (-i)", inputFile},
+                {"output file (-o)", outputFile},
+                {"difficulty (-diff)", difficulty}
+            };
+            
+            for (const auto& [name, value] : requiredArgs) {
+                if (value.empty()) {
+                    LOG_ERROR("Missing required argument: " + name);
+                    return 1;
+                }
+            }
+            
+            if (processId == -1) {
+                LOG_ERROR("Missing or invalid process ID (-pid)");
                 return 1;
             }
-            LOG_INFO("Instance loaded successfully");
-        } catch (const std::exception& e) {
-            LOG_ERROR("Failed to load instance: " + std::string(e.what()));
-            return 1;
-        }
-        
-        // Run genetic algorithm
-        try {
-            LOG_INFO("Starting genetic algorithm");
-            runGeneticAlgorithm(instance, outputFile, processId, configFile, debugMode);
-            LOG_INFO("Genetic algorithm completed successfully");
-            return 0;
-        } catch (const std::exception& e) {
-            LOG_ERROR("Genetic algorithm failed: " + std::string(e.what()));
-            return 1;
-        }
-    } else if (mode == "generate_instance") {
-        int n = 400, k = 8, deltaK = 1, lNeg = 10, lPoz = 10;
-        std::string outputFile = "generated_instance.txt";
-
-        for (int i = 2; i < argc; ++i) {
-            if (std::strcmp(argv[i], "-n") == 0) {
-                if (i + 1 < argc) {
-                    n = std::stoi(argv[i + 1]);
-                    ++i;
+            
+            // Validate input file with proper path handling
+            std::filesystem::path inputPath;
+            try {
+                inputPath = std::filesystem::path(inputFile);
+                if (!std::filesystem::exists(inputPath)) {
+                    LOG_ERROR("Input file not found: " + inputFile);
+                    return 1;
                 }
-            } else if (std::strcmp(argv[i], "-k") == 0) {
-                if (i + 1 < argc) {
-                    k = std::stoi(argv[i + 1]);
-                    ++i;
-                }
-            } else if (std::strcmp(argv[i], "-dk") == 0) {
-                if (i + 1 < argc) {
-                    deltaK = std::stoi(argv[i + 1]);
-                    ++i;
-                }
-            } else if (std::strcmp(argv[i], "-ln") == 0) {
-                if (i + 1 < argc) {
-                    lNeg = std::stoi(argv[i + 1]);
-                    ++i;
-                }
-            } else if (std::strcmp(argv[i], "-lp") == 0) {
-                if (i + 1 < argc) {
-                    lPoz = std::stoi(argv[i + 1]);
-                    ++i;
-                }
-            } else if (std::strcmp(argv[i], "-o") == 0) {
-                if (i + 1 < argc) {
-                    outputFile = argv[i + 1];
-                    ++i;
-                }
-            } else if (std::strcmp(argv[i], "-cfg") == 0) {
-                ++i; // skip
-            }
-        }
-
-        if (!generateInstance(n, k, deltaK, lNeg, lPoz, outputFile)) {
-            std::cerr << "Failed to generate instance!\n";
-            return 1;
-        }
-        std::cout << "Instance generated successfully: " << outputFile << std::endl;
-
-    } else if (mode == "tuning") {
-        std::string tuningOutputFile = "tuning_results.csv";
-        for (int i = 2; i < argc; ++i) {
-            if (std::strcmp(argv[i], "-out") == 0 && i + 1 < argc) {
-                tuningOutputFile = argv[i + 1];
-                ++i;
-            }
-        }
-
-        // Create parameter tuning manager with output file
-        ParameterTuningManager tuner(tuningOutputFile);
-        
-        // Generate candidate parameter sets
-        std::vector<ParameterSet> candidateParams;
-        
-        // Add some example parameter sets
-        ParameterSet ps1;
-        ps1.params["populationSize"] = "100";
-        ps1.params["mutationRate"] = "0.1";
-        ps1.params["crossoverProb"] = "0.8";
-        candidateParams.push_back(ps1);
-        
-        ParameterSet ps2;
-        ps2.params["populationSize"] = "200";
-        ps2.params["mutationRate"] = "0.2";
-        ps2.params["crossoverProb"] = "0.7";
-        candidateParams.push_back(ps2);
-        
-        // Set up racing configuration
-        Racing::Configuration rc;
-        rc.significanceLevel = 0.05;
-        rc.maxTrialsPerCandidate = 10;
-        rc.minTrialsBeforeElimination = 3;
-        
-        // Create test instance for evaluation
-        DNAInstanceBuilder builder;
-        builder.setN(300)
-               .setK(7)
-               .setDeltaK(2)
-               .setLNeg(0)
-               .setLPoz(0)
-               .setRepAllowed(true)
-               .buildDNA()
-               .buildSpectrum();
-        DNAInstance testInstance = builder.getInstance();
-        
-        // Define evaluation function
-        auto evaluateFunc = [&testInstance](const ParameterSet& ps) {
-            // Create local config for this evaluation
-            GAConfig config;
-            if (!config.loadFromFile("config.cfg")) {
-                throw std::runtime_error("Failed to load configuration");
+                LOG_INFO("Input file exists: " + inputFile);
+            } catch (const std::exception& e) {
+                LOG_ERROR("Invalid input file path: " + std::string(e.what()));
+                return 1;
             }
             
-            // Update config with parameters from parameter set
-            if (ps.contains("populationSize")) {
-                config.setPopulationSize(ps.getInt("populationSize"));
-            }
-            if (ps.contains("mutationRate")) {
-                config.setMutationRate(ps.getDouble("mutationRate"));
-            }
-            if (ps.contains("crossoverProb")) {
-                config.setCrossoverProbability(ps.getDouble("crossoverProb"));
+            // Create output directory with proper error handling
+            std::filesystem::path outputPath;
+            try {
+                outputPath = std::filesystem::path(outputFile);
+                auto outputDir = outputPath.parent_path();
+                if (!outputDir.empty()) {
+                    std::error_code ec;
+                    if (!std::filesystem::exists(outputDir)) {
+                        if (!std::filesystem::create_directories(outputDir, ec)) {
+                            LOG_ERROR("Failed to create output directory: " + 
+                                     outputDir.string() + " - " + ec.message());
+                            return 1;
+                        }
+                        LOG_INFO("Created output directory: " + outputDir.string());
+                    }
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR("Invalid output file path: " + std::string(e.what()));
+                return 1;
             }
             
-            // Create and run GA
-            GeneticAlgorithm ga(
-                config.getRepresentation(),
-                config.getSelection(),
-                config.getCrossover("order"), // Specify crossover type
-                config.getMutation(),
-                config.getReplacement(),
-                config.getFitness(),
-                config.getStopping(),
-                config.getCache(),
-                config
-            );
+            // Load and validate instance with proper error handling
+            DNAInstance instance;
+            try {
+                LOG_INFO("Loading instance from: " + inputFile);
+                if (!InstanceIO::loadInstance(inputFile, instance)) {
+                    LOG_ERROR("Failed to load instance from file: format error or corrupted data");
+                    return 1;
+                }
+                
+                // Validate instance data
+                if (!instance.isValid()) {
+                    LOG_ERROR("Loaded instance is invalid: missing or incorrect data");
+                    return 1;
+                }
+                
+                LOG_INFO("Instance loaded and validated successfully");
+                LOG_INFO("Instance details: N=" + std::to_string(instance.getN()) + 
+                        ", K=" + std::to_string(instance.getK()));
+            } catch (const std::exception& e) {
+                LOG_ERROR("Exception while loading instance: " + std::string(e.what()));
+                return 1;
+            }
             
-            ga.run(testInstance);
-            
-            TuningResult result;
-            result.parameterSet = ps;
-            result.fitness = ga.getBestFitness();
-            return result;
-        };
-        
-        // Run racing
-        tuner.runRacingOnly(candidateParams, rc, evaluateFunc);
-        
-        std::cout << "Parameter tuning completed. Results saved to " << tuningOutputFile << std::endl;
-        return 0;
+            // Run genetic algorithm with proper error handling
+            try {
+                LOG_INFO("Starting genetic algorithm with process ID: " + std::to_string(processId));
+                runGeneticAlgorithm(instance, outputFile, processId, configFile, debugMode);
+                LOG_INFO("Genetic algorithm completed successfully");
+                return 0;
+            } catch (const std::exception& e) {
+                LOG_ERROR("Genetic algorithm failed: " + std::string(e.what()));
+                return 1;
+            }
+        } else if (mode == "generate_instance") {
+            int n = 400, k = 8, deltaK = 1, lNeg = 10, lPoz = 10;
+            std::string outputFile = "generated_instance.txt";
 
-    } else if (mode == "tuning_hybrid") {
-        std::string tuningOutputFile = "tuning_hybrid_results.csv";
-        for (int i = 2; i < argc; ++i) {
-            if (std::strcmp(argv[i], "-out") == 0) {
-                if (i + 1 < argc) {
+            for (int i = 2; i < argc; ++i) {
+                if (std::strcmp(argv[i], "-n") == 0) {
+                    if (i + 1 < argc) {
+                        n = std::stoi(argv[i + 1]);
+                        ++i;
+                    }
+                } else if (std::strcmp(argv[i], "-k") == 0) {
+                    if (i + 1 < argc) {
+                        k = std::stoi(argv[i + 1]);
+                        ++i;
+                    }
+                } else if (std::strcmp(argv[i], "-dk") == 0) {
+                    if (i + 1 < argc) {
+                        deltaK = std::stoi(argv[i + 1]);
+                        ++i;
+                    }
+                } else if (std::strcmp(argv[i], "-ln") == 0) {
+                    if (i + 1 < argc) {
+                        lNeg = std::stoi(argv[i + 1]);
+                        ++i;
+                    }
+                } else if (std::strcmp(argv[i], "-lp") == 0) {
+                    if (i + 1 < argc) {
+                        lPoz = std::stoi(argv[i + 1]);
+                        ++i;
+                    }
+                } else if (std::strcmp(argv[i], "-o") == 0) {
+                    if (i + 1 < argc) {
+                        outputFile = argv[i + 1];
+                        ++i;
+                    }
+                } else if (std::strcmp(argv[i], "-cfg") == 0) {
+                    ++i; // skip
+                }
+            }
+
+            if (!generateInstance(n, k, deltaK, lNeg, lPoz, outputFile)) {
+                std::cerr << "Failed to generate instance!\n";
+                return 1;
+            }
+            std::cout << "Instance generated successfully: " << outputFile << std::endl;
+
+        } else if (mode == "tuning") {
+            std::string tuningOutputFile = "tuning_results.csv";
+            for (int i = 2; i < argc; ++i) {
+                if (std::strcmp(argv[i], "-out") == 0 && i + 1 < argc) {
                     tuningOutputFile = argv[i + 1];
                     ++i;
-                } else {
-                    std::cerr << "Error: -out requires a filename.\n";
-                    return 1;
                 }
             }
-        }
 
-        ParameterTuningManager tuner(tuningOutputFile);
-
-        Racing::Configuration rc;
-        rc.significanceLevel = 0.05;
-        rc.maxTrialsPerCandidate = 10;
-        rc.minTrialsBeforeElimination = 3;
-        rc.useBootstrap = true;
-        rc.bootstrapSamples = 1000;
-
-        auto evaluateFunc = [&](const ParameterSet &ps) -> TuningResult {
-            // Create test instance
+            // Create parameter tuning manager with output file
+            ParameterTuningManager tuner(tuningOutputFile);
+            
+            // Generate candidate parameter sets
+            std::vector<ParameterSet> candidateParams;
+            
+            // Add some example parameter sets
+            ParameterSet ps1;
+            ps1.params["populationSize"] = "100";
+            ps1.params["mutationRate"] = "0.1";
+            ps1.params["crossoverProb"] = "0.8";
+            candidateParams.push_back(ps1);
+            
+            ParameterSet ps2;
+            ps2.params["populationSize"] = "200";
+            ps2.params["mutationRate"] = "0.2";
+            ps2.params["crossoverProb"] = "0.7";
+            candidateParams.push_back(ps2);
+            
+            // Set up racing configuration
+            Racing::Configuration rc;
+            rc.significanceLevel = 0.05;
+            rc.maxTrialsPerCandidate = 10;
+            rc.minTrialsBeforeElimination = 3;
+            
+            // Create test instance for evaluation
             DNAInstanceBuilder builder;
             builder.setN(300)
                    .setK(7)
@@ -445,47 +422,140 @@ int main(int argc, char* argv[]) {
                    .setRepAllowed(true)
                    .buildDNA()
                    .buildSpectrum();
-            DNAInstance instance = builder.getInstance();
+            DNAInstance testInstance = builder.getInstance();
+            
+            // Define evaluation function
+            auto evaluateFunc = [&testInstance](const ParameterSet& ps) {
+                // Create local config for this evaluation
+                GAConfig config;
+                if (!config.loadFromFile("config.cfg")) {
+                    throw std::runtime_error("Failed to load configuration");
+                }
+                
+                // Update config with parameters from parameter set
+                if (ps.contains("populationSize")) {
+                    config.setPopulationSize(ps.getInt("populationSize"));
+                }
+                if (ps.contains("mutationRate")) {
+                    config.setMutationRate(ps.getDouble("mutationRate"));
+                }
+                if (ps.contains("crossoverProb")) {
+                    config.setCrossoverProbability(ps.getDouble("crossoverProb"));
+                }
+                
+                // Create and run GA
+                GeneticAlgorithm ga(
+                    config.getRepresentation(),
+                    config.getSelection(),
+                    config.getCrossover("order"), // Specify crossover type
+                    config.getMutation(),
+                    config.getReplacement(),
+                    config.getFitness(),
+                    config.getStopping(),
+                    config.getCache(),
+                    config
+                );
+                
+                ga.run(testInstance);
+                
+                TuningResult result;
+                result.parameterSet = ps;
+                result.fitness = ga.getBestFitness();
+                return result;
+            };
+            
+            // Run racing
+            tuner.runRacingOnly(candidateParams, rc, evaluateFunc);
+            
+            std::cout << "Parameter tuning completed. Results saved to " << tuningOutputFile << std::endl;
+            return 0;
 
-            // Create a new config instance
-            GAConfig config;
-            if (!config.loadFromFile("config.cfg")) {
-                throw std::runtime_error("Failed to load configuration");
-            }
-
-            // Update parameters
-            for (const auto &[key, value] : ps.params) {
-                if (key == "populationSize") {
-                    config.setPopulationSize(std::stoi(value));
-                } else if (key == "mutationRate") {
-                    config.setMutationRate(std::stod(value));
+        } else if (mode == "tuning_hybrid") {
+            std::string tuningOutputFile = "tuning_hybrid_results.csv";
+            for (int i = 2; i < argc; ++i) {
+                if (std::strcmp(argv[i], "-out") == 0) {
+                    if (i + 1 < argc) {
+                        tuningOutputFile = argv[i + 1];
+                        ++i;
+                    } else {
+                        std::cerr << "Error: -out requires a filename.\n";
+                        return 1;
+                    }
                 }
             }
 
-            // Run hybrid tuning
-            HybridOnePlusLambdaEA hybrid;
-            ParameterSet bestSet = hybrid.runHybridOnePlusLambdaEA(ps, instance);
+            ParameterTuningManager tuner(tuningOutputFile);
 
-            TuningResult tr;
-            tr.parameterSet = bestSet;
-            tr.fitness = config.getGlobalBestFitness();
-            tr.executionTime = 0.0;
-            return tr;
-        };
+            Racing::Configuration rc;
+            rc.significanceLevel = 0.05;
+            rc.maxTrialsPerCandidate = 10;
+            rc.minTrialsBeforeElimination = 3;
+            rc.useBootstrap = true;
+            rc.bootstrapSamples = 1000;
 
-        // Generate candidates
-        std::vector<ParameterSet> candidateParams = ParameterParser::generateGridOfCandidatesWithout();
+            auto evaluateFunc = [&](const ParameterSet &ps) -> TuningResult {
+                // Create test instance
+                DNAInstanceBuilder builder;
+                builder.setN(300)
+                       .setK(7)
+                       .setDeltaK(2)
+                       .setLNeg(0)
+                       .setLPoz(0)
+                       .setRepAllowed(true)
+                       .buildDNA()
+                       .buildSpectrum();
+                DNAInstance instance = builder.getInstance();
 
-        // Run racing
-        tuner.runRacingOnly(candidateParams, rc, evaluateFunc);
+                // Create a new config instance
+                GAConfig config;
+                if (!config.loadFromFile("config.cfg")) {
+                    throw std::runtime_error("Failed to load configuration");
+                }
 
-        std::cout << "Hybrid (1+lambda) tuning completed. Results: " << tuningOutputFile << "\n";
-    }
-    else {
-        LOG_ERROR("Unknown mode: " + mode);
-        printUsage();
+                // Update parameters
+                for (const auto &[key, value] : ps.params) {
+                    if (key == "populationSize") {
+                        config.setPopulationSize(std::stoi(value));
+                    } else if (key == "mutationRate") {
+                        config.setMutationRate(std::stod(value));
+                    }
+                }
+
+                // Run hybrid tuning
+                HybridOnePlusLambdaEA hybrid;
+                ParameterSet bestSet = hybrid.runHybridOnePlusLambdaEA(ps, instance);
+
+                TuningResult tr;
+                tr.parameterSet = bestSet;
+                tr.fitness = config.getGlobalBestFitness();
+                tr.executionTime = 0.0;
+                return tr;
+            };
+
+            // Generate candidates
+            std::vector<ParameterSet> candidateParams = ParameterParser::generateGridOfCandidatesWithout();
+
+            // Run racing
+            tuner.runRacingOnly(candidateParams, rc, evaluateFunc);
+
+            std::cout << "Hybrid (1+lambda) tuning completed. Results: " << tuningOutputFile << "\n";
+        }
+        else {
+            LOG_ERROR("Unknown mode: " + mode);
+            printUsage();
+            return 1;
+        }
+
+        // Cleanup logger before exit
+        Logger::cleanup();
+        return 0;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Unhandled exception: " + std::string(e.what()));
+        Logger::cleanup();
+        return 1;
+    } catch (...) {
+        LOG_ERROR("Unknown error occurred");
+        Logger::cleanup();
         return 1;
     }
-
-    return 0;
 }
