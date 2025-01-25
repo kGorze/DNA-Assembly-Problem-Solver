@@ -17,82 +17,74 @@ bool BaseErrorIntroducer::validateInstance(const DNAInstance& instance) const {
 }
 
 NegativeErrorIntroducer::NegativeErrorIntroducer(int lNeg)
-    : m_lNeg(lNeg), m_rng(std::random_device{}()) {}
+    : m_lNeg(lNeg), m_random(std::random_device{}()) {}
 
 void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
-    if (!validateInstance(instance)) {
-        throw std::runtime_error("Invalid instance for negative error introduction");
-    }
-
-    if (m_lNeg <= 0) {
-        LOG_INFO("No negative errors to introduce");
+    if (instance.getLNeg() <= 0) {
+        LOG_WARNING("No negative errors to introduce (lNeg <= 0)");
         return;
     }
 
-    auto& spectrum = instance.getModifiableSpectrum();
-    if (spectrum.empty()) {
-        LOG_ERROR("Cannot introduce negative errors: spectrum is empty");
-        throw std::runtime_error("Empty spectrum");
+    // Get current spectrum
+    auto spectrum = instance.getSpectrum();
+    
+    // Generate random k-mers that are not in the spectrum
+    const std::string nucleotides = "ACGT";
+    std::uniform_int_distribution<> dist(0, 3);
+    
+    for (int i = 0; i < instance.getLNeg(); ++i) {
+        std::string kmer;
+        bool unique;
+        do {
+            kmer.clear();
+            for (int j = 0; j < instance.getK(); ++j) {
+                kmer += nucleotides[dist(m_random->getGenerator())];
+            }
+            unique = std::find(spectrum.begin(), spectrum.end(), kmer) == spectrum.end();
+        } while (!unique);
+        
+        spectrum.push_back(kmer);
     }
-
-    std::uniform_int_distribution<size_t> dist(0, spectrum.size() - 1);
-    std::vector<size_t> indicesToRemove;
-
-    for (int i = 0; i < m_lNeg && !spectrum.empty(); ++i) {
-        size_t index = dist(m_rng);
-        indicesToRemove.push_back(index);
-    }
-
-    // Sort indices in descending order to remove from back to front
-    std::sort(indicesToRemove.begin(), indicesToRemove.end(), std::greater<>());
-
-    for (size_t index : indicesToRemove) {
-        if (index < spectrum.size()) {
-            spectrum.erase(spectrum.begin() + index);
-        }
-    }
+    
+    // Update the instance's spectrum
+    instance.setSpectrum(spectrum);
 }
 
 PositiveErrorIntroducer::PositiveErrorIntroducer(int lPoz, int k)
-    : m_lPoz(lPoz), m_k(k), m_rng(std::random_device{}()) {}
+    : m_lPoz(lPoz), m_k(k), m_random(std::random_device{}()) {}
 
 std::string PositiveErrorIntroducer::generateRandomKmer(int length) const {
-    static const char nucleotides[] = {'A', 'C', 'G', 'T'};
+    const std::string nucleotides = "ACGT";
     std::uniform_int_distribution<> dist(0, 3);
     std::string kmer;
     kmer.reserve(length);
     
     for (int i = 0; i < length; ++i) {
-        kmer += nucleotides[dist(m_rng)];
+        kmer += nucleotides[dist(m_random->getGenerator())];
     }
     
     return kmer;
 }
 
 void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
-    if (!validateInstance(instance)) {
-        throw std::runtime_error("Invalid instance for positive error introduction");
-    }
-
-    if (m_lPoz <= 0) {
-        LOG_INFO("No positive errors to introduce");
+    if (instance.getLPoz() <= 0) {
+        LOG_WARNING("No positive errors to introduce (lPoz <= 0)");
         return;
     }
 
-    auto& spectrum = instance.getModifiableSpectrum();
-    const int deltaK = instance.getDeltaK();
-    std::uniform_int_distribution<> deltaKDist(-deltaK, deltaK);
-
-    for (int i = 0; i < m_lPoz; ++i) {
-        int len = m_k + deltaKDist(m_rng);
-        len = std::max(1, len);  // Ensure length is at least 1
-        std::string randomKmer = generateRandomKmer(len);
-        spectrum.push_back(randomKmer);
+    // Get current spectrum
+    auto spectrum = instance.getSpectrum();
+    
+    // Remove random k-mers from the spectrum
+    std::uniform_int_distribution<> dist(0, spectrum.size() - 1);
+    
+    for (int i = 0; i < std::min(instance.getLPoz(), static_cast<int>(spectrum.size())); ++i) {
+        int index = dist(m_random->getGenerator());
+        spectrum.erase(spectrum.begin() + index);
     }
-
-    // Remove duplicates that might have been introduced
-    std::sort(spectrum.begin(), spectrum.end());
-    spectrum.erase(std::unique(spectrum.begin(), spectrum.end()), spectrum.end());
+    
+    // Update the instance's spectrum
+    instance.setSpectrum(spectrum);
 }
 
 std::unique_ptr<IErrorIntroductionStrategy> ErrorIntroducerFactory::createNegativeErrorIntroducer(int lNeg) {

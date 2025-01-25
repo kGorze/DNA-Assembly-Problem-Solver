@@ -13,6 +13,7 @@ class Individual {
 public:
     // Constructors
     Individual() = default;
+    Individual(std::vector<int> genes) : m_genes(std::move(genes)) {}
     
     // Delete copy operations due to mutex member
     Individual(const Individual&) = delete;
@@ -56,6 +57,7 @@ public:
             throw std::invalid_argument("Fitness must be a finite number");
         }
         m_fitness = fitness;
+        m_isValid = true;
     }
 
     // Utility methods
@@ -93,7 +95,7 @@ private:
     void validateGenesVector(const std::vector<int>& genes);
 
     std::vector<int> m_genes;
-    double m_fitness = std::numeric_limits<double>::infinity();
+    double m_fitness = 0.0;
     bool m_isValid = false;
     mutable std::mutex m_mutex;  // For thread safety
 }; 

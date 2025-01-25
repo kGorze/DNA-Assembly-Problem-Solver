@@ -79,11 +79,12 @@ DNAInstanceBuilder& DNAInstanceBuilder::applyError(IErrorIntroductionStrategy* s
 }
 
 DNAInstance DNAInstanceBuilder::build() {
-    // Create a new instance with the same parameters
-    DNAInstance result(m_instance.getOriginalDNA(), m_instance.getK());
+    // Create a new instance
+    DNAInstance result;
     
-    // Set all parameters
+    // Set basic parameters
     result.setN(m_instance.getN());
+    result.setK(m_instance.getK());
     result.setDeltaK(m_instance.getDeltaK());
     result.setLNeg(m_instance.getLNeg());
     result.setLPoz(m_instance.getLPoz());
@@ -91,11 +92,12 @@ DNAInstance DNAInstanceBuilder::build() {
     result.setProbablePositive(m_instance.getProbablePositive());
     result.setStartIndex(m_instance.getStartIndex());
     result.setSize(m_instance.getSize());
+    result.setTargetSequence(m_instance.getTargetSequence());
     
-    // Set DNA and spectrum using the thread-safe methods
+    // Set DNA and spectrum
+    result.setOriginalDNA(m_instance.getOriginalDNA());
     result.setDNA(m_instance.getDNA());
     result.setSpectrum(m_instance.getSpectrum());
-    result.setTargetSequence(m_instance.getTargetSequence());
     
     return result;
 } 

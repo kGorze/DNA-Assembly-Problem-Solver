@@ -10,27 +10,51 @@
 #include <algorithm>
 #include <mutex>
 #include <stdexcept>
+#include <chrono>
+#include <unordered_map>
+#include <unordered_set>
+#include <queue>
 
 namespace {
-    // Thread-safe random number generator
-    class RandomGenerator {
-    public:
-        static RandomGenerator& instance() {
-            static RandomGenerator instance;
-            return instance;
-        }
-        
-        int getRandomInt(int min, int max) {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            std::uniform_int_distribution<> dis(min, max);
-            return dis(m_gen);
-        }
-        
+    class CrossoverRandomGenerator {
     private:
-        RandomGenerator() : m_gen(std::random_device{}()) {}
-        std::mt19937 m_gen;
-        std::mutex m_mutex;
+        static CrossoverRandomGenerator* s_instance;
+        std::mt19937 m_generator;
+
+        CrossoverRandomGenerator() {
+            std::random_device rd;
+            auto seed = rd() ^ static_cast<unsigned>(std::chrono::system_clock::now().time_since_epoch().count());
+            m_generator.seed(seed);
+        }
+
+    public:
+        static CrossoverRandomGenerator& instance() {
+            if (!s_instance) {
+                s_instance = new CrossoverRandomGenerator();
+            }
+            return *s_instance;
+        }
+
+        int getRandomInt(int min, int max) {
+            std::uniform_int_distribution<int> dist(min, max);
+            return dist(m_generator);
+        }
+
+        double getRandomDouble(double min, double max) {
+            std::uniform_real_distribution<double> dist(min, max);
+            return dist(m_generator);
+        }
+
+        template<typename Container>
+        typename Container::value_type& getRandomElement(Container& container) {
+            int index = getRandomInt(0, static_cast<int>(container.size()) - 1);
+            auto it = std::begin(container);
+            std::advance(it, index);
+            return *it;
+        }
     };
+
+    CrossoverRandomGenerator* CrossoverRandomGenerator::s_instance = nullptr;
     
     // Validate parents and get their genes
     std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(
@@ -100,7 +124,7 @@ public:
             std::vector<std::shared_ptr<Individual>> offspring;
             offspring.reserve(2);
             
-            int crossPoint = RandomGenerator::instance().getRandomInt(1, static_cast<int>(genes1.size() - 1));
+            int crossPoint = CrossoverRandomGenerator::instance().getRandomInt(1, static_cast<int>(genes1.size() - 1));
             
             // Create first offspring
             std::vector<int> offspring1Genes(genes1.begin(), genes1.begin() + crossPoint);
@@ -144,7 +168,7 @@ public:
             std::vector<std::shared_ptr<Individual>> offspring;
             offspring.reserve(2);
             
-            auto& rng = RandomGenerator::instance();
+            auto& rng = CrossoverRandomGenerator::instance();
             int start = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
             int end = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
             if (start > end) std::swap(start, end);
@@ -240,7 +264,7 @@ public:
                 );
             }
             
-            auto& rng = RandomGenerator::instance();
+            auto& rng = CrossoverRandomGenerator::instance();
             
             // Create two offspring
             for (int k = 0; k < 2; k++) {

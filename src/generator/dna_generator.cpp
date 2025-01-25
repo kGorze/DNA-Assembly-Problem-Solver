@@ -249,58 +249,22 @@ int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
     return -1;
 }
 
-DNAInstance DNAGenerator::generateRandomInstance(int size, int lNeg, int lPoz) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    try {
-        if (size <= 0) {
-            throw std::invalid_argument("Instance size must be positive");
-        }
-        if (!validateParameters()) {
-            throw std::runtime_error("Invalid generator parameters");
-        }
-        
-        DNAInstance instance;
-        instance.setN(size);
-        instance.setK(m_k);
-        instance.setDeltaK(m_deltaK);
-        instance.setLNeg(lNeg);
-        instance.setLPoz(lPoz);
-        
-        // Generate DNA and spectrum
-        std::string dna = generateDNA(size);
-        instance.setDNA(dna);
-        
-        SpectrumGenerator specGen;
-        auto spectrum = specGen.generateSpectrum(dna, m_k, m_deltaK);
-        instance.setSpectrum(spectrum);
-        
-        // Find start index before introducing errors
-        std::string startFrag = dna.substr(0, m_k);
-        int startIdx = -1;
-        for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
-            if (spectrum[i] == startFrag) {
-                startIdx = i;
-                break;
-            }
-        }
-        instance.setStartIndex(startIdx);
-        
-        // Introduce errors if requested
-        if (lNeg > 0) {
-            auto negErr = std::make_unique<NegativeErrorIntroducer>(lNeg);
-            negErr->introduceErrors(instance);
-        }
-        
-        if (lPoz > 0) {
-            auto posErr = std::make_unique<PositiveErrorIntroducer>(lPoz, m_k);
-            posErr->introduceErrors(instance);
-        }
-        
-        return instance;
-    } catch (const std::exception& e) {
-        LOG_ERROR("Error generating random instance: " + std::string(e.what()));
-        throw;
+DNAInstance DNAGenerator::generateRandomInstance(
+    int size,
+    int k,
+    int lNeg,
+    int lPoz,
+    int maxErrors,
+    bool allowNegative,
+    double errorProb
+) const {
+    if (size <= 0 || k <= 0 || lNeg < 0 || lPoz < 0 || maxErrors < 0 || errorProb < 0.0 || errorProb > 1.0) {
+        throw std::invalid_argument("Invalid parameters for random instance generation");
     }
+
+    std::random_device rd;
+    int seed = rd();
+    return DNAInstance(size, k, lNeg, lPoz, maxErrors, allowNegative, errorProb, seed);
 }
 
 bool DNAGenerator::saveToFile(const DNAInstance& instance, const std::string& filename) const {

@@ -1,55 +1,40 @@
 #pragma once
 
+#include "interfaces/i_population_cache.h"
 #include "metaheuristics/individual.h"
 #include "dna/dna_instance.h"
-#include <memory>
 #include <unordered_map>
-#include <mutex>
-
-class IPopulationCache {
-public:
-    virtual ~IPopulationCache() = default;
-    virtual double getOrCalculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) = 0;
-    virtual void clear() = 0;
-};
+#include <memory>
 
 class SimplePopulationCache : public IPopulationCache {
+private:
+    std::unordered_map<std::shared_ptr<Individual>, double> m_cache;
+
 public:
-    static constexpr size_t MAX_CACHE_SIZE = 10000;
-
-    SimplePopulationCache() : m_maxCacheSize(MAX_CACHE_SIZE) {}
-    explicit SimplePopulationCache(size_t cacheSize) 
-        : m_maxCacheSize(std::max(size_t(1), cacheSize)) {}
-
     double getOrCalculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) override {
-        if (!individual) return 0.0;
-
-        std::lock_guard<std::mutex> lock(m_mutex);
-        
-        // Try to find in cache
-        auto it = m_cache.find(individual->toString());
+        auto it = m_cache.find(individual);
         if (it != m_cache.end()) {
             return it->second;
         }
-
-        // Calculate fitness
-        double fitness = individual->getFitness();
-
-        // Add to cache if not full
-        if (m_cache.size() < m_maxCacheSize) {
-            m_cache[individual->toString()] = fitness;
-        }
-
+        
+        double fitness = calculateFitness(individual);
+        m_cache[individual] = fitness;
         return fitness;
     }
 
-    void clear() override {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_cache.clear();
-    }
-
 private:
-    const size_t m_maxCacheSize;
-    std::unordered_map<std::string, double> m_cache;
-    mutable std::mutex m_mutex;
+    double calculateFitness(const std::shared_ptr<Individual>& individual) {
+        // Simple fitness calculation based on the genes
+        const auto& genes = individual->getGenes();
+        if (genes.empty()) {
+            return 0.0;
+        }
+        
+        // Example fitness: sum of genes divided by size
+        double sum = 0.0;
+        for (int gene : genes) {
+            sum += gene;
+        }
+        return sum / genes.size();
+    }
 }; 

@@ -9,6 +9,13 @@
 #include "../generator/dna_generator.h"
 #include "configuration/genetic_algorithm_configuration.h" // Dołączenie GAConfig
 #include "metaheuristics/genetic_algorithm.h"  
+#include "metaheuristics/representation_impl.h"
+#include "dna/dna_instance.h"
+#include "parameters.h"
+#include <memory>
+#include <vector>
+#include <random>
+#include <chrono>
 
 #include "tuning_structures.h"
 #include <random>
@@ -25,6 +32,18 @@ struct MetaEAConfig {
         if (maxGenerations < 1)
             throw std::invalid_argument("Generations must be at least 1");
     }
+};
+
+struct TuningResult {
+    double fitness = 0.0;
+    double time = 0.0;
+    bool success = false;
+};
+
+class IMetaEA {
+public:
+    virtual ~IMetaEA() = default;
+    virtual TuningResult evaluateParamSet(const ParameterSet& params, const DNAInstance& instance) = 0;
 };
 
 /**
@@ -191,7 +210,7 @@ private:
 // -------------------------------------------------
 // Hybrid (1+lambda) ES + Racing demonstration
 // -------------------------------------------------
-class HybridOnePlusLambdaEA {
+class HybridOnePlusLambdaEA : public IMetaEA {
 public:
     HybridOnePlusLambdaEA() : lambda(10) {}
 
@@ -254,49 +273,42 @@ public:
         return bestSoFar;
     }
 
-private:
-    int lambda;
-
-    // Przykładowa funkcja oceny "evaluateParamSet", uruchamia normalny GA
-    // z danym zestawem parametrów i zwraca TuningResult.
-    TuningResult evaluateParamSet(const ParameterSet &ps, const DNAInstance &exampleInstance)
-    {
-        // Create local config
-        GAConfig config;
-        if (!config.loadFromFile("config.cfg")) {
-            throw std::runtime_error("Failed to load configuration");
-        }
-        
-        // Update configuration using proper setters
-        for (const auto& kv : ps.params) {
-            if (kv.first == "populationSize") {
-                config.setPopulationSize(std::stoi(kv.second));
-            } else if (kv.first == "mutationRate") {
-                config.setMutationRate(std::stod(kv.second));
-            }
-            // Note: crossoverType is handled through getCrossover below
-        }
-        
-        // Create and run GA
-        GeneticAlgorithm ga(
-            config.getRepresentation(),
-            config.getSelection(),
-            config.getCrossover("order"), // Use default crossover type
-            config.getMutation(),
-            config.getReplacement(),
-            config.getFitness(),
-            config.getStopping(),
-            config.getCache(),
-            config
-        );
-        
-        ga.run(exampleInstance);
-        
+    TuningResult evaluateParamSet(const ParameterSet& params, const DNAInstance& instance) override {
         TuningResult result;
-        result.parameterSet = ps;
-        result.fitness = ga.getBestFitness();
+        
+        // Create genetic algorithm configuration
+        GeneticConfig config;
+        config.populationSize = params.populationSize;
+        config.maxGenerations = params.maxGenerations;
+        config.mutationProbability = params.mutationRate;
+        config.crossoverProbability = params.crossoverRate;
+        config.targetFitness = params.targetFitness;
+        config.tournamentSize = params.tournamentSize;
+
+        // Create representation
+        auto representation = std::make_unique<DirectDNARepresentation>();
+
+        // Create genetic algorithm
+        GeneticAlgorithm ga(std::move(representation), config);
+
+        // Run the algorithm
+        auto startTime = std::chrono::high_resolution_clock::now();
+        std::string result_str = ga.run(instance);
+        auto endTime = std::chrono::high_resolution_clock::now();
+
+        // Calculate elapsed time
+        std::chrono::duration<double> elapsed = endTime - startTime;
+        result.time = elapsed.count();
+
+        // Get the best fitness
+        result.fitness = std::stod(result_str.substr(result_str.find("Best Fitness: ") + 13));
+        result.success = true;
+
         return result;
     }
+
+private:
+    int lambda;
 
     ParameterSet mutateParameterSet(const ParameterSet &parent)
     {

@@ -50,18 +50,10 @@ GeneticAlgorithm::GeneticAlgorithm(std::unique_ptr<IRepresentation> representati
     }
 }
 
-GeneticAlgorithm::~GeneticAlgorithm() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_population.clear();
-    m_globalBestInd = nullptr;
-}
-
 void GeneticAlgorithm::logGenerationStats(
     const std::vector<std::shared_ptr<Individual>>& pop,
     const DNAInstance& instance,
     int generation) {
-    
-    std::lock_guard<std::mutex> lock(m_mutex);
     
     if (pop.empty()) {
         LOG_WARNING("Empty population in generation " + std::to_string(generation));
@@ -77,7 +69,7 @@ void GeneticAlgorithm::logGenerationStats(
         if (!individual) continue;
         
         try {
-            double fitness = m_fitness->calculateFitness(individual, instance, m_representation);
+            double fitness = calculateFitness(individual, instance);
             sumFitness += fitness;
             minFitness = std::min(minFitness, fitness);
             maxFitness = std::max(maxFitness, fitness);
@@ -95,19 +87,9 @@ void GeneticAlgorithm::logGenerationStats(
              ", avg=" + std::to_string(avgFitness) + 
              ", max=" + std::to_string(maxFitness) + 
              ", valid=" + std::to_string(validRatio));
-
-    if (progressCallback) {
-        progressCallback(generation, 
-                       static_cast<int>(pop.size()),
-                       avgFitness,
-                       maxFitness,
-                       m_globalBestFit,
-                       m_theoreticalMaxFitness);
-    }
 }
 
 void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance& instance) {
-    std::lock_guard<std::mutex> lock(m_mutex);
     m_population = m_representation->initializePopulation(popSize, instance);
     
     if (m_population.empty()) {
@@ -121,191 +103,159 @@ void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance& inst
     }
 }
 
-void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& population, const DNAInstance& instance) {
+void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& population, [[maybe_unused]] const DNAInstance& instance) {
     if (population.empty()) return;
 
-    auto bestIndividual = *std::min_element(population.begin(), population.end(),
+    auto bestIndividual = *std::max_element(population.begin(), population.end(),
         [](const auto& a, const auto& b) { return a->getFitness() < b->getFitness(); });
 
-    if (!m_globalBestInd || bestIndividual->getFitness() < m_globalBestFit) {
+    if (bestIndividual->getFitness() > m_globalBestFit) {
         m_globalBestFit = bestIndividual->getFitness();
-        m_globalBestInd = std::make_shared<Individual>(*bestIndividual);
-        m_bestDNA = m_representation->toString(bestIndividual, instance);
+        m_globalBestGenes = bestIndividual->getGenes();
         LOG_INFO("New best fitness: " + std::to_string(m_globalBestFit));
-        LOG_INFO("Best DNA: " + m_bestDNA);
     }
 }
 
 std::string GeneticAlgorithm::run(const DNAInstance& instance) {
-    // Initialize population
-    auto population = m_representation->initializePopulation(m_config.populationSize);
-    
-    // Evaluate initial population
-    evaluatePopulation(population, instance);
-    updateGlobalBest(population, instance);
-    logGenerationStats(population, instance, 0);
+    m_population = m_representation->initializePopulation(m_config.populationSize, instance);
+    evaluatePopulation(instance, m_population);
+    updateGlobalBest(m_population, instance);
+    logGenerationStats(m_population, instance, 0);
 
-    // Main loop
     for (int generation = 1; generation <= m_config.maxGenerations; ++generation) {
-        // Select parents for next generation
         std::vector<std::shared_ptr<Individual>> newPopulation;
         newPopulation.reserve(m_config.populationSize);
 
-        while (newPopulation.size() < m_config.populationSize) {
-            // Tournament selection
-            std::uniform_int_distribution<> dis(0, population.size() - 1);
-            int idx1 = dis(m_random->getGenerator());
-            int idx2 = dis(m_random->getGenerator());
+        // Selection and reproduction
+        while (newPopulation.size() < static_cast<size_t>(m_config.populationSize)) {
+            // Tournament selection for two parents
+            std::shared_ptr<Individual> parent1 = nullptr;
+            std::shared_ptr<Individual> parent2 = nullptr;
             
-            auto parent1 = population[idx1]->getFitness() > population[idx2]->getFitness() ? 
-                population[idx1] : population[idx2];
+            // Select first parent
+            for (int j = 0; j < m_config.tournamentSize; ++j) {
+                size_t idx = static_cast<size_t>(m_random->getGenerator()() % m_population.size());
+                if (!parent1 || m_population[idx]->getFitness() > parent1->getFitness()) {
+                    parent1 = m_population[idx];
+                }
+            }
             
-            idx1 = dis(m_random->getGenerator());
-            idx2 = dis(m_random->getGenerator());
-            
-            auto parent2 = population[idx1]->getFitness() > population[idx2]->getFitness() ? 
-                population[idx1] : population[idx2];
+            // Select second parent
+            for (int j = 0; j < m_config.tournamentSize; ++j) {
+                size_t idx = static_cast<size_t>(m_random->getGenerator()() % m_population.size());
+                if (!parent2 || m_population[idx]->getFitness() > parent2->getFitness()) {
+                    parent2 = m_population[idx];
+                }
+            }
 
-            // Crossover
-            std::vector<int> child_genes;
-            if (m_random->generateProbability() < m_config.crossoverProbability) {
+            // Create child through crossover or copy
+            auto child = std::make_shared<Individual>();
+            if (m_random->generateProbability() < m_config.crossoverProbability && 
+                !parent1->getGenes().empty() && !parent2->getGenes().empty()) {
                 // Single-point crossover
-                const auto& p1_genes = parent1->getGenes();
-                const auto& p2_genes = parent2->getGenes();
-                
-                std::uniform_int_distribution<> crossover_point(0, p1_genes.size() - 1);
-                int point = crossover_point(m_random->getGenerator());
-                
-                child_genes.insert(child_genes.end(), p1_genes.begin(), p1_genes.begin() + point);
-                child_genes.insert(child_genes.end(), p2_genes.begin() + point, p2_genes.end());
+                std::vector<int> childGenes = parent1->getGenes();
+                size_t crossPoint = static_cast<size_t>(m_random->getGenerator()() % parent1->getGenes().size());
+                for (size_t i = crossPoint; i < parent2->getGenes().size() && i < childGenes.size(); ++i) {
+                    childGenes[i] = parent2->getGenes()[i];
+                }
+                child->setGenes(childGenes);
             } else {
-                child_genes = parent1->getGenes();
+                // Copy from first parent
+                child->setGenes(parent1->getGenes());
             }
 
             // Mutation
             if (m_random->generateProbability() < m_config.mutationProbability) {
-                std::uniform_int_distribution<> pos(0, child_genes.size() - 1);
-                int mutation_pos = pos(m_random->getGenerator());
-                child_genes[mutation_pos] = 1 - child_genes[mutation_pos]; // Flip bit
+                std::vector<int> genes = child->getGenes();
+                if (!genes.empty()) {
+                    size_t mutationPoint = static_cast<size_t>(m_random->getGenerator()() % genes.size());
+                    genes[mutationPoint] = static_cast<int>(m_random->getGenerator()() % 4); // Assuming 4 possible values (0-3)
+                    child->setGenes(genes);
+                }
             }
 
-            auto child = std::make_shared<Individual>();
-            child->setGenes(std::move(child_genes));
             newPopulation.push_back(child);
         }
 
         // Replace old population
-        population = std::move(newPopulation);
+        m_population = std::move(newPopulation);
         
         // Evaluate new population
-        evaluatePopulation(population, instance);
-        updateGlobalBest(population, instance);
-        logGenerationStats(population, instance, generation);
+        evaluatePopulation(instance, m_population);
+        updateGlobalBest(m_population, instance);
+        logGenerationStats(m_population, instance, generation);
 
-        // Check termination condition
         if (m_globalBestFit >= m_config.targetFitness) {
-            LOG_INFO("Target fitness reached in generation " + std::to_string(generation));
+            LOG_INFO("Target fitness reached. Stopping early.");
             break;
         }
     }
 
-    return m_representation->toDNA(m_globalBestSolution);
+    // Convert best solution to DNA string
+    auto bestIndividual = *std::max_element(m_population.begin(), m_population.end(),
+        [](const auto& a, const auto& b) { return a->getFitness() < b->getFitness(); });
+    return m_representation->toString(bestIndividual);
 }
 
-void GeneticAlgorithm::evaluatePopulation(std::vector<std::shared_ptr<Individual>>& population, const DNAInstance& instance) {
+void GeneticAlgorithm::evaluatePopulation(const DNAInstance& instance, const std::vector<std::shared_ptr<Individual>>& population) {
     for (auto& individual : population) {
-        if (!individual) continue;
-        
         if (!m_representation->isValid(individual, instance)) {
             individual->setFitness(-std::numeric_limits<double>::infinity());
             continue;
         }
-        
-        individual->setFitness(calculateFitness(individual, instance));
+        double fitness = calculateFitness(individual, instance);
+        individual->setFitness(fitness);
     }
-}
-
-void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& population, const DNAInstance& instance) {
-    auto it = std::max_element(population.begin(), population.end(),
-        [](const auto& a, const auto& b) { return a->getFitness() < b->getFitness(); });
-    
-    if (it != population.end() && (*it)->getFitness() > m_globalBestFit) {
-        m_globalBestFit = (*it)->getFitness();
-        m_globalBestSolution = *it;
-    }
-}
-
-void GeneticAlgorithm::logGenerationStats(const std::vector<std::shared_ptr<Individual>>& population, const DNAInstance& instance, int generation) {
-    double avgFitness = 0.0;
-    double minFitness = std::numeric_limits<double>::infinity();
-    double maxFitness = -std::numeric_limits<double>::infinity();
-    
-    for (const auto& individual : population) {
-        if (!individual) continue;
-        double fitness = individual->getFitness();
-        if (std::isfinite(fitness)) {
-            avgFitness += fitness;
-            minFitness = std::min(minFitness, fitness);
-            maxFitness = std::max(maxFitness, fitness);
-        }
-    }
-    
-    avgFitness /= population.size();
-    
-    std::stringstream ss;
-    ss << "Generation " << generation 
-       << " - Avg: " << avgFitness 
-       << " Min: " << minFitness 
-       << " Max: " << maxFitness 
-       << " Global Best: " << m_globalBestFit;
-    
-    LOG_INFO(ss.str());
 }
 
 double GeneticAlgorithm::calculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) {
-    if (!individual || !m_representation) return -std::numeric_limits<double>::infinity();
-    
-    // Convert individual's genes to DNA sequence
+    if (!individual || !m_representation) {
+        return -std::numeric_limits<double>::infinity();
+    }
+
     std::string dna = m_representation->toDNA(individual);
-    if (dna.empty()) return -std::numeric_limits<double>::infinity();
-    
-    // Calculate fitness based on:
-    // 1. Length difference from target
-    // 2. Number of matching k-mers with spectrum
-    // 3. Connectivity between k-mers
-    
+    if (dna.empty()) {
+        return -std::numeric_limits<double>::infinity();
+    }
+
+    // Length score - penalize differences from target length
     double lengthScore = 1.0 - std::abs(static_cast<double>(dna.length() - instance.getN())) / instance.getN();
-    
-    // Extract k-mers from DNA sequence
-    std::vector<std::string> dnaKmers;
-    for (size_t i = 0; i + instance.getK() <= dna.length(); ++i) {
-        dnaKmers.push_back(dna.substr(i, instance.getK()));
-    }
-    
-    // Count matching k-mers
+    lengthScore = std::max(0.0, lengthScore);
+
+    // Spectrum score - check how many k-mers from the spectrum are present
+    double spectrumScore = 0.0;
     const auto& spectrum = instance.getSpectrum();
-    int matches = 0;
-    for (const auto& kmer : dnaKmers) {
-        if (std::find(spectrum.begin(), spectrum.end(), kmer) != spectrum.end()) {
-            matches++;
+    if (!spectrum.empty()) {
+        int matches = 0;
+        for (size_t i = 0; i <= dna.length() - instance.getK(); ++i) {
+            std::string kmer = dna.substr(i, instance.getK());
+            if (std::find(spectrum.begin(), spectrum.end(), kmer) != spectrum.end()) {
+                matches++;
+            }
         }
+        spectrumScore = static_cast<double>(matches) / spectrum.size();
     }
-    double coverageScore = static_cast<double>(matches) / spectrum.size();
-    
-    // Calculate connectivity score
+
+    // Connectivity score - check if nucleotides are properly connected
     double connectivityScore = 0.0;
-    for (size_t i = 1; i < dnaKmers.size(); ++i) {
-        const std::string& prev = dnaKmers[i-1];
-        const std::string& curr = dnaKmers[i];
-        if (prev.substr(1) == curr.substr(0, instance.getK()-1)) {
-            connectivityScore += 1.0;
+    if (dna.length() >= 2) {
+        int validConnections = 0;
+        for (size_t i = 0; i < dna.length() - 1; ++i) {
+            if (dna[i + 1] == 'A' || dna[i + 1] == 'C' || dna[i + 1] == 'G' || dna[i + 1] == 'T') {
+                validConnections++;
+            }
         }
+        connectivityScore = static_cast<double>(validConnections) / (dna.length() - 1);
     }
-    connectivityScore /= std::max(1.0, static_cast<double>(dnaKmers.size() - 1));
-    
+
     // Combine scores with weights
-    double fitness = 0.4 * lengthScore + 0.3 * coverageScore + 0.3 * connectivityScore;
-    return fitness;
+    const double lengthWeight = 0.4;
+    const double spectrumWeight = 0.4;
+    const double connectivityWeight = 0.2;
+
+    return lengthWeight * lengthScore + 
+           spectrumWeight * spectrumScore + 
+           connectivityWeight * connectivityScore;
 }
 
 void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instance) {
@@ -340,25 +290,17 @@ std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec)
     return ss.str();
 }
 
-std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatrix(
+std::vector<std::vector<GeneticAlgorithm::PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatrix(
     const DNAInstance& instance) const {
     const auto& spectrum = instance.getSpectrum();
-    int k = instance.getK();
+    std::vector<std::vector<PreprocessedEdge>> matrix(spectrum.size());
     
-    // Pre-allocate the matrix with the correct size
-    std::vector<std::vector<PreprocessedEdge>> matrix;
-    matrix.reserve(spectrum.size());
-    for (size_t i = 0; i < spectrum.size(); ++i) {
-        matrix.emplace_back(spectrum.size());
-    }
-    
-    // Build the matrix
     for (size_t i = 0; i < spectrum.size(); ++i) {
         for (size_t j = 0; j < spectrum.size(); ++j) {
             if (i != j) {
-                int weight = calculateEdgeWeight(spectrum[i], spectrum[j], k);
+                int weight = calculateEdgeWeight(spectrum[i], spectrum[j], instance.getK());
                 if (weight > 0) {
-                    matrix[i][j] = PreprocessedEdge(j, weight, true);
+                    matrix[i].push_back({static_cast<int>(j), weight});
                 }
             }
         }
@@ -368,193 +310,10 @@ std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatri
 }
 
 int GeneticAlgorithm::calculateEdgeWeight(const std::string& from, const std::string& to, int k) const {
-    if (from.empty() || to.empty()) return 0;
+    if (from.length() < static_cast<size_t>(k - 1) || to.length() < static_cast<size_t>(k)) return 0;
     
-    auto fromLen = static_cast<int>(from.length());
-    auto toLen = static_cast<int>(to.length());
+    std::string suffix = from.substr(from.length() - (k - 1));
+    std::string prefix = to.substr(0, k - 1);
     
-    if (fromLen < k - 1 || toLen < k - 1) return 0;
-
-    std::string fromSuffix = from.substr(fromLen - k + 1);
-    std::string toPrefix = to.substr(0, k - 1);
-    
-    return fromSuffix == toPrefix ? k - 1 : 0;
-}
-
-std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::evaluatePopulation(
-    const DNAInstance& instance,
-    const std::vector<std::shared_ptr<Individual>>& population)
-{
-    std::vector<std::shared_ptr<Individual>> evaluatedPopulation;
-    evaluatedPopulation.reserve(population.size());
-    
-    for (const auto& individual : population) {
-        if (!m_representation->isValid(individual, instance)) {
-            individual->setValid(false);
-            individual->setFitness(0.0);
-            continue;
-        }
-        
-        // Convert to DNA sequence
-        std::string dna = m_representation->toDNA(individual, instance);
-        
-        // Calculate fitness based on:
-        // 1. Length difference from target
-        // 2. Number of matching k-mers with spectrum
-        // 3. Connectivity between k-mers
-        
-        double lengthScore = 1.0 - std::abs(static_cast<double>(dna.length() - instance.getN())) / instance.getN();
-        
-        // Count matching k-mers
-        int matches = 0;
-        const auto& spectrum = instance.getSpectrum();
-        for (size_t i = 0; i <= dna.length() - instance.getK(); ++i) {
-            std::string kmer = dna.substr(i, instance.getK());
-            if (std::find(spectrum.begin(), spectrum.end(), kmer) != spectrum.end()) {
-                matches++;
-            }
-        }
-        double spectrumScore = static_cast<double>(matches) / spectrum.size();
-        
-        // Check connectivity
-        double connectivityScore = 1.0;
-        for (size_t i = 0; i < dna.length() - instance.getK(); ++i) {
-            std::string kmer1 = dna.substr(i, instance.getK());
-            std::string kmer2 = dna.substr(i + 1, instance.getK());
-            if (kmer1.substr(1) != kmer2.substr(0, instance.getK() - 1)) {
-                connectivityScore = 0.0;
-                break;
-            }
-        }
-        
-        // Combine scores with weights
-        double fitness = 0.4 * lengthScore + 0.4 * spectrumScore + 0.2 * connectivityScore;
-        individual->setFitness(fitness);
-        individual->setValid(true);
-        evaluatedPopulation.push_back(individual);
-    }
-    
-    return evaluatedPopulation;
-}
-
-std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::selectParents(
-    const std::vector<std::shared_ptr<Individual>>& population)
-{
-    std::vector<std::shared_ptr<Individual>> parents;
-    parents.reserve(population.size());
-    
-    // Tournament selection
-    for (size_t i = 0; i < population.size(); ++i) {
-        std::vector<std::shared_ptr<Individual>> tournament;
-        tournament.reserve(m_config.tournamentSize);
-        
-        // Select random individuals for tournament
-        for (int j = 0; j < m_config.tournamentSize; ++j) {
-            size_t idx = m_random->getGenerator() % population.size();
-            tournament.push_back(population[idx]);
-        }
-        
-        // Find the best individual in tournament
-        auto best = std::max_element(tournament.begin(), tournament.end(),
-            [](const auto& a, const auto& b) {
-                return a->getFitness() < b->getFitness();
-            });
-        
-        parents.push_back(*best);
-    }
-    
-    return parents;
-}
-
-std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::performCrossover(
-    const std::vector<std::shared_ptr<Individual>>& parents)
-{
-    std::vector<std::shared_ptr<Individual>> offspring;
-    offspring.reserve(parents.size());
-    
-    for (size_t i = 0; i < parents.size(); i += 2) {
-        if (i + 1 >= parents.size()) {
-            offspring.push_back(parents[i]);
-            continue;
-        }
-        
-        if (m_random->generateProbability() < m_config.crossoverProbability) {
-            // Single point crossover
-            const auto& parent1 = parents[i];
-            const auto& parent2 = parents[i + 1];
-            
-            size_t crossoverPoint = m_random->getGenerator() % parent1->getGenes().size();
-            
-            auto child1 = std::make_shared<Individual>();
-            auto child2 = std::make_shared<Individual>();
-            
-            std::vector<int> genes1 = parent1->getGenes();
-            std::vector<int> genes2 = parent2->getGenes();
-            
-            std::vector<int> childGenes1(genes1.begin(), genes1.begin() + crossoverPoint);
-            childGenes1.insert(childGenes1.end(), genes2.begin() + crossoverPoint, genes2.end());
-            
-            std::vector<int> childGenes2(genes2.begin(), genes2.begin() + crossoverPoint);
-            childGenes2.insert(childGenes2.end(), genes1.begin() + crossoverPoint, genes1.end());
-            
-            child1->setGenes(childGenes1);
-            child2->setGenes(childGenes2);
-            
-            offspring.push_back(child1);
-            offspring.push_back(child2);
-        } else {
-            offspring.push_back(parents[i]);
-            offspring.push_back(parents[i + 1]);
-        }
-    }
-    
-    return offspring;
-}
-
-void GeneticAlgorithm::mutatePopulation(std::vector<std::shared_ptr<Individual>>& population)
-{
-    for (auto& individual : population) {
-        if (m_random->generateProbability() < m_config.mutationProbability) {
-            auto genes = individual->getGenes();
-            size_t mutationPoint = m_random->getGenerator() % genes.size();
-            genes[mutationPoint] = m_random->getGenerator() % genes.size();  // Random new value
-            individual->setGenes(genes);
-        }
-    }
-}
-
-void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& population)
-{
-    auto best = std::max_element(population.begin(), population.end(),
-        [](const auto& a, const auto& b) {
-            return a->getFitness() < b->getFitness();
-        });
-    
-    if (best != population.end() && (*best)->getFitness() > m_globalBestFit) {
-        m_globalBestFit = (*best)->getFitness();
-        m_globalBestGenes = (*best)->getGenes();
-    }
-}
-
-void GeneticAlgorithm::logGenerationStats(int generation, const std::vector<std::shared_ptr<Individual>>& population)
-{
-    double sumFitness = 0.0;
-    double bestFitness = -std::numeric_limits<double>::infinity();
-    
-    for (const auto& individual : population) {
-        double fitness = individual->getFitness();
-        sumFitness += fitness;
-        bestFitness = std::max(bestFitness, fitness);
-    }
-    
-    double avgFitness = sumFitness / population.size();
-    
-    std::stringstream ss;
-    ss << "Generation " << std::setw(4) << generation
-       << " | Best Fitness: " << std::fixed << std::setprecision(4) << bestFitness
-       << " | Average Fitness: " << std::fixed << std::setprecision(4) << avgFitness
-       << " | Global Best: " << std::fixed << std::setprecision(4) << m_globalBestFit;
-    
-    std::lock_guard<std::mutex> lock(s_outputMutex);
-    LOG_INFO(ss.str());
+    return (suffix == prefix) ? 1 : 0;
 }
