@@ -23,7 +23,7 @@ public:
     std::string run(const DNAInstance& instance) override;
 
 private:
-    void evaluatePopulation();
+    void evaluatePopulation(const DNAInstance& instance);
     std::vector<std::shared_ptr<Individual>> selectParents();
     std::vector<std::shared_ptr<Individual>> crossover(const std::vector<std::shared_ptr<Individual>>& parents);
     std::pair<std::shared_ptr<Individual>, std::shared_ptr<Individual>> performCrossover(
@@ -31,7 +31,7 @@ private:
         const std::shared_ptr<Individual>& parent2);
     void mutate(std::shared_ptr<Individual>& individual);
     void updateBestSolution();
-    double calculateFitness(const std::shared_ptr<Individual>& individual);
+    double calculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance);
 
     GeneticConfig m_config;
     std::unique_ptr<IRepresentation> m_representation;

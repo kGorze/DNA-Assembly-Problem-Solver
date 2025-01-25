@@ -128,7 +128,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
     m_population = m_representation->initializePopulation(m_config.populationSize);
     
     // Evaluate initial population
-    evaluatePopulation();
+    evaluatePopulation(instance);
     
     // Main loop
     for (size_t generation = 0; generation < m_config.maxGenerations; ++generation) {
@@ -149,7 +149,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
         m_population = std::move(offspring);
         
         // Evaluate new population
-        evaluatePopulation();
+        evaluatePopulation(instance);
         
         // Update best solution
         updateBestSolution();
@@ -169,15 +169,15 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
     return m_representation->toDNA(m_bestSolution);
 }
 
-void GeneticAlgorithm::evaluatePopulation() {
+void GeneticAlgorithm::evaluatePopulation(const DNAInstance& instance) {
     for (auto& individual : m_population) {
-        if (!m_representation->isValid(individual)) {
+        if (!m_representation->isValid(individual, instance)) {
             individual->setFitness(0.0);
             individual->setValid(false);
             continue;
         }
         
-        double fitness = calculateFitness(individual);
+        double fitness = calculateFitness(individual, instance);
         individual->setFitness(fitness);
         individual->setValid(true);
     }
@@ -211,7 +211,10 @@ std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::crossover(
     
     for (size_t i = 0; i < parents.size(); i += 2) {
         if (i + 1 >= parents.size()) {
-            offspring.push_back(std::make_shared<Individual>(*parents[i]));
+            // Create a new individual with the same genes
+            auto child = std::make_shared<Individual>();
+            child->setGenes(parents[i]->getGenes());
+            offspring.push_back(std::move(child));
             continue;
         }
         
@@ -220,8 +223,13 @@ std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::crossover(
             offspring.push_back(std::move(child1));
             offspring.push_back(std::move(child2));
         } else {
-            offspring.push_back(std::make_shared<Individual>(*parents[i]));
-            offspring.push_back(std::make_shared<Individual>(*parents[i + 1]));
+            // Create new individuals with the same genes
+            auto child1 = std::make_shared<Individual>();
+            auto child2 = std::make_shared<Individual>();
+            child1->setGenes(parents[i]->getGenes());
+            child2->setGenes(parents[i + 1]->getGenes());
+            offspring.push_back(std::move(child1));
+            offspring.push_back(std::move(child2));
         }
     }
     
@@ -282,7 +290,7 @@ void GeneticAlgorithm::updateBestSolution() {
     }
 }
 
-double GeneticAlgorithm::calculateFitness(const std::shared_ptr<Individual>& individual) {
+double GeneticAlgorithm::calculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) {
     // TODO: Implement fitness calculation based on the problem requirements
     return 0.0;
 }
