@@ -3,7 +3,11 @@ set(TEST_SOURCES
     test_dna_generator.cpp
     test_spectrum_generator.cpp
     test_error_introduction.cpp
+    test_dna_instance_io.cpp
+    test_dna_instance_builder.cpp
     test_genetic_algorithm.cpp
+    test_individual.cpp
+    test_representation.cpp
 )
 
 add_executable(optymalizacja_kombinatoryczna_test ${TEST_SOURCES})

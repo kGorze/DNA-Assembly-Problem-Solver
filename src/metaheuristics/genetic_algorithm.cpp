@@ -23,15 +23,32 @@ namespace {
             return "error";
         }
     }
+
+    std::mutex s_outputMutex;
 }
 
-// Initialize static mutex
-std::mutex GeneticAlgorithm::s_outputMutex;
-
-GeneticAlgorithm::GeneticAlgorithm(const GeneticConfig& config, std::unique_ptr<IRepresentation> representation)
-    : m_config(config)
-    , m_representation(std::move(representation))
-    , m_random(std::make_unique<Random>()) {}
+GeneticAlgorithm::GeneticAlgorithm(std::unique_ptr<IRepresentation> representation, const GeneticConfig& config)
+    : m_representation(std::move(representation))
+    , m_random(std::make_unique<Random>())
+    , m_config(config)
+    , m_globalBestFit(-std::numeric_limits<double>::infinity())
+{
+    if (config.populationSize <= 0) {
+        throw std::invalid_argument("Population size must be positive");
+    }
+    if (config.maxGenerations <= 0) {
+        throw std::invalid_argument("Maximum generations must be positive");
+    }
+    if (config.mutationProbability < 0.0 || config.mutationProbability > 1.0) {
+        throw std::invalid_argument("Mutation probability must be between 0 and 1");
+    }
+    if (config.crossoverProbability < 0.0 || config.crossoverProbability > 1.0) {
+        throw std::invalid_argument("Crossover probability must be between 0 and 1");
+    }
+    if (config.tournamentSize <= 0) {
+        throw std::invalid_argument("Tournament size must be positive");
+    }
+}
 
 GeneticAlgorithm::~GeneticAlgorithm() {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -362,4 +379,182 @@ int GeneticAlgorithm::calculateEdgeWeight(const std::string& from, const std::st
     std::string toPrefix = to.substr(0, k - 1);
     
     return fromSuffix == toPrefix ? k - 1 : 0;
+}
+
+std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::evaluatePopulation(
+    const DNAInstance& instance,
+    const std::vector<std::shared_ptr<Individual>>& population)
+{
+    std::vector<std::shared_ptr<Individual>> evaluatedPopulation;
+    evaluatedPopulation.reserve(population.size());
+    
+    for (const auto& individual : population) {
+        if (!m_representation->isValid(individual, instance)) {
+            individual->setValid(false);
+            individual->setFitness(0.0);
+            continue;
+        }
+        
+        // Convert to DNA sequence
+        std::string dna = m_representation->toDNA(individual, instance);
+        
+        // Calculate fitness based on:
+        // 1. Length difference from target
+        // 2. Number of matching k-mers with spectrum
+        // 3. Connectivity between k-mers
+        
+        double lengthScore = 1.0 - std::abs(static_cast<double>(dna.length() - instance.getN())) / instance.getN();
+        
+        // Count matching k-mers
+        int matches = 0;
+        const auto& spectrum = instance.getSpectrum();
+        for (size_t i = 0; i <= dna.length() - instance.getK(); ++i) {
+            std::string kmer = dna.substr(i, instance.getK());
+            if (std::find(spectrum.begin(), spectrum.end(), kmer) != spectrum.end()) {
+                matches++;
+            }
+        }
+        double spectrumScore = static_cast<double>(matches) / spectrum.size();
+        
+        // Check connectivity
+        double connectivityScore = 1.0;
+        for (size_t i = 0; i < dna.length() - instance.getK(); ++i) {
+            std::string kmer1 = dna.substr(i, instance.getK());
+            std::string kmer2 = dna.substr(i + 1, instance.getK());
+            if (kmer1.substr(1) != kmer2.substr(0, instance.getK() - 1)) {
+                connectivityScore = 0.0;
+                break;
+            }
+        }
+        
+        // Combine scores with weights
+        double fitness = 0.4 * lengthScore + 0.4 * spectrumScore + 0.2 * connectivityScore;
+        individual->setFitness(fitness);
+        individual->setValid(true);
+        evaluatedPopulation.push_back(individual);
+    }
+    
+    return evaluatedPopulation;
+}
+
+std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::selectParents(
+    const std::vector<std::shared_ptr<Individual>>& population)
+{
+    std::vector<std::shared_ptr<Individual>> parents;
+    parents.reserve(population.size());
+    
+    // Tournament selection
+    for (size_t i = 0; i < population.size(); ++i) {
+        std::vector<std::shared_ptr<Individual>> tournament;
+        tournament.reserve(m_config.tournamentSize);
+        
+        // Select random individuals for tournament
+        for (int j = 0; j < m_config.tournamentSize; ++j) {
+            size_t idx = m_random->getGenerator() % population.size();
+            tournament.push_back(population[idx]);
+        }
+        
+        // Find the best individual in tournament
+        auto best = std::max_element(tournament.begin(), tournament.end(),
+            [](const auto& a, const auto& b) {
+                return a->getFitness() < b->getFitness();
+            });
+        
+        parents.push_back(*best);
+    }
+    
+    return parents;
+}
+
+std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::performCrossover(
+    const std::vector<std::shared_ptr<Individual>>& parents)
+{
+    std::vector<std::shared_ptr<Individual>> offspring;
+    offspring.reserve(parents.size());
+    
+    for (size_t i = 0; i < parents.size(); i += 2) {
+        if (i + 1 >= parents.size()) {
+            offspring.push_back(parents[i]);
+            continue;
+        }
+        
+        if (m_random->generateProbability() < m_config.crossoverProbability) {
+            // Single point crossover
+            const auto& parent1 = parents[i];
+            const auto& parent2 = parents[i + 1];
+            
+            size_t crossoverPoint = m_random->getGenerator() % parent1->getGenes().size();
+            
+            auto child1 = std::make_shared<Individual>();
+            auto child2 = std::make_shared<Individual>();
+            
+            std::vector<int> genes1 = parent1->getGenes();
+            std::vector<int> genes2 = parent2->getGenes();
+            
+            std::vector<int> childGenes1(genes1.begin(), genes1.begin() + crossoverPoint);
+            childGenes1.insert(childGenes1.end(), genes2.begin() + crossoverPoint, genes2.end());
+            
+            std::vector<int> childGenes2(genes2.begin(), genes2.begin() + crossoverPoint);
+            childGenes2.insert(childGenes2.end(), genes1.begin() + crossoverPoint, genes1.end());
+            
+            child1->setGenes(childGenes1);
+            child2->setGenes(childGenes2);
+            
+            offspring.push_back(child1);
+            offspring.push_back(child2);
+        } else {
+            offspring.push_back(parents[i]);
+            offspring.push_back(parents[i + 1]);
+        }
+    }
+    
+    return offspring;
+}
+
+void GeneticAlgorithm::mutatePopulation(std::vector<std::shared_ptr<Individual>>& population)
+{
+    for (auto& individual : population) {
+        if (m_random->generateProbability() < m_config.mutationProbability) {
+            auto genes = individual->getGenes();
+            size_t mutationPoint = m_random->getGenerator() % genes.size();
+            genes[mutationPoint] = m_random->getGenerator() % genes.size();  // Random new value
+            individual->setGenes(genes);
+        }
+    }
+}
+
+void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& population)
+{
+    auto best = std::max_element(population.begin(), population.end(),
+        [](const auto& a, const auto& b) {
+            return a->getFitness() < b->getFitness();
+        });
+    
+    if (best != population.end() && (*best)->getFitness() > m_globalBestFit) {
+        m_globalBestFit = (*best)->getFitness();
+        m_globalBestGenes = (*best)->getGenes();
+    }
+}
+
+void GeneticAlgorithm::logGenerationStats(int generation, const std::vector<std::shared_ptr<Individual>>& population)
+{
+    double sumFitness = 0.0;
+    double bestFitness = -std::numeric_limits<double>::infinity();
+    
+    for (const auto& individual : population) {
+        double fitness = individual->getFitness();
+        sumFitness += fitness;
+        bestFitness = std::max(bestFitness, fitness);
+    }
+    
+    double avgFitness = sumFitness / population.size();
+    
+    std::stringstream ss;
+    ss << "Generation " << std::setw(4) << generation
+       << " | Best Fitness: " << std::fixed << std::setprecision(4) << bestFitness
+       << " | Average Fitness: " << std::fixed << std::setprecision(4) << avgFitness
+       << " | Global Best: " << std::fixed << std::setprecision(4) << m_globalBestFit;
+    
+    std::lock_guard<std::mutex> lock(s_outputMutex);
+    LOG_INFO(ss.str());
 }
