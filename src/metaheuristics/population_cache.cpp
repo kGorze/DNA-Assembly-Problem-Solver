@@ -18,6 +18,8 @@ double SimplePopulationCache::getOrCalculateFitness(
         return -std::numeric_limits<double>::infinity();
     }
     
+    std::lock_guard<std::mutex> lock(cacheMutex);
+    
     if (!m_fitness) {
         LOG_ERROR("Fitness calculator not initialized");
         return -std::numeric_limits<double>::infinity();
@@ -27,25 +29,19 @@ double SimplePopulationCache::getOrCalculateFitness(
         std::string key = individual->toString();
         
         // Check cache first
-        {
-            std::lock_guard<std::mutex> lock(cacheMutex);
-            auto it = cache.find(key);
-            if (it != cache.end()) {
-                return it->second;
-            }
+        auto it = cache.find(key);
+        if (it != cache.end()) {
+            return it->second;
         }
         
         // Calculate fitness
         double fitness = m_fitness->evaluate(individual, instance);
         
-        // Cache result with thread safety
-        {
-            std::lock_guard<std::mutex> lock(cacheMutex);
-            if (cache.size() >= maxCacheSize) {
-                cleanupCache();
-            }
-            cache[key] = fitness;
+        // Cache result
+        if (cache.size() >= maxCacheSize) {
+            cleanupCache();
         }
+        cache[key] = fitness;
         
         return fitness;
         
@@ -72,9 +68,14 @@ void SimplePopulationCache::updatePopulation(
     // Update cache with new population
     for (const auto& individual : population) {
         if (individual) {
-            std::string key = individual->toString();
-            if (auto it = cache.find(key); it == cache.end()) {
-                cache[key] = individual->getFitness();
+            try {
+                std::string key = individual->toString();
+                if (auto it = cache.find(key); it == cache.end()) {
+                    cache[key] = individual->getFitness();
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR("Failed to update cache for individual: " + std::string(e.what()));
+                continue;
             }
         }
     }
@@ -88,13 +89,19 @@ void SimplePopulationCache::clear() {
 void SimplePopulationCache::cleanupCache() {
     if (cache.size() <= maxCacheSize / 2) return;
     
-    std::vector<std::pair<std::string, double>> entries(
-        cache.begin(), cache.end());
-    
-    // Keep only the most recent half
-    size_t keepCount = maxCacheSize / 2;
-    cache.clear();
-    for (size_t i = entries.size() - keepCount; i < entries.size(); ++i) {
-        cache.insert(entries[i]);
+    try {
+        std::vector<std::pair<std::string, double>> entries(
+            cache.begin(), cache.end());
+        
+        // Keep only the most recent half
+        size_t keepCount = maxCacheSize / 2;
+        cache.clear();
+        for (size_t i = entries.size() - keepCount; i < entries.size(); ++i) {
+            cache.insert(entries[i]);
+        }
+    } catch (const std::exception& e) {
+        LOG_ERROR("Failed to cleanup cache: " + std::string(e.what()));
+        // If cleanup fails, just clear the cache entirely
+        cache.clear();
     }
 }

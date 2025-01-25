@@ -63,20 +63,42 @@ public:
         const GeneticConfig& config
     );
 
+    // Prevent copying to avoid memory issues
+    GeneticAlgorithm(const GeneticAlgorithm&) = delete;
+    GeneticAlgorithm& operator=(const GeneticAlgorithm&) = delete;
+
+    // Allow moving
+    GeneticAlgorithm(GeneticAlgorithm&&) noexcept = default;
+    GeneticAlgorithm& operator=(GeneticAlgorithm&&) noexcept = default;
+
     ~GeneticAlgorithm();
 
     void run(const DNAInstance& instance);
 
     void setProgressCallback(ProgressCallback callback) { 
-        progressCallback = callback; 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        progressCallback = std::move(callback); 
     }
-    void setProcessId(int pid) { m_processId = pid; }
 
-    // Po uruchomieniu GA można pobrać najlepsze DNA
-    const std::string& getBestDNA() const { return m_bestDNA; }
+    void setProcessId(int pid) { 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_processId = pid; 
+    }
 
-    double getBestFitness() const { return m_globalBestFit; }
-    std::shared_ptr<Individual> getBestIndividual() const { return m_globalBestInd; }
+    std::string getBestDNA() const { 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_bestDNA; 
+    }
+
+    double getBestFitness() const { 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_globalBestFit; 
+    }
+
+    std::shared_ptr<Individual> getBestIndividual() const { 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_globalBestInd ? std::make_shared<Individual>(*m_globalBestInd) : nullptr;
+    }
 
 private:
     void logGenerationStats(const std::vector<std::shared_ptr<Individual>>& pop,
@@ -87,35 +109,35 @@ private:
                          const DNAInstance& instance);
     void calculateTheoreticalMaxFitness(const DNAInstance& instance);
     void evolve(const DNAInstance& instance);
-    std::string vectorToString(const std::vector<int>& vec);
+    static std::string vectorToString(const std::vector<int>& vec);
     std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(const DNAInstance& instance) const;
     int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
 
-    static std::mutex outputMutex;
+    // Thread safety
+    mutable std::mutex m_mutex;
+    static std::mutex s_outputMutex;
 
-    std::shared_ptr<IRepresentation> m_representation;
-    std::shared_ptr<ISelection> m_selection;
-    std::shared_ptr<ICrossover> m_crossover;
-    std::shared_ptr<IMutation> m_mutation;
-    std::shared_ptr<IReplacement> m_replacement;
-    std::shared_ptr<IFitness> m_fitness;
-    std::shared_ptr<IPopulationCache> m_cache;
-    std::shared_ptr<IStopping> m_stopping;
-    GeneticConfig m_config;
+    // Components (const to prevent modification after construction)
+    const std::shared_ptr<IRepresentation> m_representation;
+    const std::shared_ptr<ISelection> m_selection;
+    const std::shared_ptr<ICrossover> m_crossover;
+    const std::shared_ptr<IMutation> m_mutation;
+    const std::shared_ptr<IReplacement> m_replacement;
+    const std::shared_ptr<IFitness> m_fitness;
+    const std::shared_ptr<IPopulationCache> m_cache;
+    const std::shared_ptr<IStopping> m_stopping;
+    const GeneticConfig m_config;
 
+    // State
     std::vector<std::shared_ptr<Individual>> population;
-    
     ProgressCallback progressCallback;
-
-    // Najlepszy osobnik
     std::shared_ptr<Individual> m_globalBestInd;
-    double m_globalBestFit = -std::numeric_limits<double>::infinity();
     std::string m_bestDNA;
+    double m_globalBestFit{-std::numeric_limits<double>::infinity()};
+    int m_processId{0};
+    double m_theoreticalMaxFitness{0.0};
 
-    int m_processId = 0;
-    double m_theoreticalMaxFitness = 0.0;
-
-    // Random number generation
-    std::mt19937 generator;
-    std::uniform_real_distribution<> distribution;
+    // Random number generation (mutable to allow const member functions)
+    mutable std::mt19937 generator{std::random_device{}()};
+    mutable std::uniform_real_distribution<> distribution{0.0, 1.0};
 };
