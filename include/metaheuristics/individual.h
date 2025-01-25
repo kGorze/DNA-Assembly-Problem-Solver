@@ -4,6 +4,9 @@
 #include <string>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
+#include <algorithm>
+#include <mutex>
 
 class Individual {
 public:
@@ -21,7 +24,12 @@ public:
     ~Individual() = default;
 
     // Getters and setters with validation
-    const std::vector<int>& getGenes() const { return m_genes; }
+    const std::vector<int>& getGenes() const { 
+        if (!m_isValid) {
+            throw std::runtime_error("Individual is in an invalid state");
+        }
+        return m_genes; 
+    }
     
     std::vector<int>& getGenes() { 
         m_isValid = false;  // Mark as needing validation since genes can be modified
@@ -29,8 +37,23 @@ public:
     }
     
     void setGenes(std::vector<int> genes);
-    double getFitness() const { return m_fitness; }
-    void setFitness(double fitness);
+    
+    double getFitness() const { 
+        if (!m_isValid) {
+            throw std::runtime_error("Individual is in an invalid state");
+        }
+        return m_fitness; 
+    }
+    
+    void setFitness(double fitness) {
+        if (!m_isValid) {
+            throw std::runtime_error("Individual is in an invalid state");
+        }
+        if (!std::isfinite(fitness)) {
+            throw std::invalid_argument("Fitness must be a finite number");
+        }
+        m_fitness = fitness;
+    }
 
     // Utility methods
     bool empty() const { return m_genes.empty(); }
@@ -39,7 +62,11 @@ public:
     std::string toString() const;
 
     // Validation methods
-    void validate() { validateGenes(); }
+    void validate() {
+        if (!m_isValid) {
+            validateGenes();
+        }
+    }
 
 private:
     void validateGenes();
@@ -48,4 +75,5 @@ private:
     std::vector<int> m_genes;
     double m_fitness{0.0};
     bool m_isValid{false};
+    mutable std::mutex m_mutex;  // For thread safety
 }; 

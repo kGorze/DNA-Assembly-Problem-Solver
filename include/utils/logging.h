@@ -4,60 +4,29 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 
 class Logger {
+public:
+    static void init(const std::string& logFilePath);
+    static void cleanup();
+    
+    static void log(const std::string& level, const std::string& message);
+    static void log(const std::string& message, const std::string& category, 
+                   const std::string& file, int line, const std::string& function);
+
+    static void logDebug(const std::string& message);
+    static void logInfo(const std::string& message);
+    static void logWarning(const std::string& message);
+    static void logError(const std::string& message);
+
 private:
     static std::ofstream logFile;
     static std::streambuf* coutBuffer;
     static std::streambuf* cerrBuffer;
     static bool initialized;
-
-public:
-    static void init() {
-        if (initialized) return;
-        
-        logFile.open("sbh_framework.log", std::ios::out | std::ios::trunc);
-        if (logFile.is_open()) {
-            coutBuffer = std::cout.rdbuf();
-            cerrBuffer = std::cerr.rdbuf();
-            std::cout.rdbuf(logFile.rdbuf());
-            std::cerr.rdbuf(logFile.rdbuf());
-            initialized = true;
-        }
-    }
-
-    static void log(const std::string& level, const std::string& message) {
-        if (!initialized || !logFile.is_open()) return;
-
-        try {
-            auto now = std::time(nullptr);
-            if (auto* timeinfo = std::localtime(&now)) {
-                char timestamp[26] = {0}; // One extra byte for null terminator
-                if (std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo) > 0) {
-                    logFile << timestamp << " - " << level << " - " << message << std::endl;
-                    logFile.flush();
-                }
-            }
-        } catch (const std::exception&) {
-            // Silently fail if logging fails - we don't want logging errors to crash the program
-        }
-    }
-
-    static void cleanup() {
-        if (!initialized) return;
-        
-        if (logFile.is_open()) {
-            std::cout.rdbuf(coutBuffer);
-            std::cerr.rdbuf(cerrBuffer);
-            logFile.close();
-        }
-        initialized = false;
-        coutBuffer = nullptr;
-        cerrBuffer = nullptr;
-    }
+    static std::mutex logMutex;
 };
-
-bool Logger::initialized = false;
 
 // Global logging macros - avoid unnecessary string construction
 #define LOG(level, msg) Logger::log(level, msg)
