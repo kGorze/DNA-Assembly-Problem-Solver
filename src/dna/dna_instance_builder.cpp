@@ -52,7 +52,8 @@ DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
 
 DNAInstanceBuilder& DNAInstanceBuilder::buildSpectrum() {
     try {
-        auto spectrum = m_generator.generateSpectrum(
+        SpectrumGenerator specGen;
+        auto spectrum = specGen.generateSpectrum(
             m_instance.getDNA(), 
             m_instance.getK(), 
             m_instance.getDeltaK()
@@ -78,5 +79,6 @@ DNAInstanceBuilder& DNAInstanceBuilder::applyError(IErrorIntroductionStrategy* s
 }
 
 DNAInstance DNAInstanceBuilder::build() const {
-    return m_instance;
+    DNAInstance result(std::move(m_instance));
+    return result;
 } 

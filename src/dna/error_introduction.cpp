@@ -9,8 +9,15 @@ bool BaseErrorIntroducer::validateInstance(const DNAInstance& instance) const {
         LOG_ERROR("Cannot introduce errors: DNA sequence is empty");
         return false;
     }
+    if (instance.getSpectrum().empty()) {
+        LOG_ERROR("Cannot introduce errors: spectrum is empty");
+        return false;
+    }
     return true;
 }
+
+NegativeErrorIntroducer::NegativeErrorIntroducer(int lNeg)
+    : m_lNeg(lNeg), m_rng(std::random_device{}()) {}
 
 void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
     if (!validateInstance(instance)) {
@@ -22,7 +29,7 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
         return;
     }
 
-    auto& spectrum = instance.getSpectrum();
+    auto& spectrum = instance.getModifiableSpectrum();
     if (spectrum.empty()) {
         LOG_ERROR("Cannot introduce negative errors: spectrum is empty");
         throw std::runtime_error("Empty spectrum");
@@ -45,6 +52,9 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
         }
     }
 }
+
+PositiveErrorIntroducer::PositiveErrorIntroducer(int lPoz, int k)
+    : m_lPoz(lPoz), m_k(k), m_rng(std::random_device{}()) {}
 
 std::string PositiveErrorIntroducer::generateRandomKmer(int length) const {
     static const char nucleotides[] = {'A', 'C', 'G', 'T'};
@@ -69,9 +79,14 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
         return;
     }
 
-    auto& spectrum = instance.getSpectrum();
+    auto& spectrum = instance.getModifiableSpectrum();
+    const int deltaK = instance.getDeltaK();
+    std::uniform_int_distribution<> deltaKDist(-deltaK, deltaK);
+
     for (int i = 0; i < m_lPoz; ++i) {
-        std::string randomKmer = generateRandomKmer(m_k);
+        int len = m_k + deltaKDist(m_rng);
+        len = std::max(1, len);  // Ensure length is at least 1
+        std::string randomKmer = generateRandomKmer(len);
         spectrum.push_back(randomKmer);
     }
 

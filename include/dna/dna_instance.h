@@ -6,32 +6,48 @@
 #include <mutex>
 
 class DNAInstance {
+private:
+    int n = 0;  // DNA length
+    int k = 0;
+    int deltaK = 0;
+    int lNeg = 0;
+    int lPoz = 0;
+    bool repAllowed = false;
+    int probablePositive = 0;
+    int startIndex = -1;
+    int size = 0;
+    std::string targetSequence;
+    std::string m_dna;
+    std::string m_originalDNA;
+    std::vector<std::string> m_spectrum;
+    mutable std::mutex m_mutex;  // For thread-safe access to DNA and spectrum
+
 public:
     DNAInstance() = default;
     
     DNAInstance(const std::string& originalDNA, int kValue)
-        : m_originalDNA(originalDNA), k(std::max(1, kValue)) {}
+        : k(std::max(1, kValue))
+        , m_originalDNA(originalDNA) {}
     
     // Move constructor
     DNAInstance(DNAInstance&& other) noexcept
-        : m_originalDNA(std::move(other.m_originalDNA))
-        , m_dna(std::move(other.m_dna))
-        , m_spectrum(std::move(other.m_spectrum))
-        , n(other.n)
+        : n(other.n)
         , k(other.k)
         , deltaK(other.deltaK)
         , lNeg(other.lNeg)
         , lPoz(other.lPoz)
         , repAllowed(other.repAllowed)
         , probablePositive(other.probablePositive)
-        , startIndex(other.startIndex) {}
+        , startIndex(other.startIndex)
+        , size(other.size)
+        , targetSequence(std::move(other.targetSequence))
+        , m_dna(std::move(other.m_dna))
+        , m_originalDNA(std::move(other.m_originalDNA))
+        , m_spectrum(std::move(other.m_spectrum)) {}
     
     // Move assignment operator
     DNAInstance& operator=(DNAInstance&& other) noexcept {
         if (this != &other) {
-            m_originalDNA = std::move(other.m_originalDNA);
-            m_dna = std::move(other.m_dna);
-            m_spectrum = std::move(other.m_spectrum);
             n = other.n;
             k = other.k;
             deltaK = other.deltaK;
@@ -40,6 +56,11 @@ public:
             repAllowed = other.repAllowed;
             probablePositive = other.probablePositive;
             startIndex = other.startIndex;
+            size = other.size;
+            targetSequence = std::move(other.targetSequence);
+            m_dna = std::move(other.m_dna);
+            m_originalDNA = std::move(other.m_originalDNA);
+            m_spectrum = std::move(other.m_spectrum);
         }
         return *this;
     }
@@ -67,6 +88,12 @@ public:
     }
     
     std::vector<std::string> getSpectrum() const { 
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_spectrum;
+    }
+    
+    // Thread-safe getter for modifiable spectrum
+    std::vector<std::string>& getModifiableSpectrum() {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_spectrum;
     }
@@ -173,22 +200,4 @@ public:
 
     // Additional functionality
     int findStartVertexIndex(const DNAInstance& instance);
-
-private:
-    int n = 0;  // DNA length
-    int k = 0;
-    int deltaK = 0;
-    int lNeg = 0;
-    int lPoz = 0;
-    bool repAllowed = false;
-    int probablePositive = 0;
-    int startIndex = -1;
-    int size = 0;
-    
-    std::string m_dna;
-    std::string targetSequence;
-    std::vector<std::string> m_spectrum;
-    std::string m_originalDNA;
-    
-    mutable std::mutex m_mutex;  // For thread-safe access to DNA and spectrum
 }; 
