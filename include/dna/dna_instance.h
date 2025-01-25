@@ -12,6 +12,42 @@ public:
     DNAInstance(const std::string& originalDNA, int kValue)
         : m_originalDNA(originalDNA), k(std::max(1, kValue)) {}
     
+    // Move constructor
+    DNAInstance(DNAInstance&& other) noexcept
+        : m_originalDNA(std::move(other.m_originalDNA))
+        , m_dna(std::move(other.m_dna))
+        , m_spectrum(std::move(other.m_spectrum))
+        , n(other.n)
+        , k(other.k)
+        , deltaK(other.deltaK)
+        , lNeg(other.lNeg)
+        , lPoz(other.lPoz)
+        , repAllowed(other.repAllowed)
+        , probablePositive(other.probablePositive)
+        , startIndex(other.startIndex) {}
+    
+    // Move assignment operator
+    DNAInstance& operator=(DNAInstance&& other) noexcept {
+        if (this != &other) {
+            m_originalDNA = std::move(other.m_originalDNA);
+            m_dna = std::move(other.m_dna);
+            m_spectrum = std::move(other.m_spectrum);
+            n = other.n;
+            k = other.k;
+            deltaK = other.deltaK;
+            lNeg = other.lNeg;
+            lPoz = other.lPoz;
+            repAllowed = other.repAllowed;
+            probablePositive = other.probablePositive;
+            startIndex = other.startIndex;
+        }
+        return *this;
+    }
+    
+    // Delete copy constructor and assignment operator
+    DNAInstance(const DNAInstance&) = delete;
+    DNAInstance& operator=(const DNAInstance&) = delete;
+    
     // Getters for instance parameters
     int getN() const { return n; }
     int getK() const { return k; }
@@ -27,12 +63,12 @@ public:
     // Thread-safe getters for DNA and spectrum
     std::string getDNA() const { 
         std::lock_guard<std::mutex> lock(m_mutex);
-        return dna; 
+        return m_dna; 
     }
     
     std::vector<std::string> getSpectrum() const { 
         std::lock_guard<std::mutex> lock(m_mutex);
-        return spectrum;
+        return m_spectrum;
     }
     
     const std::string& getOriginalDNA() const { return m_originalDNA; }
@@ -99,7 +135,7 @@ public:
         if (value.empty()) {
             LOG_WARNING("Empty DNA sequence provided");
         }
-        dna = value;
+        m_dna = value;
     }
     
     void setSpectrum(const std::vector<std::string>& value) {
@@ -107,7 +143,7 @@ public:
         if (value.empty()) {
             LOG_WARNING("Empty spectrum provided");
         }
-        spectrum = value;
+        m_spectrum = value;
     }
     
     void setStartIndex(int value) {
@@ -149,9 +185,9 @@ private:
     int startIndex = -1;
     int size = 0;
     
-    std::string dna;
+    std::string m_dna;
     std::string targetSequence;
-    std::vector<std::string> spectrum;
+    std::vector<std::string> m_spectrum;
     std::string m_originalDNA;
     
     mutable std::mutex m_mutex;  // For thread-safe access to DNA and spectrum

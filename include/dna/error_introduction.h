@@ -1,11 +1,10 @@
 #pragma once
 
 #include "utils/logging.h"
-#include <algorithm>
-#include <random>
-#include <stdexcept>
-#include <memory>
 #include "dna/dna_instance.h"
+#include <memory>
+#include <random>
+#include <mutex>
 
 // Interface for error introduction strategies
 class IErrorIntroductionStrategy {
@@ -127,7 +126,6 @@ public:
         }
     }
     
-private:
     std::string generateRandomKmer(int length) const {
         static const char nucleotides[] = {'A', 'C', 'G', 'T'};
         std::string kmer;
