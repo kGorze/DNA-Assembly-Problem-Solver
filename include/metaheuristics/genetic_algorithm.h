@@ -6,11 +6,7 @@
 #include <mutex>
 #include <string>
 #include <limits>
-#include <iomanip>
-#include <sstream>
 #include <random>
-#include <algorithm>
-#include <chrono>
 
 // Interface includes
 #include "../interfaces/i_representation.h"
@@ -23,30 +19,11 @@
 #include "../interfaces/i_population_cache.h"
 
 // Other includes
-#include "../utils/performance_profilling_framework.h"
-#include "../configuration/genetic_algorithm_configuration.h"
-#include "../naive/naive_reconstruction.h"
 #include "../dna/dna_instance.h"
-#include "../metaheuristics/adaptive_crossover.h"
-#include "../metaheuristics/path_analyzer.h"
-#include "../metaheuristics/preprocessed_edge.h"
 #include "../metaheuristics/individual.h"
 #include "../config/genetic_config.h"
 
-// Forward declarations of interfaces
-class IRepresentation;
-class ISelection;
-class ICrossover;
-class IMutation;
-class IReplacement;
-class IFitness;
-class IStopping;
-class IPopulationCache;
-
-double runGeneticAlgorithmWrapper(const DNAInstance& instance);
-
-// Definicja typu funkcji-callbacku
-// Teraz z dodatkowymi parametrami coverage, edgeScore, theoreticalMax
+// Progress callback type
 using ProgressCallback = std::function<void(int, int, double, double, double, double)>;
 
 class GeneticAlgorithm {
@@ -63,7 +40,7 @@ public:
         const GeneticConfig& config
     );
 
-    // Prevent copying to avoid memory issues
+    // Prevent copying
     GeneticAlgorithm(const GeneticAlgorithm&) = delete;
     GeneticAlgorithm& operator=(const GeneticAlgorithm&) = delete;
 
@@ -82,7 +59,7 @@ public:
 
     void setProcessId(int pid) { 
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_processId = pid; 
+        m_processId = std::to_string(pid); 
     }
 
     std::string getBestDNA() const { 
@@ -107,11 +84,6 @@ private:
     void initializePopulation(int popSize, const DNAInstance& instance);
     void updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& pop,
                          const DNAInstance& instance);
-    void calculateTheoreticalMaxFitness(const DNAInstance& instance);
-    void evolve(const DNAInstance& instance);
-    static std::string vectorToString(const std::vector<int>& vec);
-    std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(const DNAInstance& instance) const;
-    int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
 
     // Thread safety
     mutable std::mutex m_mutex;
@@ -130,15 +102,11 @@ private:
 
     // State
     std::vector<std::shared_ptr<Individual>> m_population;
-    mutable double m_globalBestFit;
-    mutable std::shared_ptr<Individual> m_globalBestInd;
+    mutable double m_globalBestFit{-std::numeric_limits<double>::infinity()};
+    mutable std::shared_ptr<Individual> m_globalBestInd{nullptr};
     std::string m_bestDNA;
     std::string m_processId;
     double m_theoreticalMaxFitness{0.0};
-
-    // Random number generation (mutable to allow const member functions)
-    mutable std::mt19937 generator{std::random_device{}()};
-    mutable std::uniform_real_distribution<> distribution{0.0, 1.0};
 
     // Progress callback
     ProgressCallback progressCallback;
