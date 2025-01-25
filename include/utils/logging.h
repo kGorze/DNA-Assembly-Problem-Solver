@@ -57,10 +57,6 @@ public:
     }
 };
 
-// Initialize static members
-std::ofstream Logger::logFile;
-std::streambuf* Logger::coutBuffer = nullptr;
-std::streambuf* Logger::cerrBuffer = nullptr;
 bool Logger::initialized = false;
 
 // Global logging macros - avoid unnecessary string construction

@@ -1,13 +1,13 @@
 #include "../include/metaheuristics/genetic_algorithm.h"
 #include "../include/configuration/genetic_algorithm_configuration.h"
 #include "../include/metaheuristics/genetic_algorithm_runner.h"
+#include "../include/utils/logging.h"
 #include <iostream>
 #include <random>
 #include <chrono>
 #include <algorithm>
 #include <mutex>
 #include <string>
-#include "../include/utils/logging.h"
 #include <sstream>
 #include <iomanip>
 #include <numeric>
@@ -24,7 +24,7 @@ namespace {
     }
 }
 
-std::mutex GeneticAlgorithm::outputMutex;
+std::mutex GeneticAlgorithm::s_outputMutex;
 
 GeneticAlgorithm::GeneticAlgorithm(
     std::shared_ptr<IRepresentation> representation,
@@ -45,8 +45,6 @@ GeneticAlgorithm::GeneticAlgorithm(
     , m_cache(std::move(cache))
     , m_stopping(std::move(stopping))
     , m_config(config)
-    , generator(std::random_device{}())
-    , distribution(0.0, 1.0)
 {
     if (!m_representation || !m_selection || !m_crossover || !m_mutation || 
         !m_replacement || !m_fitness || !m_stopping) {
@@ -57,6 +55,7 @@ GeneticAlgorithm::GeneticAlgorithm(
 
 GeneticAlgorithm::~GeneticAlgorithm() {
     try {
+        std::lock_guard<std::mutex> lock(m_mutex);
         population.clear();
         m_globalBestInd.reset();
     } catch (const std::exception& e) {
@@ -73,6 +72,8 @@ void GeneticAlgorithm::logGenerationStats(
         LOG_ERROR("Empty population in generation " + safeToString(generation));
         return;
     }
+
+    std::lock_guard<std::mutex> lock(s_outputMutex);
 
     // Always calculate statistics
     if (m_theoreticalMaxFitness == 0.0) {
@@ -122,6 +123,11 @@ void GeneticAlgorithm::logGenerationStats(
     ss << "Valid=" << validSolutions << "/" << validPopSize;
     
     LOG_INFO(ss.str());
+
+    // Call progress callback if set
+    if (progressCallback) {
+        progressCallback(generation, validSolutions, bestFit, avgFit, worstFit, progress);
+    }
 }
 
 void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance& instance)
@@ -130,6 +136,7 @@ void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance& inst
         throw std::invalid_argument("Population size must be positive");
     }
 
+    std::lock_guard<std::mutex> lock(m_mutex);
     population = m_representation->initializePopulation(popSize, instance);
     
     if (population.empty()) {
@@ -186,6 +193,7 @@ void GeneticAlgorithm::updateGlobalBest(
         return;
     }
 
+    std::lock_guard<std::mutex> lock(m_mutex);
     for (const auto& individual : pop) {
         if (!individual) continue;
         
@@ -215,9 +223,12 @@ void GeneticAlgorithm::run(const DNAInstance& instance) {
         m_stopping->reset();
         
         // Clear population and cache
-        population.clear();
-        if (m_cache) {
-            m_cache->clear();
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            population.clear();
+            if (m_cache) {
+                m_cache->clear();
+            }
         }
         
         // Initialize population
@@ -284,7 +295,10 @@ void GeneticAlgorithm::run(const DNAInstance& instance) {
                 }
                 
                 // Replacement
-                population = m_replacement->replace(population, offspring, instance, m_representation);
+                {
+                    std::lock_guard<std::mutex> lock(m_mutex);
+                    population = m_replacement->replace(population, offspring, instance, m_representation);
+                }
                 
                 // Update best solution
                 updateGlobalBest(population, instance);
@@ -389,67 +403,4 @@ int GeneticAlgorithm::calculateEdgeWeight(const std::string& from, const std::st
     }
     
     return 0;
-}
-
-void GeneticAlgorithm::evolve(const DNAInstance& instance) {
-    // Select parents
-    auto parents = m_selection->select(population, instance, m_fitness, m_representation);
-    
-    if (parents.empty()) {
-        LOG_ERROR("Selection returned empty parents list");
-        return;
-    }
-    
-    // Create offspring through crossover
-    auto offspring = m_crossover->crossover(parents, instance, m_representation);
-    
-    if (offspring.empty()) {
-        LOG_WARNING("Crossover produced no offspring, using parents instead");
-        offspring = parents;
-    }
-    
-    // Validate offspring before mutation
-    offspring.erase(
-        std::remove_if(offspring.begin(), offspring.end(),
-            [](const auto& ind) { return !ind || ind->empty(); }),
-        offspring.end()
-    );
-    
-    if (offspring.empty()) {
-        LOG_ERROR("No valid offspring after validation");
-        return;
-    }
-    
-    // Mutate offspring
-    for (auto& child : offspring) {
-        if (child && !child->empty()) {
-            m_mutation->mutate(child, instance, m_representation);
-        }
-    }
-    
-    // Calculate fitness for population and offspring
-    std::vector<double> populationFitness;
-    populationFitness.reserve(population.size());
-    for (const auto& individual : population) {
-        if (individual && !individual->empty()) {
-            populationFitness.push_back(m_cache->getOrCalculateFitness(individual, instance, m_fitness, m_representation));
-        }
-    }
-    
-    std::vector<double> offspringFitness;
-    offspringFitness.reserve(offspring.size());
-    for (const auto& individual : offspring) {
-        if (individual && !individual->empty()) {
-            offspringFitness.push_back(m_cache->getOrCalculateFitness(individual, instance, m_fitness, m_representation));
-        }
-    }
-    
-    // Replace old population with offspring
-    population = m_replacement->replace(population, offspring, populationFitness, offspringFitness, instance, m_representation);
-    
-    // Validate final population
-    if (population.empty()) {
-        LOG_ERROR("Replacement produced empty population");
-        population = parents;  // Fallback to parents if replacement fails
-    }
 }

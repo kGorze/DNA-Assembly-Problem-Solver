@@ -126,18 +126,20 @@ private:
     const std::shared_ptr<IFitness> m_fitness;
     const std::shared_ptr<IPopulationCache> m_cache;
     const std::shared_ptr<IStopping> m_stopping;
-    const GeneticConfig m_config;
+    const GeneticConfig& m_config;
 
     // State
-    std::vector<std::shared_ptr<Individual>> population;
-    ProgressCallback progressCallback;
-    std::shared_ptr<Individual> m_globalBestInd;
+    std::vector<std::shared_ptr<Individual>> m_population;
+    mutable double m_globalBestFit;
+    mutable std::shared_ptr<Individual> m_globalBestInd;
     std::string m_bestDNA;
-    double m_globalBestFit{-std::numeric_limits<double>::infinity()};
-    int m_processId{0};
+    std::string m_processId;
     double m_theoreticalMaxFitness{0.0};
 
     // Random number generation (mutable to allow const member functions)
     mutable std::mt19937 generator{std::random_device{}()};
     mutable std::uniform_real_distribution<> distribution{0.0, 1.0};
+
+    // Progress callback
+    ProgressCallback progressCallback;
 };
