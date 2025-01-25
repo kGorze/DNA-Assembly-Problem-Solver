@@ -34,9 +34,11 @@ public:
     
     DNAInstanceBuilder& applyError(IErrorIntroductionStrategy* strategy);
     
-    DNAInstance build() const;
+    // Build method that returns a new instance
+    DNAInstance build();
     
-    const DNAInstance& getInstance() const;
+    // Get a reference to the instance being built
+    const DNAInstance& getInstance() const { return m_instance; }
     
 private:
     mutable std::mutex m_mutex;

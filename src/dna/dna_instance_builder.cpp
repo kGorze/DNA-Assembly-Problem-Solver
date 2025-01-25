@@ -78,7 +78,24 @@ DNAInstanceBuilder& DNAInstanceBuilder::applyError(IErrorIntroductionStrategy* s
     return *this;
 }
 
-DNAInstance DNAInstanceBuilder::build() const {
-    DNAInstance result(std::move(m_instance));
+DNAInstance DNAInstanceBuilder::build() {
+    // Create a new instance with the same parameters
+    DNAInstance result(m_instance.getOriginalDNA(), m_instance.getK());
+    
+    // Set all parameters
+    result.setN(m_instance.getN());
+    result.setDeltaK(m_instance.getDeltaK());
+    result.setLNeg(m_instance.getLNeg());
+    result.setLPoz(m_instance.getLPoz());
+    result.setRepAllowed(m_instance.isRepAllowed());
+    result.setProbablePositive(m_instance.getProbablePositive());
+    result.setStartIndex(m_instance.getStartIndex());
+    result.setSize(m_instance.getSize());
+    
+    // Set DNA and spectrum using the thread-safe methods
+    result.setDNA(m_instance.getDNA());
+    result.setSpectrum(m_instance.getSpectrum());
+    result.setTargetSequence(m_instance.getTargetSequence());
+    
     return result;
 } 
