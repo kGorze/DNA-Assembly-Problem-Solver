@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <numeric>
 #include <mutex>
+#include <set>
 
 /* **********************************************
  *          RandomGenerator – singleton
@@ -161,7 +162,7 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
     std::uniform_int_distribution<int> dist(0, spectrum.size() - 1);
     std::vector<int> indices;
     indices.reserve(spectrum.size());
-    for (int i = 0; i < spectrum.size(); ++i) {
+    for (size_t i = 0; i < spectrum.size(); ++i) {
         indices.push_back(i);
     }
 
@@ -191,17 +192,7 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
     std::uniform_int_distribution<int> lengthDist(k - deltaK, k + deltaK);
     std::uniform_int_distribution<int> baseDist(0, 3);
 
-    if (instance.getRepAllowed()) {
-        for (int i = 0; i < m_lPoz; ++i) {
-            int length = lengthDist(m_rng);
-            std::string oligo;
-            oligo.reserve(length);
-            for (int j = 0; j < length; ++j) {
-                oligo += "ACGT"[baseDist(m_rng)];
-            }
-            spectrum.push_back(oligo);
-        }
-    } else {
+    if (!instance.isRepAllowed()) {
         std::set<std::string> uniqueOligos;
         for (const auto& oligo : spectrum) {
             uniqueOligos.insert(oligo);
@@ -227,6 +218,16 @@ void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
                 }
                 ++attempts;
             }
+        }
+    } else {
+        for (int i = 0; i < m_lPoz; ++i) {
+            int length = lengthDist(m_rng);
+            std::string oligo;
+            oligo.reserve(length);
+            for (int j = 0; j < length; ++j) {
+                oligo += "ACGT"[baseDist(m_rng)];
+            }
+            spectrum.push_back(oligo);
         }
     }
 

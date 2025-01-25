@@ -28,34 +28,10 @@ namespace {
 // Initialize static mutex
 std::mutex GeneticAlgorithm::s_outputMutex;
 
-GeneticAlgorithm::GeneticAlgorithm(
-    std::shared_ptr<IRepresentation> representation,
-    std::shared_ptr<ISelection> selection,
-    std::shared_ptr<ICrossover> crossover,
-    std::shared_ptr<IMutation> mutation,
-    std::shared_ptr<IReplacement> replacement,
-    std::shared_ptr<IFitness> fitness,
-    std::shared_ptr<IPopulationCache> cache,
-    std::shared_ptr<IStopping> stopping,
-    const GeneticConfig& config)
-    : m_representation(std::move(representation))
-    , m_selection(std::move(selection))
-    , m_crossover(std::move(crossover))
-    , m_mutation(std::move(mutation))
-    , m_replacement(std::move(replacement))
-    , m_fitness(std::move(fitness))
-    , m_cache(std::move(cache))
-    , m_stopping(std::move(stopping))
-    , m_config(config)
-    , m_globalBestFit(-std::numeric_limits<double>::infinity())
-    , m_globalBestInd(nullptr)
-{
-    if (!m_representation || !m_selection || !m_crossover || !m_mutation || 
-        !m_replacement || !m_fitness || !m_cache || !m_stopping) {
-        throw std::invalid_argument("All components must be non-null");
-    }
-    LOG_INFO("Initializing Genetic Algorithm with population size: " + safeToString(m_config.getPopulationSize()));
-}
+GeneticAlgorithm::GeneticAlgorithm(const GeneticConfig& config, std::unique_ptr<IRepresentation> representation)
+    : m_config(config)
+    , m_representation(std::move(representation))
+    , m_random(std::make_unique<Random>()) {}
 
 GeneticAlgorithm::~GeneticAlgorithm() {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -128,113 +104,190 @@ void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance& inst
     }
 }
 
-void GeneticAlgorithm::updateGlobalBest(
-    const std::vector<std::shared_ptr<Individual>>& pop,
-    const DNAInstance& instance) {
-    
-    std::lock_guard<std::mutex> lock(m_mutex);
-    
-    for (const auto& individual : pop) {
-        if (!individual) continue;
-        
-        try {
-            double fitness = m_fitness->calculateFitness(individual, instance, m_representation);
-            if (fitness > m_globalBestFit) {
-                m_globalBestFit = fitness;
-                m_globalBestInd = std::make_shared<Individual>(*individual);
-                m_bestDNA = m_representation->toString(individual->getGenes());
-            }
-        } catch (const std::exception& e) {
-            LOG_WARNING("Error calculating fitness: " + std::string(e.what()));
-        }
+void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& population, const DNAInstance& instance) {
+    if (population.empty()) return;
+
+    auto bestIndividual = *std::min_element(population.begin(), population.end(),
+        [](const auto& a, const auto& b) { return a->getFitness() < b->getFitness(); });
+
+    if (!m_globalBestInd || bestIndividual->getFitness() < m_globalBestFit) {
+        m_globalBestFit = bestIndividual->getFitness();
+        m_globalBestInd = std::make_shared<Individual>(*bestIndividual);
+        m_bestDNA = m_representation->toString(bestIndividual, instance);
+        LOG_INFO("New best fitness: " + std::to_string(m_globalBestFit));
+        LOG_INFO("Best DNA: " + m_bestDNA);
     }
 }
 
-void GeneticAlgorithm::run(const DNAInstance& instance) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+std::string GeneticAlgorithm::run(const DNAInstance& instance) {
+    if (!m_representation) {
+        throw std::runtime_error("Representation not set");
+    }
+
+    // Initialize population
+    m_population = m_representation->initializePopulation(m_config.populationSize);
     
-    try {
-        // Clear any existing state
-        m_population.clear();
-        m_globalBestFit = -std::numeric_limits<double>::infinity();
-        m_globalBestInd = nullptr;
+    // Evaluate initial population
+    evaluatePopulation();
+    
+    // Main loop
+    for (size_t generation = 0; generation < m_config.maxGenerations; ++generation) {
+        // Selection
+        auto parents = selectParents();
         
-        // Initialize population
-        initializePopulation(m_config.getPopulationSize(), instance);
+        // Crossover
+        auto offspring = crossover(parents);
         
-        // Reserve space in cache
-        m_cache->reserve(m_config.getPopulationSize() * 2);
-        
-        int generation = 0;
-        while (!m_stopping->shouldStop(generation, m_globalBestFit)) {
-            // Evaluate fitness for all individuals
-            for (auto& individual : m_population) {
-                if (!individual) continue;
-                
-                try {
-                    double fitness = m_fitness->calculateFitness(individual, instance, m_representation);
-                    individual->setFitness(fitness);
-                } catch (const std::exception& e) {
-                    LOG_WARNING("Error calculating fitness: " + std::string(e.what()));
-                    continue;
-                }
+        // Mutation
+        for (auto& individual : offspring) {
+            if (m_random->generateProbability() < m_config.mutationProbability) {
+                mutate(individual);
             }
-            
-            // Update global best
-            updateGlobalBest(m_population, instance);
-            
-            // Log progress
-            logGenerationStats(m_population, instance, generation);
-            
-            // Selection
-            auto parents = m_selection->select(m_population, m_config.getParentCount());
-            
-            // Crossover
-            auto offspring = m_crossover->crossover(parents, instance, m_representation);
-            
-            // Mutation
-            for (auto& individual : offspring) {
-                if (!individual) continue;
-                m_mutation->mutate(individual, instance, m_representation);
-            }
-            
-            // Evaluate offspring fitness
-            for (auto& individual : offspring) {
-                if (!individual) continue;
-                
-                try {
-                    double fitness = m_fitness->calculateFitness(individual, instance, m_representation);
-                    individual->setFitness(fitness);
-                } catch (const std::exception& e) {
-                    LOG_WARNING("Error calculating offspring fitness: " + std::string(e.what()));
-                    continue;
-                }
-            }
-            
-            // Replacement
-            m_population = m_replacement->replace(m_population, offspring);
-            
-            // Clear cache periodically
-            if (generation % 10 == 0) {
-                m_cache->clear();
-            }
-            
-            ++generation;
         }
         
-        LOG_INFO("Genetic algorithm completed after " + std::to_string(generation) + " generations");
-        LOG_INFO("Best fitness: " + std::to_string(m_globalBestFit));
+        // Replace population
+        m_population = std::move(offspring);
         
-    } catch (const std::exception& e) {
-        LOG_ERROR("Error in genetic algorithm: " + std::string(e.what()));
-        throw;
+        // Evaluate new population
+        evaluatePopulation();
+        
+        // Update best solution
+        updateBestSolution();
+        
+        // Log progress
+        if (generation % 100 == 0) {
+            LOG_INFO("Generation " << generation << ": Best fitness = " << m_bestFitness);
+        }
+        
+        // Check termination condition
+        if (m_bestFitness >= m_config.targetFitness) {
+            LOG_INFO("Target fitness reached at generation " << generation);
+            break;
+        }
+    }
+    
+    return m_representation->toDNA(m_bestSolution);
+}
+
+void GeneticAlgorithm::evaluatePopulation() {
+    for (auto& individual : m_population) {
+        if (!m_representation->isValid(individual)) {
+            individual->setFitness(0.0);
+            individual->setValid(false);
+            continue;
+        }
+        
+        double fitness = calculateFitness(individual);
+        individual->setFitness(fitness);
+        individual->setValid(true);
     }
 }
 
-void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instance)
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
+std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::selectParents() {
+    std::vector<std::shared_ptr<Individual>> parents;
+    parents.reserve(m_config.populationSize);
     
+    // Tournament selection
+    std::uniform_int_distribution<size_t> dist(0, m_population.size() - 1);
+    
+    while (parents.size() < m_config.populationSize) {
+        size_t idx1 = dist(m_random->getGenerator());
+        size_t idx2 = dist(m_random->getGenerator());
+        
+        if (m_population[idx1]->getFitness() > m_population[idx2]->getFitness()) {
+            parents.push_back(m_population[idx1]);
+        } else {
+            parents.push_back(m_population[idx2]);
+        }
+    }
+    
+    return parents;
+}
+
+std::vector<std::shared_ptr<Individual>> GeneticAlgorithm::crossover(
+    const std::vector<std::shared_ptr<Individual>>& parents) {
+    std::vector<std::shared_ptr<Individual>> offspring;
+    offspring.reserve(parents.size());
+    
+    for (size_t i = 0; i < parents.size(); i += 2) {
+        if (i + 1 >= parents.size()) {
+            offspring.push_back(std::make_shared<Individual>(*parents[i]));
+            continue;
+        }
+        
+        if (m_random->generateProbability() < m_config.crossoverProbability) {
+            auto [child1, child2] = performCrossover(parents[i], parents[i + 1]);
+            offspring.push_back(std::move(child1));
+            offspring.push_back(std::move(child2));
+        } else {
+            offspring.push_back(std::make_shared<Individual>(*parents[i]));
+            offspring.push_back(std::make_shared<Individual>(*parents[i + 1]));
+        }
+    }
+    
+    return offspring;
+}
+
+std::pair<std::shared_ptr<Individual>, std::shared_ptr<Individual>> GeneticAlgorithm::performCrossover(
+    const std::shared_ptr<Individual>& parent1,
+    const std::shared_ptr<Individual>& parent2) {
+    auto child1 = std::make_shared<Individual>();
+    auto child2 = std::make_shared<Individual>();
+    
+    const auto& genes1 = parent1->getGenes();
+    const auto& genes2 = parent2->getGenes();
+    
+    std::uniform_int_distribution<size_t> dist(0, genes1.size() - 1);
+    size_t crossoverPoint = dist(m_random->getGenerator());
+    
+    std::vector<int> childGenes1;
+    std::vector<int> childGenes2;
+    childGenes1.reserve(genes1.size());
+    childGenes2.reserve(genes2.size());
+    
+    // First child gets first part from parent1, second part from parent2
+    childGenes1.insert(childGenes1.end(), genes1.begin(), genes1.begin() + crossoverPoint);
+    childGenes1.insert(childGenes1.end(), genes2.begin() + crossoverPoint, genes2.end());
+    
+    // Second child gets first part from parent2, second part from parent1
+    childGenes2.insert(childGenes2.end(), genes2.begin(), genes2.begin() + crossoverPoint);
+    childGenes2.insert(childGenes2.end(), genes1.begin() + crossoverPoint, genes1.end());
+    
+    child1->setGenes(std::move(childGenes1));
+    child2->setGenes(std::move(childGenes2));
+    
+    return {child1, child2};
+}
+
+void GeneticAlgorithm::mutate(std::shared_ptr<Individual>& individual) {
+    auto genes = individual->getGenes();
+    std::uniform_int_distribution<size_t> posDist(0, genes.size() - 1);
+    std::uniform_int_distribution<int> valDist(0, 3);
+    
+    size_t pos = posDist(m_random->getGenerator());
+    genes[pos] = valDist(m_random->getGenerator());
+    
+    individual->setGenes(std::move(genes));
+}
+
+void GeneticAlgorithm::updateBestSolution() {
+    auto it = std::max_element(m_population.begin(), m_population.end(),
+        [](const auto& a, const auto& b) {
+            return a->getFitness() < b->getFitness();
+        });
+    
+    if (it != m_population.end() && (*it)->getFitness() > m_bestFitness) {
+        m_bestSolution = *it;
+        m_bestFitness = (*it)->getFitness();
+    }
+}
+
+double GeneticAlgorithm::calculateFitness(const std::shared_ptr<Individual>& individual) {
+    // TODO: Implement fitness calculation based on the problem requirements
+    return 0.0;
+}
+
+void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instance) {
     // Calculate theoretical maximum fitness based on instance parameters
     int k = instance.getK();
     int n = instance.getN();
@@ -242,7 +295,7 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instanc
     
     if (k <= 0 || n <= 0 || spectrumSize <= 0) {
         LOG_ERROR("Invalid instance parameters for theoretical fitness calculation");
-        m_theoreticalMaxFitness = 1.0;  // Default value
+        m_globalBestFit = 1.0;  // Default value
         return;
     }
     
@@ -252,9 +305,9 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instanc
     double maxLengthScore = 1.0;                     // Perfect length match
     
     // Combine components with weights
-    m_theoreticalMaxFitness = maxConnectivityScore + maxSpectrumCoverage + maxLengthScore;
+    m_globalBestFit = maxConnectivityScore + maxSpectrumCoverage + maxLengthScore;
     
-    LOG_INFO("Theoretical maximum fitness calculated: " + std::to_string(m_theoreticalMaxFitness));
+    LOG_INFO("Theoretical maximum fitness calculated: " + std::to_string(m_globalBestFit));
 }
 
 std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec)
@@ -267,8 +320,7 @@ std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec)
 }
 
 std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatrix(
-    const DNAInstance& instance) const
-{
+    const DNAInstance& instance) const {
     const auto& spectrum = instance.getSpectrum();
     int k = instance.getK();
     
@@ -294,17 +346,16 @@ std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatri
     return matrix;
 }
 
-int GeneticAlgorithm::calculateEdgeWeight(
-    const std::string& from,
-    const std::string& to,
-    int k) const
-{
-    if (from.length() < k - 1 || to.length() < k - 1) return 0;
+int GeneticAlgorithm::calculateEdgeWeight(const std::string& from, const std::string& to, int k) const {
+    if (from.empty() || to.empty()) return 0;
     
-    // Compare suffix of 'from' with prefix of 'to'
-    std::string_view suffix(from.data() + from.length() - (k - 1), k - 1);
-    std::string_view prefix(to.data(), k - 1);
+    auto fromLen = static_cast<int>(from.length());
+    auto toLen = static_cast<int>(to.length());
     
-    return suffix == prefix ? k - 1 : 0;
-}
+    if (fromLen < k - 1 || toLen < k - 1) return 0;
+
+    std::string fromSuffix = from.substr(fromLen - k + 1);
+    std::string toPrefix = to.substr(0, k - 1);
+    
+    return fromSuffix == toPrefix ? k - 1 : 0;
 }

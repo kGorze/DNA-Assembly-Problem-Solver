@@ -1,42 +1,31 @@
 #pragma once
 
-#include <vector>
+#include "metaheuristics/individual.h"
+#include "dna/dna_instance.h"
 #include <memory>
+#include <vector>
 #include <string>
-#include "../dna/dna_instance.h"
-#include "../metaheuristics/individual.h"
 
 class IRepresentation {
 public:
     virtual ~IRepresentation() = default;
-    
-    // Initialize a population of solutions
+
     virtual std::vector<std::shared_ptr<Individual>> initializePopulation(
-        int populationSize, 
-        const DNAInstance& instance
-    ) = 0;
-    
-    // Initialize a single individual
-    virtual bool initializeIndividual(
-        Individual& individual,
-        const DNAInstance& instance
-    ) = 0;
-    
-    // Validate if a solution is valid for the given instance
+        int populationSize,
+        const DNAInstance& instance) = 0;
+
     virtual bool isValid(
-        const std::shared_ptr<Individual>& solution, 
-        const DNAInstance& instance
-    ) const = 0;
+        const std::shared_ptr<Individual>& individual,
+        const DNAInstance& instance) const = 0;
 
-    // Convert solution to string representation
     virtual std::string toString(
-        const std::shared_ptr<Individual>& solution,
-        const DNAInstance& instance
-    ) const = 0;
+        const std::shared_ptr<Individual>& individual,
+        const DNAInstance& instance) const = 0;
 
-    // Convert solution to DNA sequence
+    virtual std::vector<int> generateRandomSolution(
+        const DNAInstance& instance) = 0;
+
     virtual std::vector<char> toDNA(
-        const std::shared_ptr<Individual>& solution,
-        const DNAInstance& instance
-    ) const = 0;
+        const std::shared_ptr<Individual>& individual,
+        const DNAInstance& instance) const = 0;
 }; 
