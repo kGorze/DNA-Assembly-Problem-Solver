@@ -3,6 +3,7 @@
 
 #include "dna_instance.h"
 #include "generator/dna_generator.h"
+#include "error_introduction.h"
 #include <string>
 #include <vector>
 #include <mutex>
@@ -19,7 +20,7 @@ public:
             throw std::invalid_argument("N must be positive");
         }
         std::lock_guard<std::mutex> lock(m_mutex);
-        n = value;
+        m_n = value;
         return *this;
     }
     
@@ -28,7 +29,7 @@ public:
             throw std::invalid_argument("K must be positive");
         }
         std::lock_guard<std::mutex> lock(m_mutex);
-        instance.setK(value);
+        m_instance.setK(value);
         return *this;
     }
     
@@ -37,7 +38,7 @@ public:
             throw std::invalid_argument("DeltaK cannot be negative");
         }
         std::lock_guard<std::mutex> lock(m_mutex);
-        instance.setDeltaK(value);
+        m_instance.setDeltaK(value);
         return *this;
     }
     
@@ -46,7 +47,7 @@ public:
             throw std::invalid_argument("LNeg cannot be negative");
         }
         std::lock_guard<std::mutex> lock(m_mutex);
-        instance.setLNeg(value);
+        m_instance.setLNeg(value);
         return *this;
     }
     
@@ -55,13 +56,13 @@ public:
             throw std::invalid_argument("LPoz cannot be negative");
         }
         std::lock_guard<std::mutex> lock(m_mutex);
-        instance.setLPoz(value);
+        m_instance.setLPoz(value);
         return *this;
     }
     
     DNAInstanceBuilder& setRepAllowed(bool value) {
         std::lock_guard<std::mutex> lock(m_mutex);
-        instance.setRepAllowed(value);
+        m_instance.setRepAllowed(value);
         return *this;
     }
     
@@ -70,27 +71,23 @@ public:
             throw std::invalid_argument("ProbablePositive cannot be negative");
         }
         std::lock_guard<std::mutex> lock(m_mutex);
-        instance.setProbablePositive(value);
+        m_instance.setProbablePositive(value);
         return *this;
     }
     
-    // Build methods with error handling
     DNAInstanceBuilder& buildDNA() {
         std::lock_guard<std::mutex> lock(m_mutex);
         try {
             DNAGenerator generator;
-            generator.setParameters(n, instance.getK(), instance.getDeltaK());
-            std::string dna = generator.generateDNA(n, instance.isRepAllowed());
-            if (dna.empty()) {
-                throw std::runtime_error("Failed to generate DNA sequence");
-            }
-            instance.setDNA(dna);
-            instance.setN(n);
+            generator.setParameters(m_n, m_instance.getK(), m_instance.getDeltaK());
+            std::string dna = generator.generateDNA(m_n, m_instance.isRepAllowed());
+            m_instance.setDNA(dna);
+            m_instance.setN(m_n);
+            return *this;
         } catch (const std::exception& e) {
-            LOG_ERROR("Error in buildDNA: " + std::string(e.what()));
+            LOG_ERROR("Error building DNA: " + std::string(e.what()));
             throw;
         }
-        return *this;
     }
     
     DNAInstanceBuilder& buildSpectrum() {
@@ -98,47 +95,62 @@ public:
         try {
             SpectrumGenerator generator;
             std::vector<std::string> spectrum = generator.generateSpectrum(
-                instance.getDNA(), 
-                instance.getK(), 
-                instance.getDeltaK()
+                m_instance.getDNA(), 
+                m_instance.getK(), 
+                m_instance.getDeltaK()
             );
-            if (spectrum.empty()) {
-                throw std::runtime_error("Failed to generate spectrum");
-            }
-            instance.setSpectrum(spectrum);
+            m_instance.setSpectrum(spectrum);
+            return *this;
         } catch (const std::exception& e) {
-            LOG_ERROR("Error in buildSpectrum: " + std::string(e.what()));
+            LOG_ERROR("Error building spectrum: " + std::string(e.what()));
             throw;
         }
-        return *this;
     }
     
-    DNAInstanceBuilder& applyError(IErrorIntroductionStrategy* strategy) {
-        if (!strategy) {
-            LOG_WARNING("Null error introduction strategy provided");
-            return *this;
-        }
+    DNAInstanceBuilder& introduceErrors() {
         std::lock_guard<std::mutex> lock(m_mutex);
         try {
-            strategy->introduceErrors(instance);
+            // Find start index before introducing errors
+            std::string startFrag = m_instance.getDNA().substr(0, m_instance.getK());
+            const auto& spectrum = m_instance.getSpectrum();
+            
+            int startIdx = -1;
+            for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
+                if (spectrum[i] == startFrag) {
+                    startIdx = i;
+                    break;
+                }
+            }
+            m_instance.setStartIndex(startIdx);
+            
+            // Introduce negative errors first
+            if (m_instance.getLNeg() > 0) {
+                auto negErr = ErrorIntroducerFactory::createNegativeErrorIntroducer(m_instance.getLNeg());
+                negErr->introduceErrors(m_instance);
+            }
+            
+            // Then introduce positive errors
+            if (m_instance.getLPoz() > 0) {
+                auto posErr = ErrorIntroducerFactory::createPositiveErrorIntroducer(m_instance.getLPoz());
+                posErr->introduceErrors(m_instance);
+            }
+            
+            return *this;
         } catch (const std::exception& e) {
-            LOG_ERROR("Error in applyError: " + std::string(e.what()));
+            LOG_ERROR("Error introducing errors: " + std::string(e.what()));
             throw;
         }
-        return *this;
     }
     
-    // Get the built instance
-    DNAInstance getInstance() const { 
+    const DNAInstance& getInstance() const {
         std::lock_guard<std::mutex> lock(m_mutex);
-        return instance; 
+        return m_instance;
     }
     
 private:
-    DNAInstance instance;
-    int n = 0;  // DNA length
-    ErrorContext errorCtx;
     mutable std::mutex m_mutex;
+    DNAInstance m_instance;
+    int m_n = 0;
 };
 
 #endif // DNA_INSTANCE_BUILDER_H 

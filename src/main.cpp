@@ -83,8 +83,7 @@ void printUsage() {
 }
 
 // Funkcja pomocnicza do generowania instancji
-bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::string &outputFile)
-{
+DNAInstance generateInstance(int n, int k, int deltaK, int lNeg, int lPoz) {
     try {
         DNAInstanceBuilder builder;
         builder.setN(n)
@@ -95,39 +94,13 @@ bool generateInstance(int n, int k, int deltaK, int lNeg, int lPoz, const std::s
                .setRepAllowed(true)
                .setProbablePositive(0)
                .buildDNA()
-               .buildSpectrum();
+               .buildSpectrum()
+               .introduceErrors();  // Use the new error introduction method
 
-        DNAInstance instance = builder.getInstance();
-        
-        // Introduce errors AFTER setting start index
-        std::string startFrag = instance.getDNA().substr(0, k);
-        const auto& spectrum = instance.getSpectrum();
-        
-        int startIdx = -1;
-        for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
-            if (spectrum[i] == startFrag) {
-                startIdx = i;
-                break;
-            }
-        }
-        
-        instance.setStartIndex(startIdx);
-
-        // Now introduce errors
-        if (lNeg > 0) {
-            NegativeErrorIntroducer negErr(lNeg);
-            negErr.introduceErrors(instance);
-        }
-
-        if (lPoz > 0) {
-            PositiveErrorIntroducer posErr(lPoz);
-            posErr.introduceErrors(instance);
-        }
-
-        return InstanceIO::saveInstance(instance, outputFile);
+        return builder.getInstance();
     } catch (const std::exception& e) {
         LOG_ERROR("Failed to generate instance: " + std::string(e.what()));
-        return false;
+        throw;
     }
 }
 
@@ -372,7 +345,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            if (!generateInstance(n, k, deltaK, lNeg, lPoz, outputFile)) {
+            if (!InstanceIO::saveInstance(generateInstance(n, k, deltaK, lNeg, lPoz), outputFile)) {
                 std::cerr << "Failed to generate instance!\n";
                 return 1;
             }

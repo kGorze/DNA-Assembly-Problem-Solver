@@ -19,6 +19,7 @@
 #include "utils/logging.h"
 #include "dna/dna_instance.h"
 #include "dna/dna_instance_io.h"
+#include "dna/error_introduction.h"
 
 /**
  * Klasa generująca DNA (ciąg znaków 'ACGT') o zadanej długości n.
@@ -28,63 +29,62 @@
  */
 class DNAGenerator {
 private:
-    int n;
-    int k;
-    int deltaK;
     mutable std::mutex m_mutex;
+    int m_n = 0;
+    int m_k = 0;
+    int m_deltaK = 0;
     
-    bool validateParameters() {
+    bool validateParameters() const {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (n <= 0) {
-            LOG_ERROR("Invalid n value: " + std::to_string(n));
+        if (m_n <= 0) {
+            LOG_ERROR("Invalid n value: " + std::to_string(m_n));
             return false;
         }
-        if (k <= 0) {
-            LOG_ERROR("Invalid k value: " + std::to_string(k));
+        if (m_k <= 0) {
+            LOG_ERROR("Invalid k value: " + std::to_string(m_k));
             return false;
         }
-        if (deltaK < 0) {
-            LOG_ERROR("Invalid deltaK value: " + std::to_string(deltaK));
+        if (m_deltaK < 0) {
+            LOG_ERROR("Invalid deltaK value: " + std::to_string(m_deltaK));
             return false;
         }
         return true;
     }
 
 public:
-    DNAGenerator() : n(0), k(0), deltaK(0) {}
+    DNAGenerator() = default;
     
-    void setParameters(int n_, int k_, int deltaK_) {
+    void setParameters(int n, int k, int deltaK) {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (n_ <= 0) throw std::invalid_argument("n must be positive");
-        if (k_ <= 0) throw std::invalid_argument("k must be positive");
-        if (deltaK_ < 0) throw std::invalid_argument("deltaK cannot be negative");
+        if (n <= 0) throw std::invalid_argument("n must be positive");
+        if (k <= 0) throw std::invalid_argument("k must be positive");
+        if (deltaK < 0) throw std::invalid_argument("deltaK cannot be negative");
         
-        n = n_;
-        k = k_;
-        deltaK = deltaK_;
+        m_n = n;
+        m_k = k;
+        m_deltaK = deltaK;
     }
     
-    std::string generateDNA(int length, bool repAllowed) {
-        if (length <= 0) {
-            throw std::invalid_argument("DNA length must be positive");
-        }
-        
+    std::string generateDNA(int length, bool repAllowed = true) const {
         std::lock_guard<std::mutex> lock(m_mutex);
         try {
-            static const char nucleotides[] = {'A', 'C', 'G', 'T'};
+            if (length <= 0) {
+                throw std::invalid_argument("DNA length must be positive");
+            }
+            
+            static thread_local std::random_device rd;
+            static thread_local std::mt19937 gen(rd());
+            std::uniform_int_distribution<> dis(0, 3);
+            
+            const char nucleotides[] = {'A', 'C', 'G', 'T'};
             std::string dna;
             dna.reserve(length);
             
-            auto& rng = RandomGenerator::getInstance().get();
-            std::uniform_int_distribution<> dis(0, 3);
-            
             for (int i = 0; i < length; ++i) {
-                dna.push_back(nucleotides[dis(rng)]);
+                dna.push_back(nucleotides[dis(gen)]);
             }
             
             if (!repAllowed) {
-                // Here you could add logic to prevent repetitions
-                // For now, we'll just log that this feature is not implemented
                 LOG_WARNING("Repetition prevention not implemented");
             }
             
@@ -95,24 +95,52 @@ public:
         }
     }
     
-    bool generate() {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return validateParameters();
-    }
-    
-    DNAInstance generateRandomInstance(int size) {
-        if (size <= 0) {
-            throw std::invalid_argument("Instance size must be positive");
-        }
-        
+    DNAInstance generateRandomInstance(int size, int lNeg = 0, int lPoz = 0) const {
         std::lock_guard<std::mutex> lock(m_mutex);
         try {
-            DNAInstance instance;
-            instance.setSize(size);
+            if (size <= 0) {
+                throw std::invalid_argument("Instance size must be positive");
+            }
+            if (!validateParameters()) {
+                throw std::runtime_error("Invalid generator parameters");
+            }
             
-            std::string sequence = generateDNA(size, instance.isRepAllowed());
-            instance.setDNA(sequence);
-            instance.setTargetSequence(sequence);
+            DNAInstance instance;
+            instance.setN(size);
+            instance.setK(m_k);
+            instance.setDeltaK(m_deltaK);
+            instance.setLNeg(lNeg);
+            instance.setLPoz(lPoz);
+            
+            // Generate DNA and spectrum
+            std::string dna = generateDNA(size);
+            instance.setDNA(dna);
+            
+            SpectrumGenerator specGen;
+            auto spectrum = specGen.generateSpectrum(dna, m_k, m_deltaK);
+            instance.setSpectrum(spectrum);
+            
+            // Find start index before introducing errors
+            std::string startFrag = dna.substr(0, m_k);
+            int startIdx = -1;
+            for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
+                if (spectrum[i] == startFrag) {
+                    startIdx = i;
+                    break;
+                }
+            }
+            instance.setStartIndex(startIdx);
+            
+            // Introduce errors if requested
+            if (lNeg > 0) {
+                auto negErr = ErrorIntroducerFactory::createNegativeErrorIntroducer(lNeg);
+                negErr->introduceErrors(instance);
+            }
+            
+            if (lPoz > 0) {
+                auto posErr = ErrorIntroducerFactory::createPositiveErrorIntroducer(lPoz);
+                posErr->introduceErrors(instance);
+            }
             
             return instance;
         } catch (const std::exception& e) {
@@ -121,58 +149,16 @@ public:
         }
     }
     
-    bool saveToFile(const DNAInstance& instance, const std::string& filename) {
+    bool saveToFile(const DNAInstance& instance, const std::string& filename) const {
         if (filename.empty()) {
             throw std::invalid_argument("Filename cannot be empty");
         }
         
         std::lock_guard<std::mutex> lock(m_mutex);
         try {
-            std::ofstream file(filename);
-            if (!file) {
-                LOG_ERROR("Could not open file for writing: " + filename);
-                return false;
-            }
-            
-            file << instance.getSize() << "\n";
-            file << instance.getTargetSequence() << "\n";
-            return true;
+            return InstanceIO::saveInstance(instance, filename);
         } catch (const std::exception& e) {
-            LOG_ERROR("Error saving to file: " + std::string(e.what()));
-            return false;
-        }
-    }
-    
-    DNAInstance loadFromFile(const std::string& filename) {
-        if (filename.empty()) {
-            throw std::invalid_argument("Filename cannot be empty");
-        }
-        
-        std::lock_guard<std::mutex> lock(m_mutex);
-        try {
-            std::ifstream file(filename);
-            if (!file) {
-                throw std::runtime_error("Could not open file for reading: " + filename);
-            }
-            
-            DNAInstance instance;
-            int size;
-            std::string sequence;
-            
-            file >> size;
-            file >> sequence;
-            
-            if (size <= 0) {
-                throw std::runtime_error("Invalid size in file: " + std::to_string(size));
-            }
-            
-            instance.setSize(size);
-            instance.setTargetSequence(sequence);
-            instance.setDNA(sequence);
-            
-            return instance;
-        } catch (const std::exception& e) {
-            LOG_ERROR("Error loading from file: " + std::string(e.what()));
+            LOG_ERROR("Error saving instance to file: " + std::string(e.what()));
             throw;
         }
     }
