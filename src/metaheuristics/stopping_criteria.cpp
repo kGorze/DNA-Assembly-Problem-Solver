@@ -35,26 +35,14 @@ void NoImprovementStopping::reset() {
     m_generationsWithoutImprovement = 0;
 }
 
-MaxGenerationsStopping::MaxGenerationsStopping(GAConfig& config) 
-    : m_maxGenerations(config.getMaxGenerations())
-    , m_useConfig(true)
-{
-    if (m_maxGenerations <= 0) {
-        LOG_WARNING("Invalid maxGenerations value: " + std::to_string(m_maxGenerations) + ". Using default value of 100");
-        m_maxGenerations = 100;
-    }
-    LOG_INFO("MaxGenerationsStopping initialized with maxGenerations = " + std::to_string(m_maxGenerations));
-}
-
 MaxGenerationsStopping::MaxGenerationsStopping(int maxGen)
     : m_maxGenerations(maxGen)
-    , m_useConfig(false)
 {
     if (m_maxGenerations <= 0) {
         LOG_WARNING("Invalid maxGenerations value: " + std::to_string(maxGen) + ". Using default value of 100");
         m_maxGenerations = 100;
     }
-    LOG_INFO("MaxGenerationsStopping initialized with fixed maxGenerations = " + std::to_string(m_maxGenerations));
+    LOG_INFO("MaxGenerationsStopping initialized with maxGenerations = " + std::to_string(m_maxGenerations));
 }
 
 bool MaxGenerationsStopping::stop(

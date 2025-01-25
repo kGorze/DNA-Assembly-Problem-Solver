@@ -6,6 +6,7 @@
 
 #include "../interfaces/i_crossover.h"
 #include "../dna/dna_instance.h"
+#include "../configuration/genetic_algorithm_configuration.h"
 #include "crossover_impl.h"
 #include <vector>
 #include <memory>
@@ -66,6 +67,7 @@ private:
     
 public:
     AdaptiveCrossover();
+    explicit AdaptiveCrossover(const GAConfig& config);
     
     std::vector<std::shared_ptr<std::vector<int>>> crossover(
         const std::vector<std::shared_ptr<std::vector<int>>>& parents,

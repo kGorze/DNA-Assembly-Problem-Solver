@@ -44,14 +44,10 @@ public:
      */
     ParameterSet runMetaEA(std::function<TuningResult(const ParameterSet&)> evaluator)
     {
-        // Get singleton instance
-        auto& config = GAConfig::getInstance();
-        
-        try {
-            config.loadFromFile("config.cfg");
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
-            return ParameterSet();
+        // Create local config
+        GAConfig config;
+        if (!config.loadFromFile("config.cfg")) {
+            throw std::runtime_error("Failed to load configuration");
         }
         
         std::random_device rd;
@@ -80,6 +76,16 @@ public:
         }
         
         return bestSoFar;
+    }
+
+    TuningResult evaluateParamSet(const ParameterSet& params, const DNAInstance& instance) {
+        // Create local config
+        GAConfig config;
+        if (!config.loadFromFile("config.cfg")) {
+            throw std::runtime_error("Failed to load configuration");
+        }
+        
+        // ... rest of the method implementation ...
     }
 
 private:
@@ -255,16 +261,10 @@ private:
     // z danym zestawem parametrów i zwraca TuningResult.
     TuningResult evaluateParamSet(const ParameterSet &ps, const DNAInstance &exampleInstance)
     {
-        // Get singleton instance
-        auto& config = GAConfig::getInstance();
-        
-        try {
-            config.loadFromFile("config.cfg");
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
-            TuningResult result;
-            result.fitness = -std::numeric_limits<double>::infinity();
-            return result;
+        // Create local config
+        GAConfig config;
+        if (!config.loadFromFile("config.cfg")) {
+            throw std::runtime_error("Failed to load configuration");
         }
         
         // Update configuration using proper setters

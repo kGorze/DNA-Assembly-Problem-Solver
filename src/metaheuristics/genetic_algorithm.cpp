@@ -215,92 +215,201 @@ void GeneticAlgorithm::run(const DNAInstance& instance)
     LOG_DEBUG("  k: " + std::to_string(instance.getK()));
     LOG_DEBUG("  deltaK: " + std::to_string(instance.getDeltaK()));
     LOG_DEBUG("  N: " + std::to_string(instance.getN()));
+    LOG_DEBUG("  L_Neg: " + std::to_string(instance.getLNeg()));
+    LOG_DEBUG("  L_Poz: " + std::to_string(instance.getLPoz()));
     
-    // Initialize population
-    initializePopulation(m_config.getPopulationSize(), instance);
-    
-    // Initial evaluation
-    updateGlobalBest(population, instance);
-    LOG_INFO("Initial best fitness: " + std::to_string(m_globalBestFit));
-    
-    int generation = 0;
-    bool shouldStop = false;
-    
-    while (!shouldStop) {
-        LOG_DEBUG("Starting generation " + std::to_string(generation));
-        
-        // Selection
-        LOG_DEBUG("Performing selection");
-        auto parents = m_selection->select(population, instance, m_fitness, m_representation);
-        LOG_DEBUG("Selected " + std::to_string(parents.size()) + " parents");
-        
-        // Crossover
-        LOG_DEBUG("Performing crossover");
-        auto offspring = m_crossover->crossover(parents, instance, m_representation);
-        LOG_DEBUG("Created " + std::to_string(offspring.size()) + " offspring");
-        
-        // Validate offspring
-        int validOffspring = 0;
-        for (const auto& child : offspring) {
-            if (m_representation->isValid(child, instance)) {
-                validOffspring++;
-            }
-        }
-        LOG_DEBUG("Valid offspring: " + std::to_string(validOffspring) + "/" + std::to_string(offspring.size()));
-        
-        // Mutation
-        LOG_DEBUG("Performing mutation");
-        for (auto& individual : offspring) {
-            if (std::rand() / static_cast<double>(RAND_MAX) < m_config.getMutationRate()) {
-                auto beforeMutation = *individual;
-                m_mutation->mutate(individual, instance, m_representation);
-                
-                // Log mutation details if in debug mode
-                if (!m_representation->isValid(individual, instance)) {
-                    LOG_WARNING("Mutation produced invalid individual");
-                    LOG_DEBUG("Before mutation: " + vectorToString(beforeMutation));
-                    LOG_DEBUG("After mutation: " + vectorToString(*individual));
-                }
-            }
-        }
-        
-        // Calculate fitness values for both populations
-        std::vector<double> parentFitness;
-        std::vector<double> offspringFitness;
-        
-        parentFitness.reserve(population.size());
-        offspringFitness.reserve(offspring.size());
-        
-        for (const auto& ind : population) {
-            parentFitness.push_back(m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation));
-        }
-        
-        for (const auto& ind : offspring) {
-            offspringFitness.push_back(m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation));
-        }
-        
-        // Replacement
-        LOG_DEBUG("Performing replacement");
-        population = m_replacement->replace(population, offspring, parentFitness, offspringFitness, instance, m_representation);
-        LOG_DEBUG("Population size after replacement: " + std::to_string(population.size()));
-        
-        // Update statistics
-        updateGlobalBest(population, instance);
-        logGenerationStats(population, instance, generation);
-        
-        // Check stopping condition
-        shouldStop = m_stopping->stop(population, instance, generation, m_globalBestFit);
-        if (shouldStop) {
-            LOG_INFO("Stopping condition met at generation " + std::to_string(generation));
-            LOG_INFO("Final best fitness: " + std::to_string(m_globalBestFit));
-        }
-        
-        generation++;
+    // Validate configuration parameters
+    if (m_config.getPopulationSize() <= 0) {
+        LOG_ERROR("Invalid population size: " + std::to_string(m_config.getPopulationSize()));
+        throw std::runtime_error("Population size must be positive");
     }
     
-    LOG_INFO("Genetic algorithm completed");
-    LOG_INFO("Total generations: " + std::to_string(generation));
-    LOG_INFO("Best fitness achieved: " + std::to_string(m_globalBestFit));
+    if (m_config.getMaxGenerations() <= 0) {
+        LOG_ERROR("Invalid max generations: " + std::to_string(m_config.getMaxGenerations()));
+        throw std::runtime_error("Max generations must be positive");
+    }
+    
+    if (m_config.getMutationRate() < 0.0 || m_config.getMutationRate() > 1.0) {
+        LOG_ERROR("Invalid mutation rate: " + std::to_string(m_config.getMutationRate()));
+        throw std::runtime_error("Mutation rate must be between 0 and 1");
+    }
+    
+    if (m_config.getCrossoverProbability() < 0.0 || m_config.getCrossoverProbability() > 1.0) {
+        LOG_ERROR("Invalid crossover probability: " + std::to_string(m_config.getCrossoverProbability()));
+        throw std::runtime_error("Crossover probability must be between 0 and 1");
+    }
+    
+    try {
+        // Initialize population
+        LOG_INFO("Initializing population with size " + std::to_string(m_config.getPopulationSize()));
+        initializePopulation(m_config.getPopulationSize(), instance);
+        
+        // Validate initial population
+        if (population.empty()) {
+            LOG_ERROR("Failed to initialize population - population is empty");
+            throw std::runtime_error("Population initialization failed");
+        }
+        
+        int validIndividuals = 0;
+        for (const auto& ind : population) {
+            if (ind && m_representation->isValid(ind, instance)) {
+                validIndividuals++;
+            }
+        }
+        
+        if (validIndividuals == 0) {
+            LOG_ERROR("No valid individuals in initial population");
+            throw std::runtime_error("Population initialization failed - no valid individuals");
+        }
+        
+        LOG_INFO("Initial population created with " + std::to_string(validIndividuals) + " valid individuals");
+        
+        // Initial evaluation
+        LOG_INFO("Performing initial population evaluation");
+        updateGlobalBest(population, instance);
+        LOG_INFO("Initial best fitness: " + std::to_string(m_globalBestFit));
+        
+        int generation = 0;
+        int stagnationCounter = 0;
+        double previousBestFitness = m_globalBestFit;
+        bool shouldStop = false;
+        
+        while (!shouldStop && generation < m_config.getMaxGenerations()) {
+            try {
+                LOG_DEBUG("Starting generation " + std::to_string(generation));
+                
+                // Selection
+                LOG_DEBUG("Performing selection");
+                auto parents = m_selection->select(population, instance, m_fitness, m_representation);
+                if (parents.empty()) {
+                    LOG_ERROR("Selection returned empty parents list in generation " + std::to_string(generation));
+                    throw std::runtime_error("Selection failed - no parents selected");
+                }
+                LOG_DEBUG("Selected " + std::to_string(parents.size()) + " parents");
+                
+                // Crossover
+                LOG_DEBUG("Performing crossover");
+                auto offspring = m_crossover->crossover(parents, instance, m_representation);
+                if (offspring.empty()) {
+                    LOG_WARNING("Crossover produced no offspring, using parents as offspring");
+                    offspring = parents;
+                }
+                LOG_DEBUG("Working with " + std::to_string(offspring.size()) + " offspring");
+                
+                // Mutation
+                LOG_DEBUG("Performing mutation");
+                int mutatedCount = 0;
+                for (auto& child : offspring) {
+                    if (!child || child->empty()) {
+                        continue;
+                    }
+                    try {
+                        if ((double)rand() / RAND_MAX < m_config.getMutationRate()) {
+                            m_mutation->mutate(child, instance, m_representation);
+                            mutatedCount++;
+                        }
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("Mutation failed for offspring: " + std::string(e.what()));
+                    }
+                }
+                LOG_DEBUG("Mutated " + std::to_string(mutatedCount) + " offspring");
+                
+                // Calculate fitness
+                std::vector<double> parentFitness;
+                std::vector<double> offspringFitness;
+                
+                LOG_DEBUG("Calculating fitness for parents and offspring");
+                for (const auto& ind : population) {
+                    try {
+                        parentFitness.push_back(m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation));
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("Failed to calculate parent fitness: " + std::string(e.what()));
+                        parentFitness.push_back(-std::numeric_limits<double>::infinity());
+                    }
+                }
+                
+                for (const auto& ind : offspring) {
+                    try {
+                        offspringFitness.push_back(m_cache->getOrCalculateFitness(ind, instance, m_fitness, m_representation));
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("Failed to calculate offspring fitness: " + std::string(e.what()));
+                        offspringFitness.push_back(-std::numeric_limits<double>::infinity());
+                    }
+                }
+                
+                // Replacement
+                LOG_DEBUG("Performing replacement");
+                try {
+                    auto newPopulation = m_replacement->replace(population, offspring, parentFitness, offspringFitness, instance, m_representation);
+                    if (newPopulation.empty()) {
+                        LOG_WARNING("Replacement returned empty population, keeping current population");
+                    } else {
+                        population = std::move(newPopulation);
+                    }
+                    LOG_DEBUG("Population size after replacement: " + std::to_string(population.size()));
+                } catch (const std::exception& e) {
+                    LOG_ERROR("Replacement failed: " + std::string(e.what()));
+                    LOG_WARNING("Keeping previous population due to replacement failure");
+                }
+                
+                // Update statistics and log
+                updateGlobalBest(population, instance);
+                logGenerationStats(population, instance, generation);
+                
+                // Check for improvement
+                if (m_globalBestFit <= previousBestFitness) {
+                    stagnationCounter++;
+                    if (stagnationCounter >= 50) { // 50 generations without improvement
+                        LOG_INFO("Algorithm stagnated for 50 generations");
+                        shouldStop = true;
+                    }
+                } else {
+                    stagnationCounter = 0;
+                    previousBestFitness = m_globalBestFit;
+                }
+                
+                // Check stopping condition
+                if (!shouldStop) {
+                    shouldStop = m_stopping->stop(population, instance, generation, m_globalBestFit);
+                }
+                
+                if (shouldStop) {
+                    LOG_INFO("Stopping condition met at generation " + std::to_string(generation));
+                    LOG_INFO("Final best fitness: " + std::to_string(m_globalBestFit));
+                }
+                
+            } catch (const std::exception& e) {
+                LOG_ERROR("Error in generation " + std::to_string(generation) + ": " + std::string(e.what()));
+                if (++generation >= m_config.getMaxGenerations()) {
+                    LOG_INFO("Maximum generations reached after error");
+                    break;
+                }
+                continue;
+            }
+            
+            generation++;
+        }
+        
+        LOG_INFO("Genetic algorithm completed");
+        LOG_INFO("Total generations: " + std::to_string(generation));
+        LOG_INFO("Best fitness achieved: " + std::to_string(m_globalBestFit));
+        
+        if (m_globalBestInd) {
+            LOG_DEBUG("Best solution path length: " + std::to_string(m_globalBestInd->size()));
+            LOG_DEBUG("Best solution: " + vectorToString(*m_globalBestInd));
+            
+            // Validate final solution
+            if (!m_representation->isValid(m_globalBestInd, instance)) {
+                LOG_WARNING("Best solution is not valid according to representation!");
+            }
+        } else {
+            LOG_WARNING("No valid solution found during the run");
+        }
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Fatal error in genetic algorithm: " + std::string(e.what()));
+        throw;
+    }
 }
 
 std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec) {

@@ -39,25 +39,22 @@ class IPopulationCache;
  */
 
 struct AdaptiveCrossoverParams {
-
-    double inertia;
-    int adaptationInterval;
-    int minTrials;
-    double minProb;
+    double inertia{0.7};
+    int adaptationInterval{20};
+    int minTrials{5};
+    double minProb{0.1};
 };
 
-
-// Singleton GAConfig class
 class GAConfig {
 public:
-    // Make constructor public and return singleton instance
-    static GAConfig& getInstance() {
-        static GAConfig instance;
-        return instance;
-    }
-
+    // Make constructor public and remove singleton
+    GAConfig() { resetToDefaults(); }
+    
     // Load configuration from file
     bool loadFromFile(const std::string& filename);
+    
+    // Reset to default values
+    void resetToDefaults();
 
     // Getters with thread safety
     int getPopulationSize() const {
@@ -84,9 +81,6 @@ public:
             m_mutationRate = rate;
         }
     }
-
-    // Configuration loading - now returns void since we'll use exceptions for errors
-    void resetToDefaults();
     
     // Thread-safe getters/setters using shared mutex for better read performance
     void setMaxGenerations(int value) { 
@@ -129,118 +123,6 @@ public:
         std::shared_lock<std::shared_mutex> lock(configMutex);
         return mutationMethod;
     }
-    
-    std::string getReplacementMethod() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return replacementMethod;
-    }
-    
-    std::string getStoppingMethod() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return stoppingMethod;
-    }
-    
-    std::string getFitnessType() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return fitnessType;
-    }
-    
-    int getNoImprovementGenerations() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return noImprovementGenerations;
-    }
-    
-    int getTournamentSize() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return tournamentSize;
-    }
-    
-    int getTimeLimitSeconds() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return timeLimitSeconds;
-    }
-    
-    AdaptiveCrossoverParams getAdaptiveParams() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return adaptiveParams;
-    }
-    
-    double getAlpha() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return alpha;
-    }
-    
-    double getBeta() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return beta;
-    }
-    
-    // DNA Generation parameters getters
-    int getK() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return k;
-    }
-    
-    int getDeltaK() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return deltaK;
-    }
-    
-    int getLNeg() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return lNeg;
-    }
-    
-    int getLPoz() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return lPoz;
-    }
-    
-    bool getRepAllowed() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return repAllowed;
-    }
-    
-    int getProbablePositive() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return probablePositive;
-    }
-    
-    // Setters with validation
-    void setK(int value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (value > 0) k = value;
-    }
-    
-    void setDeltaK(int value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        deltaK = value;
-    }
-    
-    void setLNeg(int value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (value >= 0) lNeg = value;
-    }
-    
-    void setLPoz(int value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (value >= 0) lPoz = value;
-    }
-    
-    void setRepAllowed(bool value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        repAllowed = value;
-    }
-    
-    void setProbablePositive(int value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        probablePositive = value;
-    }
-    
-    void setCrossoverProbability(double value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (value >= 0.0 && value <= 1.0) crossoverProbability = value;
-    }
 
     // Cache management
     void setCache(std::shared_ptr<IPopulationCache> cachePtr) {
@@ -253,7 +135,7 @@ public:
         return m_cache;
     }
 
-    // Keep existing component getters
+    // Component getters
     std::shared_ptr<IRepresentation> getRepresentation() const;
     std::shared_ptr<ISelection> getSelection() const;
     std::shared_ptr<ICrossover> getCrossover(const std::string& type) const;
@@ -262,18 +144,63 @@ public:
     std::shared_ptr<IFitness> getFitness() const;
     std::shared_ptr<IStopping> getStopping() const;
 
-    // Add missing method declarations
-    void setReplacementRatio(double ratio);
-    double getGlobalBestFitness() const;
-    void setGlobalBestFitness(double fitness);
+    // Instance parameters
+    void setK(int value) { k = value; }
+    void setDeltaK(int value) { deltaK = value; }
+    void setLNeg(int value) { lNeg = value; }
+    void setLPoz(int value) { lPoz = value; }
+    void setRepAllowed(bool value) { repAllowed = value; }
+    void setProbablePositive(int value) { probablePositive = value; }
+    
+    int getK() const { return k; }
+    int getDeltaK() const { return deltaK; }
+    int getLNeg() const { return lNeg; }
+    int getLPoz() const { return lPoz; }
+    bool isRepAllowed() const { return repAllowed; }
+    int getProbablePositive() const { return probablePositive; }
+
+    // Add missing getters and setters
+    void setCrossoverProbability(double value) {
+        std::unique_lock<std::shared_mutex> lock(configMutex);
+        if (value >= 0.0 && value <= 1.0) crossoverProbability = value;
+    }
+
+    void setReplacementRatio(double ratio) {
+        std::unique_lock<std::shared_mutex> lock(configMutex);
+        if (ratio >= 0.0 && ratio <= 1.0) replacementRatio = ratio;
+    }
+
+    int getTournamentSize() const {
+        std::shared_lock<std::shared_mutex> lock(configMutex);
+        return tournamentSize;
+    }
+
+    void setTournamentSize(int size) {
+        std::unique_lock<std::shared_mutex> lock(configMutex);
+        if (size > 0) tournamentSize = size;
+    }
+
+    // Global best fitness tracking
+    double getGlobalBestFitness() const {
+        std::shared_lock<std::shared_mutex> lock(configMutex);
+        return m_globalBestFit;
+    }
+
+    void setGlobalBestFitness(double fitness) {
+        std::unique_lock<std::shared_mutex> lock(configMutex);
+        m_globalBestFit = fitness;
+    }
+
+    // Parameter management
     void setParameters(const ParameterSet& ps);
     bool validate() const;
 
+    const AdaptiveCrossoverParams& getAdaptiveParams() const {
+        std::shared_lock<std::shared_mutex> lock(configMutex);
+        return adaptiveParams;
+    }
+
 private:
-    GAConfig() = default;
-    GAConfig(const GAConfig&) = delete;
-    GAConfig& operator=(const GAConfig&) = delete;
-    
     mutable std::shared_mutex configMutex;
     std::atomic<bool> isInitialized{false};
     std::string lastLoadedConfig;
@@ -296,7 +223,7 @@ private:
     int tournamentSize{3};
     int timeLimitSeconds{60};
     
-    AdaptiveCrossoverParams adaptiveParams{0.7, 20, 5, 0.1};
+    AdaptiveCrossoverParams adaptiveParams;
     
     double alpha{0.7};
     double beta{0.3};
@@ -309,6 +236,9 @@ private:
     bool repAllowed{false};
     int probablePositive{0};
     
+    // Global best fitness tracking
     double m_globalBestFit{-std::numeric_limits<double>::infinity()};
+    
+    // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;
 };

@@ -1,7 +1,31 @@
-google_tests/lib/
-cmake-build-debug/
-cmake-build-release-wsl/
+# Build directories
 build/
-results.db
+build_*/
+cmake-build-*/
+
+# Python
+__pycache__/
+*.pyc
 venv/
+
+# IDE
+.idea/
+.vscode/
+
+# Output files
+tests/outputs/
+build_outputs/
+*.log
+*.csv
+*.db
+
+# Generated instances
+generated_instance.txt
+debug_instance.txt
+
+# Environment
+.env
+
+google_tests/lib/
+results.db
  

@@ -14,74 +14,103 @@
 #include "../../include/metaheuristics/population_cache_impl.h"
 #include "utils/logging.h"
 
-void CrossoverBenchmark::runBenchmark(const DNAInstance &instance)
-{
-    LOG_INFO("Starting crossover benchmark");
+void CrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
+    // Create config for crossover rate
+    GAConfig config;
+    if (!config.loadFromFile("config.cfg")) {
+        throw std::runtime_error("Failed to load configuration");
+    }
+    double crossoverRate = config.getCrossoverProbability();
     
-    // Get singleton instance
-    auto& config = GAConfig::getInstance();
+    // Create crossover operators with proper rate
+    auto onePoint = std::make_shared<OnePointCrossover>(crossoverRate);
+    auto order = std::make_shared<OrderCrossover>();
+    auto edge = std::make_shared<EdgeRecombination>();
+    auto pmx = std::make_shared<PMXCrossover>();
+    auto distPreserving = std::make_shared<DistancePreservingCrossover>();
     
-    // We create a list of crossovers to test
+    // Create crossover operators to benchmark
     std::vector<std::pair<std::string, std::shared_ptr<ICrossover>>> crossovers = {
-        {"OnePoint",          std::make_shared<OnePointCrossover>(config.getCrossoverProbability())},
-        {"OrderCrossover",    std::make_shared<OrderCrossover>()},
-        {"EdgeRecombination", std::make_shared<EdgeRecombination>()},
-        {"PMXCrossover",      std::make_shared<PMXCrossover>()}
+        {"OnePoint", onePoint},
+        {"OrderCrossover", order},
+        {"EdgeRecombination", edge},
+        {"PMXCrossover", pmx},
+        {"DistancePreserving", distPreserving}
     };
-
-    // std::vector<std::pair<std::string, std::shared_ptr<ICrossover>>> crossovers = {
-    //     {"OrderCrossover",    std::make_shared<OrderCrossover>()}
-    // };
-
-    std::cout << "\n=== Crossover Benchmark ===\n";
-    std::cout << "Instance DNA length: " << instance.getDNA().size() << "\n";
-
-    // For each crossover, run a GA once (or multiple times) 
-    // and record the Levenshtein distance for the final solution.
-    for (auto &co : crossovers) {
-        const std::string &coName = co.first;
-        auto coPtr = co.second;
-
-        LOG_DEBUG("Running test case: " + coName);
-        int distance = runOneGA(instance, coPtr, coName);
-
-        std::cout << "Crossover: " << coName 
-                  << ", Final Levenshtein distance = " << distance << "\n";
-        LOG_INFO("Test results: " + std::to_string(distance));
+    
+    // Create representation
+    auto representation = std::make_shared<PermutationRepresentation>();
+    
+    // Run benchmarks
+    for (const auto& [name, crossover] : crossovers) {
+        LOG_INFO("Running benchmark for " + name);
+        
+        // Create test parents
+        std::vector<std::shared_ptr<std::vector<int>>> parents;
+        for (int i = 0; i < 2; i++) {
+            auto parent = std::make_shared<std::vector<int>>();
+            *parent = representation->generateRandomSolution(instance);
+            parents.push_back(parent);
+        }
+        
+        // Measure time
+        auto start = std::chrono::high_resolution_clock::now();
+        
+        // Run crossover multiple times
+        int numTrials = 100;
+        int validOffspring = 0;
+        for (int i = 0; i < numTrials; i++) {
+            auto offspring = crossover->crossover(parents, instance, representation);
+            validOffspring += offspring.size();
+        }
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        
+        // Log results
+        LOG_INFO(name + " results:");
+        LOG_INFO("  Average time per crossover: " + 
+                 std::to_string(duration.count() / (double)numTrials) + " microseconds");
+        LOG_INFO("  Average offspring per crossover: " + 
+                 std::to_string(validOffspring / (double)numTrials));
     }
 }
 
-int CrossoverBenchmark::runOneGA(const DNAInstance& instance,
-                                  std::shared_ptr<ICrossover> crossover,
-                                  const std::string& configFile)
+int CrossoverBenchmark::runOneGA(
+    const DNAInstance& instance,
+    std::shared_ptr<ICrossover> crossover,
+    const std::string& name)
 {
-    // Get singleton instance
-    auto& config = GAConfig::getInstance();
-    
-    try {
-        config.loadFromFile(configFile);
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to load GA configuration: " << e.what() << std::endl;
-        return -1;
+    // Create local config for this run
+    GAConfig config;
+    if (!config.loadFromFile("config.cfg")) {
+        throw std::runtime_error("Failed to load configuration");
     }
     
-    // Create and run GA with this config
+    // Create components
     auto cache = std::make_shared<SimplePopulationCache>();
     config.setCache(cache);
     
-    // Create GA components
-    auto ga = GeneticAlgorithm(
-        std::make_shared<PermutationRepresentation>(),
-        std::make_shared<TournamentSelection>(config, cache),
-        crossover,
-        std::make_shared<PointMutation>(config.getMutationRate()),
-        std::make_shared<PartialReplacement>(config.getReplacementRatio(), cache),
-        std::make_shared<OptimizedGraphBasedFitness>(),
-        std::make_shared<MaxGenerationsStopping>(config),
+    auto representation = config.getRepresentation();
+    auto selection = config.getSelection();
+    auto mutation = config.getMutation();
+    auto replacement = config.getReplacement();
+    auto fitness = config.getFitness();
+    auto stopping = config.getStopping();
+    
+    // Create and run GA
+    GeneticAlgorithm ga(
+        representation,
+        selection,
+        crossover,  // Use the provided crossover operator
+        mutation,
+        replacement,
+        fitness,
+        stopping,
         cache,
         config
     );
     
     ga.run(instance);
-    return static_cast<int>(ga.getBestFitness());
+    return ga.getBestFitness();
 }

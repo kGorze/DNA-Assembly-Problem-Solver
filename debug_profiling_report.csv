@@ -1,9 +1,0 @@
-Function Name,Total Time (ms),Calls,Avg Time per Call (ms),Percentage of Total Time
-run,27163.1,1,27163.1,99.9923
-cache_update,23793.1,1200,19.8276,87.587
-crossover,2385.63,1200,1.98803,8.78195
-replacement,320.006,1200,0.266672,1.178
-stats,308.015,1200,0.25668,1.13386
-selection,172.767,1200,0.143972,0.635986
-best,9.8601,240,0.0410837,0.0362969
-mutation,4.0378,1200,0.00336483,0.0148639

@@ -66,55 +66,6 @@ void GAConfig::resetToDefaults()
     std::cout << "[GAConfig] Reset to default values" << std::endl;
 }
 
-// Setter z klamrowaniem wartości replacementRatio
-void GAConfig::setReplacementRatio(double ratio) {
-    std::unique_lock<std::shared_mutex> lock(configMutex);
-    if (ratio >= 0.0 && ratio <= 1.0) {
-        replacementRatio = ratio;
-    } else {
-        std::cerr << "[GAConfig] Invalid replacement ratio: " << ratio << ", using default of 0.7" << std::endl;
-        replacementRatio = 0.7;
-    }
-}
-
-
-// ---- IMPLEMENTACJA GET/SET GlobalBestFitness ----
-
-double GAConfig::getGlobalBestFitness() const {
-    std::shared_lock<std::shared_mutex> lock(configMutex);
-    return m_globalBestFit;
-}
-
-
-
-void GAConfig::setGlobalBestFitness(double fitness) {
-    std::unique_lock<std::shared_mutex> lock(configMutex);
-    if (fitness > m_globalBestFit) {
-        m_globalBestFit = fitness;
-    }
-}
-
-
-/*
-    Prosty parser pliku konfiguracyjnego w formacie:
-    -----------------------------------
-    # Komentarz
-    populationSize=200
-    mutationRate=0.25
-    selectionMethod=tournament
-    ...
-    # Komentarz
-    adaptive.inertia=0.6
-    adaptive.adaptationInterval=15
-    ...
-    -----------------------------------
-
-    - Linie zaczynające się od '#' lub ';' traktujemy jako komentarz.
-    - Puste linie ignorujemy.
-    - Klucz i wartość rozdzielone '='.
-    - Dla prostoty: "adaptive.xyz" -> interpretujemy i przypisujemy do struct AdaptiveCrossoverParams.
-
-*/
 bool GAConfig::loadFromFile(const std::string& filePath)
 {
     // First check if we've already loaded this config
@@ -347,80 +298,68 @@ private:
 std::shared_ptr<IStopping> GAConfig::getStopping() const
 {
     std::shared_lock<std::shared_mutex> lock(configMutex);
-    // Log the current maxGenerations value for debugging
-    std::cout << "[GAConfig] Creating stopping criteria with maxGenerations=" << m_maxGenerations << std::endl;
+    
+    // Get maxGenerations value safely under lock
+    int maxGen = m_maxGenerations;
+    std::cout << "[GAConfig] Creating stopping criteria with maxGenerations=" << maxGen << std::endl;
     
     if (stoppingMethod == "maxGenerations") {
-        // Pass this instance to the constructor
-        auto stopping = std::make_shared<MaxGenerationsStopping>(*const_cast<GAConfig*>(this));
-        std::cout << "[GAConfig] Created MaxGenerationsStopping using config value" << std::endl;
+        // Create with direct value instead of reference
+        auto stopping = std::make_shared<MaxGenerationsStopping>(maxGen);
+        std::cout << "[GAConfig] Created MaxGenerationsStopping using value: " << maxGen << std::endl;
         return stopping;
     } else if (stoppingMethod == "noImprovement") {
         return std::make_shared<NoImprovementStopping>(noImprovementGenerations);
     } else if (stoppingMethod == "timeLimit") {
         return std::make_shared<TimeLimitStopping>(timeLimitSeconds);
     }
-    // Default:
+    
+    // Default case
     std::cout << "[GAConfig] Using default stopping criteria" << std::endl;
-    auto stopping = std::make_shared<MaxGenerationsStopping>(*const_cast<GAConfig*>(this));
-    std::cout << "[GAConfig] Created default MaxGenerationsStopping using config value" << std::endl;
+    auto stopping = std::make_shared<MaxGenerationsStopping>(maxGen);
+    std::cout << "[GAConfig] Created default MaxGenerationsStopping using value: " << maxGen << std::endl;
     return stopping;
 }
 
 void GAConfig::setParameters(const ParameterSet& ps) {
     std::unique_lock<std::shared_mutex> lock(configMutex);
     
-    // Set parameters from the parameter set
-    if (ps.params.count("maxGenerations")) {
-        setMaxGenerations(std::stoi(ps.params.at("maxGenerations")));
-    }
-    if (ps.params.count("populationSize")) {
-        setPopulationSize(std::stoi(ps.params.at("populationSize")));
-    }
-    if (ps.params.count("mutationRate")) {
-        setMutationRate(std::stod(ps.params.at("mutationRate")));
-    }
-    if (ps.params.count("crossoverProbability")) {
-        setCrossoverProbability(std::stod(ps.params.at("crossoverProbability")));
-    }
-    if (ps.params.count("replacementRatio")) {
-        setReplacementRatio(std::stod(ps.params.at("replacementRatio")));
-    }
+    // Set all parameters from the parameter set
+    if (ps.contains("populationSize")) setPopulationSize(ps.getInt("populationSize"));
+    if (ps.contains("mutationRate")) setMutationRate(ps.getDouble("mutationRate"));
+    if (ps.contains("maxGenerations")) setMaxGenerations(ps.getInt("maxGenerations"));
+    if (ps.contains("replacementRatio")) setReplacementRatio(ps.getDouble("replacementRatio"));
+    if (ps.contains("crossoverProbability")) setCrossoverProbability(ps.getDouble("crossoverProbability"));
+    if (ps.contains("tournamentSize")) setTournamentSize(ps.getInt("tournamentSize"));
     
-    // Validate after setting all parameters
-    validate();
+    // Update string parameters
+    if (ps.contains("selectionMethod")) selectionMethod = ps.getString("selectionMethod");
+    if (ps.contains("crossoverType")) crossoverType = ps.getString("crossoverType");
+    if (ps.contains("mutationMethod")) mutationMethod = ps.getString("mutationMethod");
+    if (ps.contains("replacementMethod")) replacementMethod = ps.getString("replacementMethod");
+    if (ps.contains("stoppingMethod")) stoppingMethod = ps.getString("stoppingMethod");
+    if (ps.contains("fitnessType")) fitnessType = ps.getString("fitnessType");
 }
 
 bool GAConfig::validate() const {
     std::shared_lock<std::shared_mutex> lock(configMutex);
     
-    bool isValid = true;
+    // Check numeric ranges
+    if (m_populationSize <= 0) return false;
+    if (m_mutationRate < 0.0 || m_mutationRate > 1.0) return false;
+    if (m_maxGenerations <= 0) return false;
+    if (replacementRatio < 0.0 || replacementRatio > 1.0) return false;
+    if (crossoverProbability < 0.0 || crossoverProbability > 1.0) return false;
+    if (tournamentSize <= 0) return false;
     
-    if (m_maxGenerations <= 0) {
-        std::cerr << "[GAConfig] Invalid maxGenerations: " << m_maxGenerations << std::endl;
-        isValid = false;
-    }
+    // Check string parameters
+    if (selectionMethod.empty()) return false;
+    if (crossoverType.empty()) return false;
+    if (mutationMethod.empty()) return false;
+    if (replacementMethod.empty()) return false;
+    if (stoppingMethod.empty()) return false;
+    if (fitnessType.empty()) return false;
     
-    if (m_populationSize <= 1) {
-        std::cerr << "[GAConfig] Invalid population size: " << m_populationSize << std::endl;
-        isValid = false;
-    }
-    
-    if (m_mutationRate < 0.0 || m_mutationRate > 1.0) {
-        std::cerr << "[GAConfig] Invalid mutation rate: " << m_mutationRate << std::endl;
-        isValid = false;
-    }
-    
-    if (crossoverProbability < 0.0 || crossoverProbability > 1.0) {
-        std::cerr << "[GAConfig] Invalid crossover probability: " << crossoverProbability << std::endl;
-        isValid = false;
-    }
-    
-    if (replacementRatio < 0.0 || replacementRatio > 1.0) {
-        std::cerr << "[GAConfig] Invalid replacement ratio: " << replacementRatio << std::endl;
-        isValid = false;
-    }
-    
-    return isValid;
+    return true;
 }
 

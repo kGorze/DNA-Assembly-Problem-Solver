@@ -42,6 +42,34 @@ AdaptiveCrossover::AdaptiveCrossover()
     metrics.avgFitness = 0.0;
 }
 
+AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config) {
+    // Initialize crossovers with crossover probability from config
+    double crossoverProb = config.getCrossoverProbability();
+    
+    // Only OnePointCrossover takes crossover probability
+    crossovers.emplace_back(CrossoverPerformance(std::make_shared<OnePointCrossover>(crossoverProb)));
+    crossovers.emplace_back(CrossoverPerformance(std::make_shared<OrderCrossover>()));
+    crossovers.emplace_back(CrossoverPerformance(std::make_shared<EdgeRecombination>()));
+    
+    // Initialize tracking variables
+    previousBestFitness = -std::numeric_limits<double>::infinity();
+    bestSeenFitness = -std::numeric_limits<double>::infinity();
+    currentCrossoverIndex = 0;
+    generationCount = 0;
+    
+    // Set parameters from config
+    const auto& params = config.getAdaptiveParams();
+    INERTIA = params.inertia;
+    ADAPTATION_INTERVAL = params.adaptationInterval;
+    MIN_TRIALS = params.minTrials;
+    MIN_PROB = params.minProb;
+    
+    // Initialize metrics
+    metrics.convergenceGeneration = -1;
+    metrics.bestFitness = -std::numeric_limits<double>::infinity();
+    metrics.avgFitness = 0.0;
+}
+
 void AdaptiveCrossover::setParameters(double inertia, int adaptInterval, int minTrials, double minProb) {
     INERTIA = inertia;
     ADAPTATION_INTERVAL = adaptInterval;

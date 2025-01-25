@@ -86,10 +86,13 @@ PermutationRepresentation::initializePopulation(
     std::vector<std::shared_ptr<std::vector<int>>> population;
     population.reserve(populationSize);
 
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
     for (int i = 0; i < populationSize; ++i) {
         auto individual = std::make_shared<std::vector<int>>(spectrumSize);
         std::iota(individual->begin(), individual->end(), 0);
-        std::random_shuffle(individual->begin(), individual->end());
+        std::shuffle(individual->begin(), individual->end(), gen);
         
         if (isValid(individual, instance)) {
             population.push_back(individual);

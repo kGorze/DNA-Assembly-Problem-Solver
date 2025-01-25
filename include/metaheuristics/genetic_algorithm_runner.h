@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <mutex>
 #include "dna/dna_instance.h"
 #include "configuration/genetic_algorithm_configuration.h"
 
@@ -21,4 +22,7 @@ void runGeneticAlgorithm(const DNAInstance& instance,
                         const std::string& outputFile,
                         int processId,
                         const std::string& configFile,
-                        bool debugMode = false); 
+                        bool debugMode = false);
+
+// Static mutex for thread-safe configuration access
+static std::mutex configMutex; 

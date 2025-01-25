@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include <chrono>
+#include <stdexcept>
 
 /**
  * Reprezentacja zestawu parametrów do tuningu.
@@ -19,6 +20,34 @@ struct ParameterSet {
     // Aby ułatwić, możemy przechowywać w mapie string->string,
     // a interpretacją typów (int, double, itp.) zająć się osobno.
     std::unordered_map<std::string, std::string> params;
+    
+    bool contains(const std::string& key) const {
+        return params.find(key) != params.end();
+    }
+    
+    int getInt(const std::string& key) const {
+        auto it = params.find(key);
+        if (it != params.end()) {
+            return std::stoi(it->second);
+        }
+        throw std::runtime_error("Parameter not found: " + key);
+    }
+    
+    double getDouble(const std::string& key) const {
+        auto it = params.find(key);
+        if (it != params.end()) {
+            return std::stod(it->second);
+        }
+        throw std::runtime_error("Parameter not found: " + key);
+    }
+    
+    std::string getString(const std::string& key) const {
+        auto it = params.find(key);
+        if (it != params.end()) {
+            return it->second;
+        }
+        throw std::runtime_error("Parameter not found: " + key);
+    }
     
     // Funkcja pomocnicza do wypisywania w CSV, debug, itp.
     std::string toString() const {

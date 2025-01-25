@@ -18,7 +18,7 @@ public:
         double bestFitness
     ) const override;
 
-    void reset();
+    void reset() override;
 
 private:
     int m_maxGenerationsWithoutImprovement;
@@ -29,7 +29,6 @@ private:
 class MaxGenerationsStopping : public IStopping {
 public:
     explicit MaxGenerationsStopping(int maxGenerations);
-    explicit MaxGenerationsStopping(GAConfig& config);
 
     bool stop(
         const std::vector<std::shared_ptr<std::vector<int>>>& population,
@@ -38,9 +37,8 @@ public:
         double bestFitness
     ) const override;
 
-    void reset() {}
+    void reset() override {}
 
 private:
     int m_maxGenerations;
-    bool m_useConfig;
 }; 
