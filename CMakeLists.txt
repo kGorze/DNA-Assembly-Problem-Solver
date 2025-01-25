@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 project(optymalizacja_kombinatoryczna)
 
 # Set C++ standard and optimization flags
@@ -17,44 +17,48 @@ include_directories(
     ${CMAKE_SOURCE_DIR}
 )
 
-# Create library from source files
-add_library(${PROJECT_NAME}_lib STATIC
-        src/dna/dna_instance.cpp
-        src/dna/dna_instance_builder.cpp
-        src/dna/error_introduction.cpp
-        src/dna/dna_instance_io.cpp
-        src/generator/dna_generator.cpp
-        src/generator/spectrum_generator.cpp
-        src/utils/logging.cpp
-        src/metaheuristics/genetic_algorithm.cpp
-        src/metaheuristics/representation.cpp
-        src/metaheuristics/population_cache.cpp
+# Enable testing
+enable_testing()
+
+# Source files
+set(SOURCES
+    src/dna/dna_instance.cpp
+    src/dna/dna_instance_builder.cpp
+    src/dna/error_introduction.cpp
+    src/dna/dna_instance_io.cpp
+    src/generator/dna_generator.cpp
+    src/generator/spectrum_generator.cpp
+    src/utils/logging.cpp
+    src/metaheuristics/genetic_algorithm.cpp
+    src/metaheuristics/population_cache.cpp
 )
 
+# Create library
+add_library(optymalizacja_kombinatoryczna_lib STATIC ${SOURCES})
+
 # Set include directories for the library
-target_include_directories(${PROJECT_NAME}_lib PUBLIC 
+target_include_directories(optymalizacja_kombinatoryczna_lib PUBLIC 
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
 )
 
 # Main executable
-add_executable(${PROJECT_NAME}
+add_executable(optymalizacja_kombinatoryczna
         src/main.cpp
 )
 
 # Link the library
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
+target_link_libraries(optymalizacja_kombinatoryczna PRIVATE optymalizacja_kombinatoryczna_lib)
+
+# Add tests
+add_subdirectory(tests)
 
 # Google Test setup
 include(FetchContent)
 FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.12.1
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
 )
-
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
@@ -66,7 +70,7 @@ add_executable(${PROJECT_NAME}_test
 )
 
 target_link_libraries(${PROJECT_NAME}_test PRIVATE
-    ${PROJECT_NAME}_lib
+    optymalizacja_kombinatoryczna_lib
     GTest::gtest_main
 )
 

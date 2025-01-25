@@ -1,6 +1,6 @@
 #pragma once
 
-#include "interfaces/i_representation.h"
+#include "metaheuristics/i_representation.h"
 #include "dna/dna_instance.h"
 #include "utils/random.h"
 #include <vector>
@@ -10,6 +10,7 @@
 #include <random>
 #include <numeric>
 #include <mutex>
+#include <sstream>
 
 class DirectDNARepresentation : public IRepresentation {
 public:
@@ -26,57 +27,54 @@ public:
         return population;
     }
 
-    bool isValid(const std::shared_ptr<Individual>& individual) const override {
-        if (!individual || individual->empty()) return false;
+    bool isValid(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+        if (!individual) return false;
         
         const auto& genes = individual->getGenes();
-        if (genes.size() != m_instance.getN()) return false;
+        if (genes.size() != static_cast<size_t>(instance.getN())) return false;
         
-        // Check if all values are valid nucleotides (0-3)
-        return std::all_of(genes.begin(), genes.end(), 
-            [](int gene) { return gene >= 0 && gene <= 3; });
+        for (const auto& gene : genes) {
+            if (gene != 0 && gene != 1) return false;
+        }
+        
+        return true;
     }
 
     std::string toString(const std::shared_ptr<Individual>& individual) const override {
         if (!individual) return "";
         
-        const auto& genes = individual->getGenes();
-        std::string result;
-        result.reserve(genes.size());
-        
-        for (int gene : genes) {
-            switch (gene) {
-                case 0: result += 'A'; break;
-                case 1: result += 'C'; break;
-                case 2: result += 'G'; break;
-                case 3: result += 'T'; break;
-                default: result += 'X'; break;
-            }
+        std::stringstream ss;
+        for (const auto& gene : individual->getGenes()) {
+            ss << gene;
         }
+        return ss.str();
+    }
+
+    std::string toDNA(const std::shared_ptr<Individual>& individual) const override {
+        if (!individual) return "";
         
-        return result;
+        std::stringstream ss;
+        for (const auto& gene : individual->getGenes()) {
+            ss << (gene == 1 ? 'A' : 'T');
+        }
+        return ss.str();
     }
 
     std::shared_ptr<Individual> generateRandomSolution() override {
-        auto individual = std::make_shared<Individual>();
         std::vector<int> genes;
         genes.reserve(m_instance.getN());
         
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 3);
+        std::uniform_int_distribution<> dis(0, 1);
         
-        for (size_t i = 0; i < m_instance.getN(); ++i) {
+        for (size_t i = 0; i < static_cast<size_t>(m_instance.getN()); ++i) {
             genes.push_back(dis(gen));
         }
         
+        auto individual = std::make_shared<Individual>();
         individual->setGenes(std::move(genes));
-        individual->setValid(true);
         return individual;
-    }
-
-    std::string toDNA(const std::shared_ptr<Individual>& individual) const override {
-        return toString(individual);
     }
 
 private:
@@ -152,88 +150,88 @@ private:
 
 class GraphPathRepresentation : public IRepresentation {
 public:
-    std::vector<std::shared_ptr<Individual>> initializePopulation(
-        int populationSize,
-        const DNAInstance& instance) override {
+    explicit GraphPathRepresentation(const DNAInstance& instance) : m_instance(instance) {}
+
+    std::vector<std::shared_ptr<Individual>> initializePopulation(size_t populationSize) override {
         std::vector<std::shared_ptr<Individual>> population;
         population.reserve(populationSize);
         
-        for (int i = 0; i < populationSize; ++i) {
-            auto individual = std::make_shared<Individual>();
-            individual->setGenes(generateRandomSolution(instance));
-            population.push_back(individual);
+        for (size_t i = 0; i < populationSize; ++i) {
+            population.push_back(generateRandomSolution());
         }
         
         return population;
     }
 
-    bool isValid(
-        const std::shared_ptr<Individual>& individual,
-        const DNAInstance& instance) const override {
-        if (!individual || individual->empty()) return false;
+    bool isValid(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+        if (!individual) return false;
         
         const auto& genes = individual->getGenes();
-        const auto& spectrum = instance.getSpectrum();
+        if (genes.empty()) return false;
         
         // Check if all indices are within bounds
-        return std::all_of(genes.begin(), genes.end(),
-            [&spectrum](int gene) { return gene >= 0 && gene < static_cast<int>(spectrum.size()); });
-    }
-
-    std::string toString(
-        const std::shared_ptr<Individual>& individual,
-        const DNAInstance& instance) const override {
-        if (!individual || individual->empty()) return "";
-        
-        const auto& genes = individual->getGenes();
-        const auto& spectrum = instance.getSpectrum();
-        
-        std::string result;
-        for (int gene : genes) {
-            if (gene >= 0 && gene < static_cast<int>(spectrum.size())) {
-                result += spectrum[gene];
-            }
+        for (const auto& gene : genes) {
+            if (gene < 0 || gene >= instance.getN()) return false;
         }
         
-        return result;
+        // Check for duplicates
+        std::vector<int> sorted = genes;
+        std::sort(sorted.begin(), sorted.end());
+        return std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end();
     }
 
-    std::vector<int> generateRandomSolution(
-        const DNAInstance& instance) override {
-        const auto& spectrum = instance.getSpectrum();
-        if (spectrum.empty()) return {};
+    std::string toString(const std::shared_ptr<Individual>& individual) const override {
+        if (!individual) return "";
         
-        std::vector<int> solution;
-        solution.reserve(spectrum.size());
+        std::stringstream ss;
+        const auto& genes = individual->getGenes();
+        for (size_t i = 0; i < genes.size(); ++i) {
+            if (i > 0) ss << " -> ";
+            ss << genes[i];
+        }
+        return ss.str();
+    }
+
+    std::string toDNA(const std::shared_ptr<Individual>& individual) const override {
+        if (!individual) return "";
         
-        // Create a permutation of spectrum indices
-        for (size_t i = 0; i < spectrum.size(); ++i) {
-            solution.push_back(i);
+        std::string dna;
+        dna.reserve(m_instance.getN());
+        
+        std::vector<bool> visited(m_instance.getN(), false);
+        const auto& genes = individual->getGenes();
+        
+        for (const auto& gene : genes) {
+            visited[gene] = true;
+            dna.push_back('A');
         }
         
-        // Shuffle the indices
-        Random random;
-        std::shuffle(solution.begin(), solution.end(), random.getGenerator());
-        
-        return solution;
-    }
-
-    std::vector<char> toDNA(
-        const std::shared_ptr<Individual>& individual,
-        const DNAInstance& instance) const override {
-        if (!individual || individual->empty()) return {};
-        
-        const auto& genes = individual->getGenes();
-        const auto& spectrum = instance.getSpectrum();
-        
-        std::vector<char> dna;
-        for (int gene : genes) {
-            if (gene >= 0 && gene < static_cast<int>(spectrum.size())) {
-                const auto& oligo = spectrum[gene];
-                dna.insert(dna.end(), oligo.begin(), oligo.end());
+        for (size_t i = 0; i < visited.size(); ++i) {
+            if (!visited[i]) {
+                dna.push_back('T');
             }
         }
         
         return dna;
     }
+
+    std::shared_ptr<Individual> generateRandomSolution() override {
+        std::vector<int> genes;
+        genes.reserve(m_instance.getN());
+        
+        for (int i = 0; i < m_instance.getN(); ++i) {
+            genes.push_back(i);
+        }
+        
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::shuffle(genes.begin(), genes.end(), gen);
+        
+        auto individual = std::make_shared<Individual>();
+        individual->setGenes(std::move(genes));
+        return individual;
+    }
+
+private:
+    const DNAInstance& m_instance;
 }; 
