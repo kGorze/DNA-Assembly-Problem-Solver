@@ -81,20 +81,29 @@ std::vector<char> DirectDNARepresentation::toDNA(
 std::vector<std::shared_ptr<Individual>>
 PermutationRepresentation::initializePopulation(int popSize, const DNAInstance& instance)
 {
+    if (popSize <= 0) {
+        LOG_ERROR("Invalid population size: " + std::to_string(popSize));
+        return {};
+    }
+
     std::vector<std::shared_ptr<Individual>> population;
     population.reserve(popSize);
 
     int validCount = 0;
     int invalidCount = 0;
-    int nullCount = 0;
 
     for (int i = 0; i < popSize; i++) {
-        auto individual = std::make_shared<Individual>();
-        if (initializeIndividual(*individual, instance)) {
-            population.push_back(individual);
-            validCount++;
-        } else {
-            LOG_WARNING("Failed to initialize individual " + std::to_string(i));
+        try {
+            auto individual = std::make_shared<Individual>();
+            if (initializeIndividual(*individual, instance)) {
+                population.push_back(individual);
+                validCount++;
+            } else {
+                LOG_WARNING("Failed to initialize individual " + std::to_string(i));
+                invalidCount++;
+            }
+        } catch (const std::exception& e) {
+            LOG_ERROR("Exception while initializing individual: " + std::string(e.what()));
             invalidCount++;
         }
     }
@@ -102,7 +111,6 @@ PermutationRepresentation::initializePopulation(int popSize, const DNAInstance& 
     LOG_INFO("Population initialization complete:");
     LOG_INFO("  Valid individuals: " + std::to_string(validCount));
     LOG_INFO("  Invalid individuals: " + std::to_string(invalidCount));
-    LOG_INFO("  Null individuals: " + std::to_string(nullCount));
 
     return population;
 }
@@ -110,20 +118,11 @@ PermutationRepresentation::initializePopulation(int popSize, const DNAInstance& 
 bool PermutationRepresentation::initializeIndividual(Individual& individual, const DNAInstance& instance)
 {
     try {
-        std::vector<int> genes(instance.getSpectrum().size());
-        std::iota(genes.begin(), genes.end(), 0); // Fill with 0,1,2,...
-        
-        // Ensure startIndex is at position 0
-        auto startIt = std::find(genes.begin(), genes.end(), instance.getStartIndex());
-        if (startIt != genes.begin()) {
-            std::iter_swap(genes.begin(), startIt);
+        auto genes = generateRandomSolution(instance);
+        if (!validateSolution(genes, instance)) {
+            LOG_ERROR("Generated invalid solution");
+            return false;
         }
-        
-        // Shuffle rest of the sequence
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::shuffle(genes.begin() + 1, genes.end(), gen);
-        
         individual.setGenes(std::move(genes));
         return true;
     } catch (const std::exception& e) {
@@ -141,26 +140,13 @@ bool PermutationRepresentation::isValid(
         return false;
     }
 
-    const auto& genes = solution->getGenes();
-    if (genes.empty()) {
-        LOG_ERROR("Empty solution provided to isValid");
+    try {
+        const auto& genes = solution->getGenes();
+        return validateSolution(genes, instance);
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception in isValid: " + std::string(e.what()));
         return false;
     }
-
-    // Check if all indices are present exactly once
-    std::vector<bool> used(instance.getSpectrum().size(), false);
-    for (int gene : genes) {
-        if (gene < 0 || gene >= (int)instance.getSpectrum().size()) {
-            return false;
-        }
-        if (used[gene]) {
-            return false;
-        }
-        used[gene] = true;
-    }
-
-    // Check if all indices were used
-    return std::all_of(used.begin(), used.end(), [](bool v) { return v; });
 }
 
 std::string PermutationRepresentation::toString(
@@ -172,7 +158,12 @@ std::string PermutationRepresentation::toString(
         return "";
     }
 
-    return solution->toString();
+    try {
+        return solution->toString();
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception in toString: " + std::string(e.what()));
+        return "";
+    }
 }
 
 std::vector<char> PermutationRepresentation::toDNA(
@@ -181,35 +172,16 @@ std::vector<char> PermutationRepresentation::toDNA(
 {
     if (!solution) {
         LOG_ERROR("Null solution provided to toDNA");
-        return std::vector<char>();
+        return {};
     }
 
-    const auto& genes = solution->getGenes();
-    if (genes.empty()) {
-        LOG_ERROR("Empty solution provided to toDNA");
-        return std::vector<char>();
+    try {
+        std::string str = toString(solution, instance);
+        return std::vector<char>(str.begin(), str.end());
+    } catch (const std::exception& e) {
+        LOG_ERROR("Exception in toDNA: " + std::string(e.what()));
+        return {};
     }
-
-    std::vector<char> dna;
-    dna.reserve(instance.getN());
-
-    // Convert permutation to DNA sequence
-    for (int gene : genes) {
-        if (gene < 0 || gene >= (int)instance.getSpectrum().size()) {
-            LOG_ERROR("Invalid gene index: " + std::to_string(gene));
-            return std::vector<char>();
-        }
-        const std::string& kmer = instance.getSpectrum()[gene];
-        if (!dna.empty()) {
-            // Add only the last character of each k-mer after the first one
-            dna.push_back(kmer.back());
-        } else {
-            // Add the entire first k-mer
-            dna.insert(dna.end(), kmer.begin(), kmer.end());
-        }
-    }
-
-    return dna;
 }
 
 /************************************************

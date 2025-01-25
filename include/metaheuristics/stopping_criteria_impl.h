@@ -13,11 +13,11 @@
 class NoImprovementStopping : public IStopping {
 public:
     explicit NoImprovementStopping(int maxGenerationsWithoutImprovement)
-        : m_maxGenerationsWithoutImprovement(maxGenerationsWithoutImprovement)
+        : m_maxGenerationsWithoutImprovement(std::max(1, maxGenerationsWithoutImprovement))
         , m_bestFitness(-std::numeric_limits<double>::infinity())
         , m_generationsWithoutImprovement(0)
     {
-        if (m_maxGenerationsWithoutImprovement <= 0) {
+        if (maxGenerationsWithoutImprovement <= 0) {
             LOG_WARNING("Invalid maxGenerationsWithoutImprovement value: " + 
                        std::to_string(maxGenerationsWithoutImprovement) + 
                        ". Using default value of 50");
@@ -25,12 +25,18 @@ public:
         }
     }
 
-    bool shouldStop(
-        int currentGeneration,
-        double bestFitness
-    ) const override {
-        std::lock_guard<std::mutex> lock(m_mutex);
+    bool shouldStop(int currentGeneration, double bestFitness) const override {
+        if (currentGeneration < 0) {
+            LOG_WARNING("Invalid generation number: " + std::to_string(currentGeneration));
+            return false;
+        }
 
+        if (!std::isfinite(bestFitness)) {
+            LOG_WARNING("Invalid fitness value in shouldStop");
+            return false;
+        }
+
+        std::lock_guard<std::mutex> lock(m_mutex);
         try {
             if (bestFitness > m_bestFitness) {
                 m_bestFitness = bestFitness;
@@ -59,7 +65,7 @@ public:
     }
 
 private:
-    int m_maxGenerationsWithoutImprovement;
+    const int m_maxGenerationsWithoutImprovement;
     mutable double m_bestFitness;
     mutable int m_generationsWithoutImprovement;
     mutable std::mutex m_mutex;
@@ -68,9 +74,9 @@ private:
 class MaxGenerationsStopping : public IStopping {
 public:
     explicit MaxGenerationsStopping(int maxGenerations)
-        : m_maxGenerations(maxGenerations)
+        : m_maxGenerations(std::max(1, maxGenerations))
     {
-        if (m_maxGenerations <= 0) {
+        if (maxGenerations <= 0) {
             LOG_WARNING("Invalid maxGenerations value: " + 
                        std::to_string(maxGenerations) + 
                        ". Using default value of 100");
@@ -80,12 +86,13 @@ public:
                  std::to_string(m_maxGenerations));
     }
 
-    bool shouldStop(
-        int currentGeneration,
-        double bestFitness
-    ) const override {
-        std::lock_guard<std::mutex> lock(m_mutex);
+    bool shouldStop(int currentGeneration, double bestFitness) const override {
+        if (currentGeneration < 0) {
+            LOG_WARNING("Invalid generation number: " + std::to_string(currentGeneration));
+            return false;
+        }
 
+        std::lock_guard<std::mutex> lock(m_mutex);
         try {
             bool shouldStop = currentGeneration >= m_maxGenerations;
             if (shouldStop) {
@@ -105,32 +112,33 @@ public:
     }
 
 private:
-    int m_maxGenerations;
+    const int m_maxGenerations;
     mutable std::mutex m_mutex;
 };
 
 class TimeLimitStopping : public IStopping {
 public:
     explicit TimeLimitStopping(int limitSeconds)
-        : m_limitSeconds(limitSeconds)
-        , m_start(std::chrono::steady_clock::now())
+        : m_limitSeconds(std::max(1, limitSeconds))
     {
-        if (m_limitSeconds <= 0) {
+        if (limitSeconds <= 0) {
             LOG_WARNING("Invalid time limit: " + 
                        std::to_string(limitSeconds) + 
                        ". Using default value of 3600 seconds (1 hour)");
             m_limitSeconds = 3600;
         }
+        reset();  // Initialize m_start
         LOG_INFO("TimeLimitStopping initialized with time limit = " + 
                  std::to_string(m_limitSeconds) + " seconds");
     }
 
-    bool shouldStop(
-        int currentGeneration,
-        double bestFitness
-    ) const override {
-        std::lock_guard<std::mutex> lock(m_mutex);
+    bool shouldStop(int currentGeneration, double bestFitness) const override {
+        if (currentGeneration < 0) {
+            LOG_WARNING("Invalid generation number: " + std::to_string(currentGeneration));
+            return false;
+        }
 
+        std::lock_guard<std::mutex> lock(m_mutex);
         try {
             auto now = std::chrono::steady_clock::now();
             auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
@@ -156,7 +164,7 @@ public:
     }
 
 private:
-    int m_limitSeconds;
+    const int m_limitSeconds;
     mutable std::chrono::steady_clock::time_point m_start;
     mutable std::mutex m_mutex;
 }; 

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <random>
 #include <numeric>
+#include <mutex>
 
 class DirectDNARepresentation : public IRepresentation {
 public:
@@ -33,21 +34,29 @@ private:
 
 class PermutationRepresentation : public IRepresentation {
 public:
-    std::vector<std::shared_ptr<std::vector<int>>> initializePopulation(
+    std::vector<std::shared_ptr<Individual>> initializePopulation(
         int populationSize,
         const DNAInstance& instance) override;
 
+    bool initializeIndividual(
+        Individual& individual,
+        const DNAInstance& instance) override;
+
     bool isValid(
-        const std::shared_ptr<std::vector<int>>& solution,
+        const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance) const override;
 
     std::string toString(
-        const std::shared_ptr<std::vector<int>>& solution,
+        const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance) const override;
 
     std::vector<char> toDNA(
-        const std::shared_ptr<std::vector<int>>& solution,
+        const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance) const override;
+
+private:
+    mutable std::mutex m_mutex;
+    mutable std::mt19937 m_rng{std::random_device{}()};
 
     std::vector<int> generateRandomSolution(const DNAInstance& instance) const {
         std::vector<int> solution(instance.getSpectrum().size());
@@ -60,11 +69,33 @@ public:
         }
         
         // Shuffle rest of the sequence
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::shuffle(solution.begin() + 1, solution.end(), gen);
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            std::shuffle(solution.begin() + 1, solution.end(), m_rng);
+        }
         
         return solution;
+    }
+
+    bool validateSolution(const std::vector<int>& genes, const DNAInstance& instance) const {
+        if (genes.empty()) {
+            return false;
+        }
+
+        // Check if all indices are present exactly once
+        std::vector<bool> used(instance.getSpectrum().size(), false);
+        for (int gene : genes) {
+            if (gene < 0 || gene >= (int)instance.getSpectrum().size()) {
+                return false;
+            }
+            if (used[gene]) {
+                return false;
+            }
+            used[gene] = true;
+        }
+
+        // Check if all indices were used
+        return std::all_of(used.begin(), used.end(), [](bool v) { return v; });
     }
 };
 

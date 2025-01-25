@@ -233,6 +233,8 @@ void GeneticAlgorithm::run(const DNAInstance& instance) {
 
 void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instance)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
     // Calculate theoretical maximum fitness based on instance parameters
     int k = instance.getK();
     int n = instance.getN();
@@ -270,11 +272,14 @@ std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatri
     const auto& spectrum = instance.getSpectrum();
     int k = instance.getK();
     
-    std::vector<std::vector<PreprocessedEdge>> matrix(
-        spectrum.size(),
-        std::vector<PreprocessedEdge>(spectrum.size())
-    );
+    // Pre-allocate the matrix with the correct size
+    std::vector<std::vector<PreprocessedEdge>> matrix;
+    matrix.reserve(spectrum.size());
+    for (size_t i = 0; i < spectrum.size(); ++i) {
+        matrix.emplace_back(spectrum.size());
+    }
     
+    // Build the matrix
     for (size_t i = 0; i < spectrum.size(); ++i) {
         for (size_t j = 0; j < spectrum.size(); ++j) {
             if (i != j) {
@@ -289,18 +294,17 @@ std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatri
     return matrix;
 }
 
-int GeneticAlgorithm::calculateEdgeWeight(const std::string& from, const std::string& to, int k) const
+int GeneticAlgorithm::calculateEdgeWeight(
+    const std::string& from,
+    const std::string& to,
+    int k) const
 {
     if (from.length() < k - 1 || to.length() < k - 1) return 0;
     
     // Compare suffix of 'from' with prefix of 'to'
-    std::string suffix = from.substr(from.length() - (k - 1));
-    std::string prefix = to.substr(0, k - 1);
+    std::string_view suffix(from.data() + from.length() - (k - 1), k - 1);
+    std::string_view prefix(to.data(), k - 1);
     
-    if (suffix == prefix) {
-        return k - 1;  // Weight is the length of the overlap
-    }
-    
-    return 0;
+    return suffix == prefix ? k - 1 : 0;
 }
 }

@@ -7,6 +7,7 @@
 #include <string>
 #include <limits>
 #include <random>
+#include <sstream>
 
 // Interface includes
 #include "../interfaces/i_representation.h"
@@ -77,6 +78,16 @@ public:
         return m_globalBestInd ? std::make_shared<Individual>(*m_globalBestInd) : nullptr;
     }
 
+    void calculateTheoreticalMaxFitness(const DNAInstance& instance);
+
+    static std::string vectorToString(const std::vector<int>& vec) {
+        std::stringstream ss;
+        for (int val : vec) {
+            ss << val << " ";
+        }
+        return ss.str();
+    }
+
 private:
     void logGenerationStats(const std::vector<std::shared_ptr<Individual>>& pop,
                           const DNAInstance& instance,
@@ -84,6 +95,9 @@ private:
     void initializePopulation(int popSize, const DNAInstance& instance);
     void updateGlobalBest(const std::vector<std::shared_ptr<Individual>>& pop,
                          const DNAInstance& instance);
+    std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(
+        const DNAInstance& instance) const;
+    int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
 
     // Thread safety
     mutable std::mutex m_mutex;
