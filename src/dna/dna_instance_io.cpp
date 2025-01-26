@@ -20,8 +20,9 @@ bool InstanceIO::saveInstance(const DNAInstance& instance, const std::string& fi
         file << instance.isRepAllowed() << "\n";
         file << instance.getProbablePositive() << "\n";
 
-        // Write DNA sequence
+        // Write DNA sequence and target sequence
         file << instance.getDNA() << "\n";
+        file << instance.getTargetSequence() << "\n";
 
         // Write spectrum
         const auto& spectrum = instance.getSpectrum();
@@ -69,10 +70,12 @@ DNAInstance InstanceIO::loadInstance(const std::string& filename) {
         file >> value;
         instance.setProbablePositive(value);
 
-        // Read DNA sequence
-        std::string dna;
+        // Read DNA sequence and target sequence
+        std::string dna, target;
         file >> dna;
+        file >> target;
         instance.setDNA(dna);
+        instance.setTargetSequence(target);
 
         // Read spectrum
         int spectrumSize;

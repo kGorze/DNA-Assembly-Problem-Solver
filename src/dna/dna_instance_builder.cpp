@@ -58,6 +58,7 @@ DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
         m_generator.setParameters(m_instance.getN(), m_instance.getK(), m_instance.getDeltaK());
         std::string dna = m_generator.generateDNA(m_instance.getN(), m_instance.isRepAllowed());
         m_instance.setDNA(dna);
+        m_instance.setTargetSequence(dna);
         return *this;
     } catch (const std::exception& e) {
         LOG_ERROR("Error building DNA: " + std::string(e.what()));

@@ -10,26 +10,20 @@
 #include <unordered_set>
 
 /**
- * Funkcja pomocnicza do weryfikacji, czy dany rodzic jest poprawną
- * permutacją (albo w przybliżeniu poprawną) w zakresie 0..(size-1).
- * Jeżeli napotka out-of-range, to może:
- *  - wyzerować (uszkodzić) osobnika,
- *  - albo skorygować (np. clamp).
- * Tutaj dla przykładu – clamp.
+ * Helper function to verify if a chromosome is a valid permutation
+ * in the range 0..(size-1).
  */
-// Pomocnicza funkcja do sprawdzenia, czy chromosom jest prawidłowy (np. permutacja).
 static bool validateAndClampChromosome(std::shared_ptr<std::vector<int>> indiv, int size) {
     if (!indiv) return false;
     if ((int)indiv->size() != size) {
         return false;
     }
-    // W razie potrzeby można sprawdzić, czy wartości są unikatowe.
-    for (int &gene : *indiv) {
-        if (gene < 0 || gene >= size) {
-            // "clamp" do zakresu
-            if (gene < 0) gene = 0;
-            if (gene >= size) gene = size - 1;
+    std::vector<bool> used(size, false);
+    for (int gene : *indiv) {
+        if (gene < 0 || gene >= size || used[gene]) {
+            return false;
         }
+        used[gene] = true;
     }
     return true;
 }
@@ -48,516 +42,277 @@ bool isValidPermutation(const std::vector<int>& perm, int size) {
 }
 
 // ========================================
-// =            ONE POINT                =
-// ========================================
-std::vector<std::shared_ptr<std::vector<int>>> 
-OnePointCrossover::crossover(
-    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
-    const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation)
-{
-    LOG_DEBUG("Starting crossover operation with " + std::to_string(parents.size()) + " parents");
-    
-    if (parents.size() < 2) {
-        LOG_ERROR("Insufficient parents for crossover. Need at least 2, got " + std::to_string(parents.size()));
-        return parents;
-    }
-    
-    std::vector<std::shared_ptr<std::vector<int>>> offspring;
-    offspring.reserve(parents.size());
-    
-    static std::mt19937 rng(std::random_device{}());
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
-    
-    for (size_t i = 0; i < parents.size(); i += 2) {
-        if (i + 1 >= parents.size()) {
-            LOG_WARNING("Odd number of parents, copying last parent directly");
-            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
-            continue;
-        }
-        
-        if (dist(rng) < m_crossoverRate) {
-            DEBUG_LOG("Performing crossover between parents " + std::to_string(i) + 
-                     " and " + std::to_string(i + 1));
-            
-            auto children = performCrossover(parents[i], parents[i + 1], instance);
-            
-            if (children.first && children.second) {
-                offspring.push_back(children.first);
-                offspring.push_back(children.second);
-            } else {
-                LOG_ERROR("Crossover failed, using parents instead");
-                offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
-                offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
-            }
-        } else {
-            DEBUG_LOG("Skipping crossover for parents " + std::to_string(i) + 
-                     " and " + std::to_string(i + 1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
-            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
-        }
-    }
-    
-    LOG_INFO("Crossover complete. Generated " + std::to_string(offspring.size()) + " offspring");
-    return offspring;
-}
-
-std::pair<std::shared_ptr<std::vector<int>>, std::shared_ptr<std::vector<int>>> 
-OnePointCrossover::performCrossover(const std::shared_ptr<std::vector<int>>& parent1,
-                                  const std::shared_ptr<std::vector<int>>& parent2,
-                                  const DNAInstance& instance) {
-    auto child1 = std::make_shared<std::vector<int>>(*parent1);
-    auto child2 = std::make_shared<std::vector<int>>(*parent2);
-    
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    int crossPoint = std::uniform_int_distribution<int>(0, parent1->size()-1)(gen);
-    
-    for (size_t i = crossPoint; i < parent1->size(); ++i) {
-        (*child1)[i] = (*parent2)[i];
-        (*child2)[i] = (*parent1)[i];
-    }
-    
-    return {child1, child2};
-}
-
-// ========================================
 // =           ORDER CROSSOVER (OX)      =
 // ========================================
-std::vector<std::shared_ptr<std::vector<int>>> 
+std::vector<std::shared_ptr<Individual>> 
 OrderCrossover::crossover(
-    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+    const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation)
 {
-    const size_t spectrumSize = instance.getSpectrum().size();
-    std::vector<std::shared_ptr<std::vector<int>>> offspring;
-    offspring.reserve(parents.size());
+    if (!representation) {
+        throw std::invalid_argument("Invalid representation pointer");
+    }
     
-    if (parents.size() < 2) {
-        LOG_ERROR("OrderCrossover: Not enough parents for crossover");
-        return parents;  // Return parents instead of empty vector
-    }
-
-    for (size_t i = 0; i < parents.size() - 1; i += 2) {
-        if (!parents[i] || !parents[i + 1] || 
-            parents[i]->size() != spectrumSize || 
-            parents[i + 1]->size() != spectrumSize) {
-            LOG_WARNING("OrderCrossover: Invalid parent sizes or null parents, copying parents");
-            if (parents[i]) offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
-            if (parents[i + 1]) offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
-            continue;
+    try {
+        auto [genes1, genes2] = validateAndGetGenes(parents);
+        
+        std::vector<std::shared_ptr<Individual>> offspring;
+        offspring.reserve(2);
+        
+        auto& rng = Random::instance();
+        int start = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
+        int end = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
+        if (start > end) std::swap(start, end);
+        
+        // Create first offspring
+        std::vector<int> offspring1Genes(genes1.size());
+        std::vector<bool> used1(genes1.size(), false);
+        
+        // Copy segment from first parent
+        for (int i = start; i <= end; i++) {
+            offspring1Genes[i] = genes1[i];
+            used1[genes1[i]] = true;
         }
-
-        auto child = performOrderCrossover(*parents[i], *parents[i + 1], spectrumSize);
-        if (isValidPermutation(child, spectrumSize)) {
-            offspring.push_back(std::make_shared<std::vector<int>>(child));
-            
-            // Create second child by reversing the roles of parents
-            auto child2 = performOrderCrossover(*parents[i + 1], *parents[i], spectrumSize);
-            if (isValidPermutation(child2, spectrumSize)) {
-                offspring.push_back(std::make_shared<std::vector<int>>(child2));
-            } else {
-                offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
-            }
-        } else {
-            // If crossover fails, copy both parents
-            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i]));
-            offspring.push_back(std::make_shared<std::vector<int>>(*parents[i + 1]));
-        }
-    }
-
-    // Handle odd number of parents
-    if (parents.size() % 2 == 1 && !parents.empty()) {
-        offspring.push_back(std::make_shared<std::vector<int>>(*parents.back()));
-    }
-
-    if (offspring.empty()) {
-        LOG_WARNING("OrderCrossover produced no offspring, returning copies of parents");
-        for (const auto& parent : parents) {
-            if (parent) {
-                offspring.push_back(std::make_shared<std::vector<int>>(*parent));
+        
+        // Fill remaining positions from second parent
+        int j = 0;
+        for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+            if (i >= start && i <= end) continue;
+            while (j < static_cast<int>(genes2.size()) && used1[genes2[j]]) j++;
+            if (j < static_cast<int>(genes2.size())) {
+                offspring1Genes[i] = genes2[j++];
             }
         }
-    }
-
-    return offspring;
-}
-
-std::vector<int> OrderCrossover::performOrderCrossover(
-    const std::vector<int>& parent1,
-    const std::vector<int>& parent2,
-    size_t size) 
-{
-    std::vector<int> child(size, -1);
-    std::vector<bool> used(size, false);
-    
-    // Wybierz losowy segment
-    std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<int> dist(0, size - 1);
-    int start = dist(gen);
-    int end = dist(gen);
-    if (start > end) std::swap(start, end);
-    
-    // Skopiuj segment z pierwszego rodzica
-    for (int i = start; i <= end; i++) {
-        child[i] = parent1[i];
-        used[parent1[i]] = true;
-    }
-    
-    // Wypełnij pozostałe pozycje genami z drugiego rodzica
-    int j = (end + 1) % size;
-    for (size_t i = 0; i < size; i++) {
-        int pos = (end + 1 + i) % size;
-        if (child[pos] == -1) {
-            // Znajdź następny nieużyty gen z parent2
-            while (used[parent2[j]]) {
-                j = (j + 1) % size;
-            }
-            child[pos] = parent2[j];
-            used[parent2[j]] = true;
-            j = (j + 1) % size;
+        
+        if (auto child = createOffspring(offspring1Genes, representation, instance)) {
+            offspring.push_back(child);
         }
+        
+        // Create second offspring (reverse roles)
+        std::vector<int> offspring2Genes(genes1.size());
+        std::vector<bool> used2(genes1.size(), false);
+        
+        for (int i = start; i <= end; i++) {
+            offspring2Genes[i] = genes2[i];
+            used2[genes2[i]] = true;
+        }
+        
+        j = 0;
+        for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+            if (i >= start && i <= end) continue;
+            while (j < static_cast<int>(genes1.size()) && used2[genes1[j]]) j++;
+            if (j < static_cast<int>(genes1.size())) {
+                offspring2Genes[i] = genes1[j++];
+            }
+        }
+        
+        if (auto child = createOffspring(offspring2Genes, representation, instance)) {
+            offspring.push_back(child);
+        }
+        
+        return offspring;
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error in order crossover: " + std::string(e.what()));
+        return {};
     }
-    
-    return child;
 }
 
 // ========================================
 // =       EDGE RECOMBINATION (ERX)      =
 // ========================================
-std::vector<std::shared_ptr<std::vector<int>>> 
+std::vector<std::shared_ptr<Individual>> 
 EdgeRecombination::crossover(
-    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+    const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation)
 {
-    std::vector<std::shared_ptr<std::vector<int>>> offspring;
-    offspring.reserve(parents.size());
-
-    int requiredSize = parents.empty() ? 0 : (int)parents[0]->size();
-
-    for (size_t i = 0; i + 1 < parents.size(); i += 2) {
-        auto p1 = parents[i];
-        auto p2 = parents[i+1];
-        if (!p1 || !p2) continue;
-
-        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
-            continue;
-        }
-
-        int size = requiredSize;
-        std::vector<std::unordered_set<int>> edgeMap(size);
-
-        // Budowa edge map z użyciem set dla unikatowych wartości
-        for (auto parent : {p1, p2}) {
-            for (int idx = 0; idx < size; idx++) {
-                int curr = (*parent)[idx];
-                int next = (*parent)[(idx + 1) % size];
-                int prev = (*parent)[(idx - 1 + size) % size];
-                
-                edgeMap[curr].insert(prev);
-                edgeMap[curr].insert(next);
-            }
-        }
-
-        std::random_device rd;
-        std::mt19937 gen(rd());
+    if (!representation) {
+        throw std::invalid_argument("Invalid representation pointer");
+    }
+    
+    try {
+        auto [genes1, genes2] = validateAndGetGenes(parents);
         
-        // Tworzymy pierwszego potomka
-        std::vector<bool> used(size, false);
-        std::vector<int> child;
-        child.reserve(size);
+        std::vector<std::shared_ptr<Individual>> offspring;
+        offspring.reserve(2);
         
-        // Zaczynamy od pierwszego genu pierwszego rodzica
-        int current = (*p1)[0];
-        child.push_back(current);
-        used[current] = true;
-
-        // Główna pętla budowania potomka
-        while (child.size() < size) {
-            std::vector<std::pair<int, int>> candidates; // para (gen, liczba nieużytych sąsiadów)
+        // Build edge table
+        std::vector<std::vector<int>> edgeTable(genes1.size());
+        for (size_t i = 0; i < genes1.size(); i++) {
+            // Add edges from first parent
+            edgeTable[genes1[i]].push_back(genes1[(i + 1) % genes1.size()]);
+            edgeTable[genes1[i]].push_back(genes1[(i + genes1.size() - 1) % genes1.size()]);
             
-            // Sprawdzamy wszystkich nieużytych sąsiadów
-            for (int neighbor : edgeMap[current]) {
-                if (!used[neighbor]) {
-                    int unusedNeighborCount = 0;
-                    for (int nb : edgeMap[neighbor]) {
-                        if (!used[nb]) unusedNeighborCount++;
-                    }
-                    candidates.push_back({neighbor, unusedNeighborCount});
-                }
-            }
-
-            // Jeśli nie ma kandydatów, wybieramy spośród wszystkich nieużytych
-            if (candidates.empty()) {
-                for (int j = 0; j < size; j++) {
-                    if (!used[j]) {
-                        candidates.push_back({j, 0});
-                    }
-                }
-            }
-
-            // Wybieramy następny gen
-            if (!candidates.empty()) {
-                // Sortujemy po liczbie nieużytych sąsiadów (heurystyka)
-                std::sort(candidates.begin(), candidates.end(),
-                    [](const auto& a, const auto& b) { return a.second < b.second; });
-                
-                current = candidates[0].first;
-                child.push_back(current);
-                used[current] = true;
-            } else {
-                break; // Zabezpieczenie przed nieskończoną pętlą
-            }
+            // Add edges from second parent
+            edgeTable[genes2[i]].push_back(genes2[(i + 1) % genes2.size()]);
+            edgeTable[genes2[i]].push_back(genes2[(i + genes2.size() - 1) % genes2.size()]);
+            
+            // Remove duplicates
+            std::sort(edgeTable[genes1[i]].begin(), edgeTable[genes1[i]].end());
+            edgeTable[genes1[i]].erase(
+                std::unique(edgeTable[genes1[i]].begin(), edgeTable[genes1[i]].end()),
+                edgeTable[genes1[i]].end()
+            );
         }
-
-        // Weryfikacja i dodanie potomków
-        if (isValidPermutation(child, size)) {
-            auto childPtr1 = std::make_shared<std::vector<int>>(child);
-            // Drugi potomek jako odwrócona kopia pierwszego
-            auto revChild = child;
-            std::reverse(revChild.begin(), revChild.end());
-            auto childPtr2 = std::make_shared<std::vector<int>>(revChild);
+        
+        auto& rng = Random::instance();
+        
+        // Create two offspring
+        for (int k = 0; k < 2; k++) {
+            std::vector<int> offspringGenes;
+            offspringGenes.reserve(genes1.size());
+            std::vector<bool> used(genes1.size(), false);
             
-            offspring.push_back(childPtr1);
-            offspring.push_back(childPtr2);
-            for (auto& child : offspring) {
-                if (child) {
-                    for (int gene : *child) {
-                        if (gene < 0 || gene >= requiredSize) {
-                            std::cerr << "[ERROR] child has out-of-range gene = " << gene 
-                                      << " (valid range: 0-" << (requiredSize-1) << ")" << std::endl;
+            // Start with a random gene
+            int current = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
+            offspringGenes.push_back(current);
+            used[current] = true;
+            
+            // Build the rest of the path
+            while (offspringGenes.size() < genes1.size()) {
+                const auto& neighbors = edgeTable[current];
+                
+                // Find unused neighbor with fewest remaining neighbors
+                int next = -1;
+                int minNeighbors = std::numeric_limits<int>::max();
+                
+                for (int neighbor : neighbors) {
+                    if (!used[neighbor]) {
+                        int unusedNeighborCount = 0;
+                        for (int n : edgeTable[neighbor]) {
+                            if (!used[n]) unusedNeighborCount++;
+                        }
+                        if (unusedNeighborCount < minNeighbors) {
+                            minNeighbors = unusedNeighborCount;
+                            next = neighbor;
                         }
                     }
                 }
+                
+                // If no unused neighbors found, pick random unused gene
+                if (next == -1) {
+                    std::vector<int> unusedGenes;
+                    for (size_t i = 0; i < genes1.size(); i++) {
+                        if (!used[i]) unusedGenes.push_back(i);
+                    }
+                    if (!unusedGenes.empty()) {
+                        next = unusedGenes[rng.getRandomInt(0, static_cast<int>(unusedGenes.size() - 1))];
+                    }
+                }
+                
+                if (next != -1) {
+                    offspringGenes.push_back(next);
+                    used[next] = true;
+                    current = next;
+                }
             }
-        } else {
-            // Fallback do kopii rodziców
-            std::cerr << "[ERROR] Invalid offspring from EdgeRecombination!" << std::endl;
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
+            
+            if (auto child = createOffspring(offspringGenes, representation, instance)) {
+                offspring.push_back(child);
+            }
         }
+        
+        return offspring;
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error in edge recombination crossover: " + std::string(e.what()));
+        return {};
     }
-
-    return offspring;
 }
 
 // ========================================
-// =        PARTIALLY MAPPED (PMX)        =
+// =       PMX CROSSOVER                 =
 // ========================================
-std::vector<std::shared_ptr<std::vector<int>>> 
+std::vector<std::shared_ptr<Individual>> 
 PMXCrossover::crossover(
-    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+    const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation)
 {
-    std::vector<std::shared_ptr<std::vector<int>>> offspring;
-    offspring.reserve(parents.size());
-
-    int requiredSize = parents.empty() ? 0 : (int)parents[0]->size();
-
-    for (size_t i = 0; i + 1 < parents.size(); i += 2) {
-        auto p1 = parents[i];
-        auto p2 = parents[i+1];
-        // **Debug Log**: Sprawdzenie rozmiarów rodziców
-        std::cout << "[DEBUG PMX] Parent1 size: " << p1->size() 
-                  << ", Parent2 size: " << p2->size() << "\n";
-
-        if (!p1 || !p2) continue;
-
-        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
-            std::cerr << "[ERROR PMX] Invalid permutation size for parents\n";
-
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
-            continue;
-        }
-
-        int size = requiredSize;
-
-        // Tworzymy mapy pozycji dla obu rodziców
-        std::vector<int> pos1(size), pos2(size);
-        for (int j = 0; j < size; j++) {
-            pos1[(*p1)[j]] = j;
-            pos2[(*p2)[j]] = j;
-        }
-
-        auto c1 = std::make_shared<std::vector<int>>(*p1);
-        auto c2 = std::make_shared<std::vector<int>>(*p2);
-
-        // Losowanie punktów cięcia
-        std::mt19937 gen(std::random_device{}());
-        std::uniform_int_distribution<int> dist(0, size - 1);
-        int start = dist(gen);
-        int end = dist(gen);
+    if (!representation) {
+        throw std::invalid_argument("Invalid representation pointer");
+    }
+    
+    try {
+        auto [genes1, genes2] = validateAndGetGenes(parents);
+        
+        std::vector<std::shared_ptr<Individual>> offspring;
+        offspring.reserve(2);
+        
+        auto& rng = Random::instance();
+        int start = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
+        int end = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
         if (start > end) std::swap(start, end);
-
-        // Wykonujemy mapowanie PMX
-        for (int j = start; j <= end; j++) {
-            int val1 = (*c1)[j];
-            int val2 = (*c2)[j];
-            
-            std::swap((*c1)[j], (*c2)[j]);
-            std::swap((*c1)[pos1[val2]], (*c2)[pos2[val1]]);
-            
-            // Aktualizujemy mapy pozycji
-            int tempPos = pos1[val1];
-            pos1[val1] = pos1[val2];
-            pos1[val2] = tempPos;
-            
-            tempPos = pos2[val1];
-            pos2[val1] = pos2[val2];
-            pos2[val2] = tempPos;
+        
+        // Create first offspring
+        std::vector<int> offspring1Genes(genes1.size(), -1);
+        std::vector<bool> used1(genes1.size(), false);
+        
+        // Copy segment from first parent
+        for (int i = start; i <= end; i++) {
+            offspring1Genes[i] = genes1[i];
+            used1[genes1[i]] = true;
         }
-
-        // Weryfikacja potomków
-        if (isValidPermutation(*c1, size) && isValidPermutation(*c2, size)) {
-            offspring.push_back(c1);
-            offspring.push_back(c2);
-            // **Debug Log**: Sprawdzenie potomków
-            for(auto &child : {c1, c2}) {
-                std::cout << "[DEBUG PMX] Child size: " << child->size() << ", genes: ";
-                for(auto gene : *child){
-                    std::cout << gene << " ";
-                    if(gene < 0 || gene >= (int)instance.getSpectrum().size()){
-                        std::cerr << "\n[ERROR PMX] Child has out-of-range gene: " << gene << "\n";
-                    }
-                }
-                std::cout << "\n";
+        
+        // Create mapping from parent2 to parent1 values
+        std::unordered_map<int, int> mapping;
+        for (int i = start; i <= end; i++) {
+            if (genes1[i] != genes2[i]) {
+                mapping[genes2[i]] = genes1[i];
             }
-        } else {
-            std::cerr << "[ERROR] Invalid offspring from PMXCrossover!" << std::endl;
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
         }
-    }
-
-    return offspring;
-}
-
-DistancePreservingCrossover::DistanceMatrix::DistanceMatrix(const std::vector<int>& perm) {
-    int size = perm.size();
-    // Zamiast przechowywać pełną macierz, przechowujemy tylko pozycje elementów
-    distances.resize(size);
-    for (int i = 0; i < size; i++) {
-        distances[perm[i]] = i;
-    }
-}
-
-int DistancePreservingCrossover::DistanceMatrix::getDistance(int from, int to) const {
-    int fromPos = distances[from];
-    int toPos = distances[to];
-    int size = distances.size();
-    
-    // Oblicz najkrótszą odległość w cyklu
-    int dist = (toPos - fromPos + size) % size;
-    int revDist = (fromPos - toPos + size) % size;
-    return std::min(dist, revDist);
-}
-
-std::vector<std::shared_ptr<std::vector<int>>> 
-DistancePreservingCrossover::crossover(
-    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
-    const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation)
-{
-    std::vector<std::shared_ptr<std::vector<int>>> offspring;
-    offspring.reserve(parents.size());
-
-    int requiredSize = parents.empty() ? 0 : (int)parents[0]->size();
-
-    std::mt19937 gen(std::random_device{}());
-    std::vector<bool> used(requiredSize);
-    std::vector<std::pair<int, double>> candidates;
-    candidates.reserve(requiredSize);
-
-    for (size_t i = 0; i + 1 < parents.size(); i += 2) {
-        auto p1 = parents[i];
-        auto p2 = parents[i + 1];
-        if (!p1 || !p2) continue;
-
-        if (!isValidPermutation(*p1, requiredSize) || !isValidPermutation(*p2, requiredSize)) {
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
-            continue;
-        }
-
-        // Tworzymy macierze odległości dla obu rodziców - teraz O(n) zamiast O(n^2)
-        DistanceMatrix dm1(*p1);
-        DistanceMatrix dm2(*p2);
-
-        // Tworzymy potomka
-        auto child = std::make_shared<std::vector<int>>(requiredSize);
-        std::fill(used.begin(), used.end(), false);
-
-        // Wybierz pierwszy element
-        (*child)[0] = (*p1)[0];
-        used[(*child)[0]] = true;
-
-        // Zoptymalizowana pętla główna
-        for (int pos = 1; pos < requiredSize; pos++) {
-            double bestScore = std::numeric_limits<double>::infinity();
-            int bestCandidate = -1;
+        
+        // Fill remaining positions
+        for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+            if (i >= start && i <= end) continue;
             
-            // Zamiast sprawdzać wszystkie możliwe kombinacje, weźmiemy próbkę
-            int sampleSize = std::min(10, requiredSize - pos); // Sprawdzamy max 10 kandydatów
-            std::vector<int> unusedIndices;
-            for (int j = 0; j < requiredSize; j++) {
-                if (!used[j]) {
-                    unusedIndices.push_back(j);
-                }
+            int value = genes2[i];
+            while (mapping.find(value) != mapping.end()) {
+                value = mapping[value];
             }
-            std::shuffle(unusedIndices.begin(), unusedIndices.end(), gen);
-            
-            // Sprawdź tylko wybraną próbkę kandydatów
-            for (int idx = 0; idx < sampleSize && idx < (int)unusedIndices.size(); idx++) {
-                int j = unusedIndices[idx];
-                double score = 0.0;
-                
-                // Sprawdź tylko względem kilku ostatnich umieszczonych elementów
-                int checkBack = std::min(5, pos); // Sprawdzamy max 5 poprzednich elementów
-                for (int k = pos - checkBack; k < pos; k++) {
-                    int placedElement = (*child)[k];
-                    score += std::abs(dm1.getDistance(placedElement, j) - (pos - k)) +
-                            std::abs(dm2.getDistance(placedElement, j) - (pos - k));
-                }
-                
-                if (score < bestScore) {
-                    bestScore = score;
-                    bestCandidate = j;
-                }
-            }
-            
-            (*child)[pos] = bestCandidate;
-            used[bestCandidate] = true;
+            offspring1Genes[i] = value;
         }
-
-        if (isValidPermutation(*child, requiredSize)) {
+        
+        if (auto child = createOffspring(offspring1Genes, representation, instance)) {
             offspring.push_back(child);
-            
-            auto child2 = std::make_shared<std::vector<int>>(*child);
-            std::reverse(child2->begin(), child2->end());
-            offspring.push_back(child2);
-            for (auto& child : offspring) {
-                if (child) {
-                    for (int gene : *child) {
-                        if (gene < 0 || gene >= requiredSize) {
-                            std::cerr << "[ERROR] child has out-of-range gene = " << gene 
-                                      << " (valid range: 0-" << (requiredSize-1) << ")" << std::endl;
-                        }
-                    }
-                }
-            }
-        } else {
-            std::cerr << "[ERROR] Invalid offspring from DistancePreservingCrossover!" << std::endl;
-            offspring.push_back(std::make_shared<std::vector<int>>(*p1));
-            offspring.push_back(std::make_shared<std::vector<int>>(*p2));
         }
+        
+        // Create second offspring
+        std::vector<int> offspring2Genes(genes1.size(), -1);
+        std::vector<bool> used2(genes1.size(), false);
+        
+        for (int i = start; i <= end; i++) {
+            offspring2Genes[i] = genes2[i];
+            used2[genes2[i]] = true;
+        }
+        
+        mapping.clear();
+        for (int i = start; i <= end; i++) {
+            if (genes1[i] != genes2[i]) {
+                mapping[genes1[i]] = genes2[i];
+            }
+        }
+        
+        for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+            if (i >= start && i <= end) continue;
+            
+            int value = genes1[i];
+            while (mapping.find(value) != mapping.end()) {
+                value = mapping[value];
+            }
+            offspring2Genes[i] = value;
+        }
+        
+        if (auto child = createOffspring(offspring2Genes, representation, instance)) {
+            offspring.push_back(child);
+        }
+        
+        return offspring;
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error in PMX crossover: " + std::string(e.what()));
+        return {};
     }
-
-    return offspring;
-    
 }

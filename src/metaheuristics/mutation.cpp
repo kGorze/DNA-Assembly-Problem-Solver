@@ -1,8 +1,9 @@
 //
 // Created by konrad_guest on 07/01/2025.
 // SMART
-#include "../include/metaheuristics/mutation_impl.h"
-#include "../include/utils/logging.h"
+#include "../../include/metaheuristics/mutation_impl.h"
+#include "../../include/metaheuristics/individual.h"
+#include "../../include/utils/logging.h"
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -10,67 +11,51 @@
 
 // =========== PointMutation ===========
 
-void PointMutation::mutate(
-    std::shared_ptr<std::vector<int>>& solution,
-    const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation
-) {
-    if (!solution || solution->empty()) {
-        LOG_WARNING("Attempted to mutate null or empty solution");
-        return;
-    }
-
-    if (!representation) {
-        LOG_ERROR("Null representation provided to mutation operator");
-        return;
-    }
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0.0, 1.0);
-    std::uniform_int_distribution<> posDis(0, solution->size() - 1);
-    std::uniform_int_distribution<> valDis(0, instance.getSpectrum().size() - 1);
-
-    auto originalSolution = *solution;
-    bool mutated = false;
-
-    for (size_t i = 0; i < solution->size(); ++i) {
-        if (dis(gen) < m_mutationRate) {
-            int oldValue = (*solution)[i];
-            int newValue;
-            do {
-                newValue = valDis(gen);
-            } while (newValue == oldValue);
-            
-            (*solution)[i] = newValue;
-            mutated = true;
-
-            std::stringstream ss;
-            ss << "Mutated position " << i << " from " << oldValue << " to " << newValue;
-            LOG_DEBUG(ss.str());
-        }
-    }
-
-    if (!mutated) {
-        // Force at least one mutation if none occurred
-        int pos = posDis(gen);
-        int oldValue = (*solution)[pos];
-        int newValue;
-        do {
-            newValue = valDis(gen);
-        } while (newValue == oldValue);
-        
-        (*solution)[pos] = newValue;
-        
-        std::stringstream ss;
-        ss << "Forced mutation at position " << pos << " from " << oldValue << " to " << newValue;
-        LOG_DEBUG(ss.str());
-    }
-
-    // Validate the mutated solution
-    auto mutatedSolution = std::make_shared<std::vector<int>>(*solution);
-    if (!representation->isValid(mutatedSolution, instance)) {
-        LOG_WARNING("Mutation produced invalid solution - rolling back changes");
-        *solution = originalSolution;
+PointMutation::PointMutation(double mutationRate) : m_mutationRate(mutationRate) {
+    if (mutationRate < 0.0 || mutationRate > 1.0) {
+        throw std::invalid_argument("Mutation rate must be between 0 and 1");
     }
 }
+
+void PointMutation::mutate(
+    std::shared_ptr<Individual>& individual,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation) {
+    
+    if (!individual) {
+        LOG_ERROR("Null individual in mutation");
+        return;
+    }
+    
+    auto& genes = individual->getGenes();
+    if (genes.size() < 2) {
+        LOG_ERROR("Individual has too few genes for mutation");
+        return;
+    }
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    
+    // For each position, attempt mutation with probability m_mutationRate
+    for (size_t i = 0; i < genes.size(); ++i) {
+        if (dist(gen) < m_mutationRate) {
+            // Select random position to swap with
+            std::uniform_int_distribution<size_t> posDist(0, genes.size() - 1);
+            size_t j = posDist(gen);
+            
+            // Swap genes
+            std::swap(genes[i], genes[j]);
+        }
+    }
+    
+    // Create new individual with mutated genes
+    auto mutated = std::make_shared<Individual>(genes);
+    
+    // Only apply mutation if it results in a valid individual
+    if (representation->isValid(mutated, instance)) {
+        individual = mutated;
+    }
+}
+
+// Implementation moved to mutation_impl.cpp

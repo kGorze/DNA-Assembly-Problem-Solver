@@ -33,11 +33,8 @@ class IRepresentation;
 class IPopulationCache;
 
 /**
-
- * Struktura parametrów adaptacyjnego krzyżowania.
-
+ * Adaptive crossover parameters structure
  */
-
 struct AdaptiveCrossoverParams {
     double inertia{0.7};
     int adaptationInterval{20};
@@ -59,7 +56,6 @@ public:
 
     // Getters
     int getPopulationSize() const { return m_populationSize; }
-    int getMaxGenerations() const { return m_maxGenerations; }
     double getMutationRate() const { return m_mutationRate; }
     double getCrossoverProbability() const { return m_crossoverProbability; }
     double getTargetFitness() const { return m_targetFitness; }
@@ -71,18 +67,12 @@ public:
     bool isRepAllowed() const { return m_repAllowed; }
     double getProbablePositive() const { return m_probablePositive; }
     double getReplacementRatio() const { return m_replacementRatio; }
-    std::string getCrossoverType() const { return m_crossoverType; }
     std::string getSelectionMethod() const { return m_selectionMethod; }
-    std::string getMutationMethod() const { return m_mutationMethod; }
-    std::string getReplacementMethod() const { return m_replacementMethod; }
-    std::string getStoppingMethod() const { return m_stoppingMethod; }
-    std::string getFitnessType() const { return m_fitnessType; }
     int getNoImprovementGenerations() const { return m_noImprovementGenerations; }
     int getTimeLimitSeconds() const { return m_timeLimitSeconds; }
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
-    void setMaxGenerations(int generations) { m_maxGenerations = generations; }
     void setMutationRate(double rate) { m_mutationRate = rate; }
     void setCrossoverProbability(double probability) { m_crossoverProbability = probability; }
     void setTargetFitness(double fitness) { m_targetFitness = fitness; }
@@ -94,12 +84,7 @@ public:
     void setRepAllowed(bool allowed) { m_repAllowed = allowed; }
     void setProbablePositive(double prob) { m_probablePositive = prob; }
     void setReplacementRatio(double ratio) { m_replacementRatio = ratio; }
-    void setCrossoverType(const std::string& type) { m_crossoverType = type; }
     void setSelectionMethod(const std::string& method) { m_selectionMethod = method; }
-    void setMutationMethod(const std::string& method) { m_mutationMethod = method; }
-    void setReplacementMethod(const std::string& method) { m_replacementMethod = method; }
-    void setStoppingMethod(const std::string& method) { m_stoppingMethod = method; }
-    void setFitnessType(const std::string& type) { m_fitnessType = type; }
     void setNoImprovementGenerations(int gens) { m_noImprovementGenerations = gens; }
     void setTimeLimitSeconds(int seconds) { m_timeLimitSeconds = seconds; }
 
@@ -112,14 +97,14 @@ public:
         return m_cache;
     }
 
-    // Component getters
-    std::shared_ptr<IRepresentation> getRepresentation() const;
+    // Component getters - these always return the same implementations
+    std::shared_ptr<IRepresentation> getRepresentation() const;  // Always returns PermutationRepresentation
     std::shared_ptr<ISelection> getSelection() const;
-    std::shared_ptr<ICrossover> getCrossover(const std::string& type) const;
-    std::shared_ptr<IMutation> getMutation() const;
+    std::shared_ptr<ICrossover> getCrossover(const std::string& = "") const;  // Always returns AdaptiveCrossover
+    std::shared_ptr<IMutation> getMutation() const;  // Always returns OnePointMutation
     std::shared_ptr<IReplacement> getReplacement() const;
-    std::shared_ptr<IFitness> getFitness() const;
-    std::shared_ptr<IStopping> getStopping() const;
+    std::shared_ptr<IFitness> getFitness() const;  // Always returns OptimizedGraphBasedFitness
+    std::shared_ptr<IStopping> getStopping() const;  // Always returns NoImprovementStopping with time limit
 
     // Parameter management
     void setParameters(const ParameterSet& ps);
@@ -133,7 +118,6 @@ public:
 
 private:
     int m_populationSize = 100;
-    int m_maxGenerations = 1000;
     double m_mutationRate = 0.1;
     double m_crossoverProbability = 0.8;
     double m_targetFitness = 1.0;
@@ -145,14 +129,7 @@ private:
     bool m_repAllowed = false;
     double m_probablePositive = 0.0;
     double m_replacementRatio = 0.5;
-    std::string m_crossoverType = "single";
     std::string m_selectionMethod = "tournament";
-    
-    // New configuration fields
-    std::string m_mutationMethod = "point";
-    std::string m_replacementMethod = "partial";
-    std::string m_stoppingMethod = "maxGenerations";
-    std::string m_fitnessType = "optimized_graph";
     int m_noImprovementGenerations = 30;
     int m_timeLimitSeconds = 60;
     

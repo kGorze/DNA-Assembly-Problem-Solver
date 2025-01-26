@@ -1,9 +1,10 @@
 #pragma once
 
-#include "interfaces/i_population_cache.h"
-#include "metaheuristics/individual.h"
-#include "dna/dna_instance.h"
 #include <unordered_map>
+#include <string>
+#include "../dna/dna_instance.h"
+#include "../interfaces/i_population_cache.h"
+#include "metaheuristics/individual.h"
 #include <memory>
 
 class SimplePopulationCache : public IPopulationCache {

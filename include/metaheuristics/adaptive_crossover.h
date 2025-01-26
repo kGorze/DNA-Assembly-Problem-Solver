@@ -60,6 +60,10 @@ private:
         double bestFitness;
         double avgFitness;
     } metrics;
+
+    // Add missing member variables
+    GAConfig m_config;
+    std::unique_ptr<Random> m_random;
     
     void updatePerformance(bool improved);
     void adjustProbabilities();
@@ -70,15 +74,11 @@ public:
     explicit AdaptiveCrossover(const GAConfig& config);
     
     std::vector<std::shared_ptr<Individual>> crossover(
-            [[maybe_unused]] const std::vector<std::shared_ptr<Individual>>& parents,
-            [[maybe_unused]] const DNAInstance& instance,
-            [[maybe_unused]] std::shared_ptr<IRepresentation> representation) override {
-        // Implementation here
-        return std::vector<std::shared_ptr<Individual>>();
-    }
+        const std::vector<std::shared_ptr<Individual>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
         
     void updateFeedback(double currentBestFitness);
-    
     void setParameters(double inertia, int adaptInterval, int minTrials, double minProb);
     RunMetrics getMetrics() const;
 };

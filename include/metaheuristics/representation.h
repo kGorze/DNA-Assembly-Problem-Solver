@@ -2,35 +2,19 @@
 
 #include <memory>
 #include <vector>
-#include "dna_instance.h"
+#include <string>
+#include "../dna/dna_instance.h"
+#include "../interfaces/i_representation.h"
 #include "individual.h"
-
-class IRepresentation {
-public:
-    virtual ~IRepresentation() = default;
-    
-    virtual bool initializeIndividual(Individual& individual, 
-                                    const DNAInstance& instance) = 0;
-    
-    virtual bool isValid(const std::shared_ptr<Individual>& individual,
-                        const DNAInstance& instance) const = 0;
-                        
-    virtual std::string toString(const std::shared_ptr<Individual>& individual,
-                               const DNAInstance& instance) const = 0;
-};
 
 class PermutationRepresentation : public IRepresentation {
 public:
-    bool initializeIndividual(Individual& individual, 
-                            const DNAInstance& instance) override;
-    
-    bool isValid(const std::shared_ptr<Individual>& individual,
-                const DNAInstance& instance) const override;
-                
-    std::string toString(const std::shared_ptr<Individual>& individual,
-                        const DNAInstance& instance) const override;
+    std::vector<std::shared_ptr<Individual>> initializePopulation(int populationSize, const DNAInstance& instance) override;
+    bool initializeIndividual(Individual& individual, const DNAInstance& instance);
+    bool isValid(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override;
+    std::string toString(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override;
+    std::string toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override;
                         
 private:
-    bool validateGenes(const std::vector<int>& genes,
-                      const DNAInstance& instance) const;
+    bool validateGenes(const std::vector<int>& genes, const DNAInstance& instance) const;
 }; 

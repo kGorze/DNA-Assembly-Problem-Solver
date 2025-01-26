@@ -4,76 +4,75 @@
 
 
 #include "../../include/benchmark/crossover_benchmark.h"
-#include "../../include/metaheuristics/representation_impl.h"
-#include "../../include/metaheuristics/selection_impl.h"
 #include "../../include/metaheuristics/crossover_impl.h"
-#include "../../include/metaheuristics/mutation_impl.h"
-#include "../../include/metaheuristics/replacement_impl.h"
-#include "../../include/metaheuristics/fitness_impl.h"
-#include "../../include/metaheuristics/stopping_criteria_impl.h"
-#include "../../include/metaheuristics/population_cache_impl.h"
-#include "utils/logging.h"
+#include "../../include/metaheuristics/adaptive_crossover.h"
+#include "../../include/utils/logging.h"
+#include <chrono>
+#include <random>
+#include <algorithm>
+#include <numeric>
 
-void CrossoverBenchmark::runBenchmark(const DNAInstance& instance) {
-    // Create config for crossover rate
-    GAConfig config;
-    if (!config.loadFromFile("config.cfg")) {
-        throw std::runtime_error("Failed to load configuration");
-    }
-    double crossoverRate = config.getCrossoverProbability();
+CrossoverBenchmark::CrossoverBenchmark(double crossoverRate)
+    : m_crossoverRate(crossoverRate)
+{
+    // Create adaptive crossover with its operators
+    auto adaptiveCrossover = std::make_shared<AdaptiveCrossover>();
+    m_crossovers.push_back(adaptiveCrossover);
+}
+
+void CrossoverBenchmark::runBenchmark(
+    const std::vector<std::shared_ptr<Individual>>& population,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation,
+    int iterations)
+{
+    LOG_INFO("Starting adaptive crossover benchmark with " + std::to_string(iterations) + " iterations");
     
-    // Create crossover operators with proper rate
-    auto onePoint = std::make_shared<OnePointCrossover>(crossoverRate);
-    auto order = std::make_shared<OrderCrossover>();
-    auto edge = std::make_shared<EdgeRecombination>();
-    auto pmx = std::make_shared<PMXCrossover>();
-    auto distPreserving = std::make_shared<DistancePreservingCrossover>();
+    BenchmarkResult result;
+    result.totalTime = 0;
+    result.successRate = 0;
+    result.avgOffspringFitness = 0;
     
-    // Create crossover operators to benchmark
-    std::vector<std::pair<std::string, std::shared_ptr<ICrossover>>> crossovers = {
-        {"OnePoint", onePoint},
-        {"OrderCrossover", order},
-        {"EdgeRecombination", edge},
-        {"PMXCrossover", pmx},
-        {"DistancePreserving", distPreserving}
-    };
+    int validOffspring = 0;
+    double totalFitness = 0;
     
-    // Create representation
-    auto representation = std::make_shared<PermutationRepresentation>();
-    
-    // Run benchmarks
-    for (const auto& [name, crossover] : crossovers) {
-        LOG_INFO("Running benchmark for " + name);
+    for (int i = 0; i < iterations; i++) {
+        // Select random parents
+        std::vector<std::shared_ptr<Individual>> parents;
+        parents.push_back(population[rand() % population.size()]);
+        parents.push_back(population[rand() % population.size()]);
         
-        // Create test parents
-        std::vector<std::shared_ptr<std::vector<int>>> parents;
-        for (int i = 0; i < 2; i++) {
-            auto parent = std::make_shared<std::vector<int>>();
-            *parent = representation->generateRandomSolution(instance);
-            parents.push_back(parent);
-        }
-        
-        // Measure time
+        // Measure crossover time
         auto start = std::chrono::high_resolution_clock::now();
-        
-        // Run crossover multiple times
-        int numTrials = 100;
-        int validOffspring = 0;
-        for (int i = 0; i < numTrials; i++) {
-            auto offspring = crossover->crossover(parents, instance, representation);
-            validOffspring += offspring.size();
-        }
-        
+        auto offspring = m_crossovers[0]->crossover(parents, instance, representation);
         auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
         
-        // Log results
-        LOG_INFO(name + " results:");
-        LOG_INFO("  Average time per crossover: " + 
-                 std::to_string(duration.count() / (double)numTrials) + " microseconds");
-        LOG_INFO("  Average offspring per crossover: " + 
-                 std::to_string(validOffspring / (double)numTrials));
+        result.totalTime += std::chrono::duration<double>(end - start).count();
+        
+        // Calculate success rate and fitness
+        for (const auto& child : offspring) {
+            if (child && representation->isValid(child, instance)) {
+                validOffspring++;
+                totalFitness += child->getFitness();
+            }
+        }
     }
+    
+    // Calculate final metrics
+    result.successRate = static_cast<double>(validOffspring) / (iterations * 2);
+    result.avgOffspringFitness = validOffspring > 0 ? totalFitness / validOffspring : 0;
+    
+    m_results.push_back(result);
+    
+    LOG_INFO("Adaptive crossover benchmark completed");
+}
+
+void CrossoverBenchmark::printResults() const {
+    std::cout << "\nAdaptive Crossover Benchmark Results:\n";
+    std::cout << "-----------------------------------\n";
+    std::cout << "Average time: " << m_results[0].totalTime << " ms\n";
+    std::cout << "Success rate: " << m_results[0].successRate * 100 << "%\n";
+    std::cout << "Avg offspring fitness: " << m_results[0].avgOffspringFitness << "\n\n";
 }
 
 int CrossoverBenchmark::runOneGA(
@@ -87,22 +86,22 @@ int CrossoverBenchmark::runOneGA(
         throw std::runtime_error("Failed to load configuration");
     }
     
-    // Create components
+    // Create components with permutation representation and optimized graph-based fitness
     auto cache = std::make_shared<SimplePopulationCache>();
     config.setCache(cache);
     
-    auto representation = config.getRepresentation();
+    auto representation = std::make_shared<PermutationRepresentation>();
     auto selection = config.getSelection();
-    auto mutation = config.getMutation();
+    auto mutation = std::make_shared<OnePointMutation>();
     auto replacement = config.getReplacement();
-    auto fitness = config.getFitness();
+    auto fitness = std::make_shared<OptimizedGraphBasedFitness>();
     auto stopping = config.getStopping();
     
-    // Create and run GA
+    // Create and run GA with adaptive crossover
     GeneticAlgorithm ga(
         representation,
         selection,
-        crossover,  // Use the provided crossover operator
+        crossover,
         mutation,
         replacement,
         fitness,

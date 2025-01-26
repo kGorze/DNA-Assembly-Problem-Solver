@@ -9,7 +9,7 @@
 #include "../generator/dna_generator.h"
 #include "configuration/genetic_algorithm_configuration.h" // Dołączenie GAConfig
 #include "metaheuristics/genetic_algorithm.h"  
-#include "metaheuristics/representation_impl.h"
+#include "metaheuristics/representation.h"
 #include "dna/dna_instance.h"
 #include "parameters.h"
 #include <memory>
@@ -70,9 +70,7 @@ public:
         ParameterSet bestSoFar;
         double bestFitnessSoFar = -1e9;
 
-        int maxGenerations = config.getMaxGenerations();
-
-        for (int gen = 0; gen < maxGenerations; gen++) {
+        for (int gen = 0; gen < config.getPopulationSize(); gen++) {  // Use population size as a proxy for generations
             Racing::Manager rm(racingCfg); // Korzystanie z namespace
             auto results = rm.runRacing(population, [&](const ParameterSet &ps){
                 return evaluator(ps);
@@ -97,10 +95,8 @@ public:
         
         // Set parameters from ParameterSet using setters
         config.setPopulationSize(params.getInt("populationSize"));
-        config.setMaxGenerations(params.getInt("maxGenerations"));
         config.setMutationRate(params.getDouble("mutationRate"));
         config.setCrossoverProbability(params.getDouble("crossoverRate"));
-        config.setTargetFitness(params.getDouble("targetFitness"));
         config.setTournamentSize(params.getInt("tournamentSize"));
         
         // Create result object
@@ -113,7 +109,7 @@ public:
             auto start = std::chrono::high_resolution_clock::now();
             
             // Create representation
-            auto representation = std::make_unique<DirectDNARepresentation>();
+            auto representation = std::make_unique<PermutationRepresentation>();
 
             // Create genetic algorithm
             GeneticAlgorithm ga(std::move(representation), config);
@@ -316,14 +312,12 @@ public:
             
             // Set parameters from ParameterSet using setters
             config.setPopulationSize(params.getInt("populationSize"));
-            config.setMaxGenerations(params.getInt("maxGenerations"));
             config.setMutationRate(params.getDouble("mutationRate"));
             config.setCrossoverProbability(params.getDouble("crossoverRate"));
-            config.setTargetFitness(params.getDouble("targetFitness"));
             config.setTournamentSize(params.getInt("tournamentSize"));
             
             // Create representation
-            auto representation = std::make_unique<DirectDNARepresentation>();
+            auto representation = std::make_unique<PermutationRepresentation>();
 
             // Create genetic algorithm
             GeneticAlgorithm ga(std::move(representation), config);

@@ -22,22 +22,20 @@ include_directories(
 
 # Source files
 set(SOURCES
+    src/configuration/genetic_algorithm_configuration.cpp
+    src/metaheuristics/mutation_impl.cpp
+    src/metaheuristics/selection.cpp
+    src/metaheuristics/crossover_impl.cpp
+    src/metaheuristics/permutation_representation.cpp
+    src/metaheuristics/genetic_algorithm.cpp
+    src/metaheuristics/adaptive_crossover.cpp
     src/dna/dna_instance.cpp
+    src/dna/dna_instance_io.cpp
     src/dna/dna_instance_builder.cpp
     src/dna/error_introduction.cpp
-    src/dna/dna_instance_io.cpp
-    src/generator/dna_generator.cpp
-    src/generator/spectrum_generator.cpp
     src/utils/logging.cpp
-    src/metaheuristics/genetic_algorithm.cpp
-    src/metaheuristics/population_cache.cpp
-    src/metaheuristics/genetic_algorithm_runner.cpp
-    src/tuning/parameter_tuning_manager.cpp
-    src/tuning/parameter_parser.cpp
-    src/tuning/tuning_structures.cpp
-    src/configuration/genetic_algorithm_configuration.cpp
-    src/metaheuristics/fitness_impl.cpp
-    src/metaheuristics/representation_impl.cpp
+    src/utils/utility_functions.cpp
+    src/utils/performance_profilling_framework.cpp
 )
 
 # Create library

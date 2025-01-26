@@ -51,6 +51,7 @@
 
 #include "utils/logging.h"
 
+#include "../include/metaheuristics/representation.h"
 
 // Funkcja do wypisywania użycia programu:
 void printUsage() {
@@ -130,7 +131,7 @@ double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
     config.setTournamentSize(5);
     
     // Create representation
-    auto representation = std::make_unique<DirectDNARepresentation>();
+    auto representation = std::make_unique<PermutationRepresentation>();
     
     // Create and run genetic algorithm
     GeneticAlgorithm ga(std::move(representation), config);
@@ -152,7 +153,7 @@ double evaluateParameterSet(const DNAInstance& instance,
     config.setTournamentSize(5);  // Default value
     
     // Create representation
-    auto representation = std::make_unique<DirectDNARepresentation>();
+    auto representation = std::make_unique<PermutationRepresentation>();
     
     // Create and run genetic algorithm
     GeneticAlgorithm ga(std::move(representation), config);
@@ -204,7 +205,7 @@ void runParameterTuningWithRacing(const DNAInstance& instance) {
             }
             
             // Create representation
-            auto representation = std::make_unique<DirectDNARepresentation>();
+            auto representation = std::make_unique<PermutationRepresentation>();
             
             // Create and run genetic algorithm
             GeneticAlgorithm ga(std::move(representation), config);
@@ -261,6 +262,7 @@ int main(int argc, char* argv[]) {
             } else if (arg == "-d") {
                 debugMode = true;
                 LOG_INFO("Debug mode enabled");
+                Logger::setLogLevel(LogLevel::DEBUG);
             }
         }
 
@@ -448,6 +450,21 @@ int main(int argc, char* argv[]) {
                    .buildSpectrum();
             
             DNAInstance instance = builder.getInstance();
+            // Set target sequence to original DNA for Levenshtein distance calculation
+            instance.setTargetSequence(instance.getDNA());
+
+            // Log instance details
+            LOG_INFO("Instance details:");
+            LOG_INFO("  DNA length (N): " + std::to_string(instance.getN()));
+            LOG_INFO("  Oligo length (K): " + std::to_string(instance.getK()));
+            LOG_INFO("  Delta K: " + std::to_string(instance.getDeltaK()));
+            LOG_INFO("  Negative errors (LNeg): " + std::to_string(instance.getLNeg()));
+            LOG_INFO("  Positive errors (LPoz): " + std::to_string(instance.getLPoz()));
+            LOG_INFO("  Repetitions allowed: " + std::string(instance.isRepAllowed() ? "yes" : "no"));
+            LOG_INFO("  DNA sequence: " + instance.getDNA());
+            LOG_INFO("  Target sequence: " + instance.getTargetSequence());
+            LOG_INFO("  Spectrum size: " + std::to_string(instance.getSpectrum().size()));
+
             std::string outputFile = "debug_output.txt";
             int processId = 0;
             
@@ -581,7 +598,7 @@ int main(int argc, char* argv[]) {
                 }
                 
                 // Create genetic algorithm
-                auto representation = std::make_unique<DirectDNARepresentation>();
+                auto representation = std::make_unique<PermutationRepresentation>();
                 GeneticAlgorithm ga(std::move(representation), config);
                 
                 // Run the algorithm

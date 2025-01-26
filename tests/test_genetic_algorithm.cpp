@@ -2,6 +2,7 @@
 #include "../include/metaheuristics/genetic_algorithm.h"
 #include "../include/dna/dna_instance.h"
 #include "../include/metaheuristics/representation_impl.h"
+#include "../include/metaheuristics/representation.h"
 #include <memory>
 
 class GeneticAlgorithmTest : public ::testing::Test {
@@ -18,7 +19,7 @@ protected:
         config.setTournamentSize(5);
         config.setTargetFitness(1.0);
         
-        representation = std::make_unique<DirectDNARepresentation>();
+        representation = std::make_unique<PermutationRepresentation>();
     }
     
     DNAInstance instance;
@@ -64,9 +65,9 @@ TEST_F(GeneticAlgorithmTest, EmptyInstance) {
     EXPECT_TRUE(result.empty());
 }
 
-TEST_F(GeneticAlgorithmTest, GraphPathRepresentation) {
-    auto graphRepresentation = std::make_unique<GraphPathRepresentation>();
-    GeneticAlgorithm algorithm(std::move(graphRepresentation), config);
+TEST_F(GeneticAlgorithmTest, PermutationRepresentation) {
+    auto permRepresentation = std::make_unique<PermutationRepresentation>();
+    GeneticAlgorithm algorithm(std::move(permRepresentation), config);
     std::string result = algorithm.run(instance);
     EXPECT_FALSE(result.empty());
 }

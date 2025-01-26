@@ -11,49 +11,66 @@
 #include <sstream>
 
 // ============== TournamentSelection ==============
-TournamentSelection::TournamentSelection(GAConfig& config, std::shared_ptr<IPopulationCache> cache) 
-        : m_config(config), m_tournamentSize(config.getTournamentSize()), m_cache(cache) {
-    LOG_INFO("TournamentSelection initialized with tournament size: " + std::to_string(m_tournamentSize));
+TournamentSelection::TournamentSelection(const GAConfig& config, std::shared_ptr<IPopulationCache> cache)
+    : m_config(config), m_cache(cache) {
+    LOG_INFO("TournamentSelection initialized with tournament size: " + std::to_string(config.getTournamentSize()));
 }
 
-std::vector<std::shared_ptr<std::vector<int>>> 
-TournamentSelection::select(
-    const std::vector<std::shared_ptr<std::vector<int>>>& population,
+std::vector<std::shared_ptr<Individual>> TournamentSelection::select(
+    const std::vector<std::shared_ptr<Individual>>& population,
     const DNAInstance& instance,
     std::shared_ptr<IFitness> fitness,
     std::shared_ptr<IRepresentation> representation)
 {
     if (population.empty()) {
+        LOG_WARNING("Empty population provided to selection operator");
         return {};
     }
 
-    std::vector<std::shared_ptr<std::vector<int>>> selected;
-    selected.reserve(population.size());
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(0, population.size() - 1);
-
-    // For each tournament
-    for (size_t i = 0; i < population.size(); ++i) {
-        double bestFitness = -std::numeric_limits<double>::infinity();
-        std::shared_ptr<std::vector<int>> winner;
-
-        // Run tournament
-        for (int j = 0; j < m_tournamentSize; ++j) {
-            auto candidate = population[dis(gen)];
-            double candidateFitness = m_cache->getOrCalculateFitness(candidate, instance, fitness, representation);
-
-            if (candidateFitness > bestFitness) {
-                bestFitness = candidateFitness;
-                winner = candidate;
-            }
-        }
-
-        if (winner) {
-            selected.push_back(winner);
-        }
+    if (!fitness || !representation) {
+        LOG_ERROR("Null fitness or representation provided to selection operator");
+        return {};
     }
 
-    return selected;
+    try {
+        std::vector<std::shared_ptr<Individual>> selected;
+        selected.reserve(static_cast<size_t>(m_config.getParentCount()));
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        
+        while (selected.size() < static_cast<size_t>(m_config.getParentCount())) {
+            std::vector<std::shared_ptr<Individual>> tournament;
+            tournament.reserve(m_config.getTournamentSize());
+
+            for (int i = 0; i < m_config.getTournamentSize(); ++i) {
+                std::uniform_int_distribution<size_t> dist(0, population.size() - 1);
+                size_t idx = dist(gen);
+                tournament.push_back(population[idx]);
+            }
+
+            if (tournament.empty()) {
+                LOG_WARNING("No valid individuals in tournament");
+                continue;
+            }
+
+            auto best = tournament[0];
+            double bestFitness = fitness->calculateFitness(best, instance, representation);
+
+            for (size_t i = 1; i < tournament.size(); ++i) {
+                double currentFitness = fitness->calculateFitness(tournament[i], instance, representation);
+                if (currentFitness > bestFitness) {
+                    best = tournament[i];
+                    bestFitness = currentFitness;
+                }
+            }
+
+            selected.push_back(best);
+        }
+
+        return selected;
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error during selection: " + std::string(e.what()));
+        return {};
+    }
 }

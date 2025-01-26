@@ -5,9 +5,14 @@
 #include "../dna/dna_instance.h"
 #include <vector>
 #include <memory>
+#include "preprocessed_edge.h"
 
 class SimpleFitness : public IFitness {
 public:
+    SimpleFitness() : m_debugMode(false) {}
+    
+    void setDebugMode(bool debug) { m_debugMode = debug; }
+    
     double calculateFitness(
         const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance,
@@ -25,6 +30,12 @@ private:
     double calculateLengthPenalty(
         int actualLength,
         int targetLength) const;
+
+    int calculateLevenshteinDistance(
+        const std::string& s1,
+        const std::string& s2) const;
+
+    bool m_debugMode;
 };
 
 class BetterFitness : public IFitness {
@@ -63,15 +74,6 @@ private:
     double smithWaterman(const std::string& seq1, const std::string& seq2) const;
 };
 
-struct PreprocessedEdge {
-    int to;
-    double weight;
-    bool exists;
-
-    PreprocessedEdge() : to(-1), weight(0.0), exists(false) {}
-    PreprocessedEdge(int t, double w, bool e) : to(t), weight(w), exists(e) {}
-};
-
 class OptimizedGraphBasedFitness : public IFitness {
 public:
     double calculateFitness(
@@ -79,13 +81,13 @@ public:
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation) const override;
 
-private:
+protected:
     double calculateConnectivityScore(
         const std::shared_ptr<Individual>& solution,
         const DNAInstance& instance) const;
 
     double calculateSpectrumCoverageScore(
-        const std::vector<char>& dna,
+        const std::vector<int>& genes,
         const DNAInstance& instance) const;
 
     double calculateLengthPenalty(
@@ -103,4 +105,8 @@ private:
         const std::string& from,
         const std::string& to,
         int k) const;
+
+    int calculatePartialOverlapWeight(const std::string& from, const std::string& to, int k) const;
+
+    int calculateLevenshteinDistance(const std::string& s1, const std::string& s2) const;
 }; 

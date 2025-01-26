@@ -3,7 +3,7 @@
 #include "../include/configuration/genetic_algorithm_configuration.h"
 #include "../include/metaheuristics/population_cache_impl.h"
 #include "../include/utils/logging.h"
-#include "../include/metaheuristics/representation_impl.h"
+#include "../include/metaheuristics/representation.h"
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -32,14 +32,12 @@ void updateConfigWithInstanceParams(const DNAInstance& instance, GAConfig& confi
     try {
         // Store current algorithm parameters that we want to preserve from config.cfg
         LOG_DEBUG("Preserving algorithm parameters from config file");
-        const int maxGen = config.getMaxGenerations();
         const int popSize = config.getPopulationSize();
         const double mutRate = config.getMutationRate();
         const double crossProb = config.getCrossoverProbability();
         const double replRatio = config.getReplacementRatio();
         
         LOG_DEBUG("Current algorithm parameters:");
-        LOG_DEBUG("  Max generations: " + safeToString(maxGen));
         LOG_DEBUG("  Population size: " + safeToString(popSize));
         LOG_DEBUG("  Mutation rate: " + safeToString(mutRate));
         LOG_DEBUG("  Crossover probability: " + safeToString(crossProb));
@@ -56,7 +54,6 @@ void updateConfigWithInstanceParams(const DNAInstance& instance, GAConfig& confi
         
         // Restore algorithm parameters from config.cfg
         LOG_DEBUG("Restoring algorithm parameters");
-        config.setMaxGenerations(maxGen);
         config.setPopulationSize(popSize);
         config.setMutationRate(mutRate);
         config.setCrossoverProbability(crossProb);
@@ -70,8 +67,8 @@ void updateConfigWithInstanceParams(const DNAInstance& instance, GAConfig& confi
                   ", lPoz=" + safeToString(config.getLPoz()));
         LOG_DEBUG("  populationSize=" + safeToString(config.getPopulationSize()) +
                   ", mutationRate=" + safeToString(config.getMutationRate()) +
-                  ", crossoverType=" + config.getCrossoverType() +
-                  ", selectionMethod=" + config.getSelectionMethod());
+                  ", crossoverProbability=" + safeToString(config.getCrossoverProbability()) +
+                  ", replacementRatio=" + safeToString(config.getReplacementRatio()));
     } catch (const std::exception& e) {
         LOG_ERROR("Failed to update configuration parameters: " + std::string(e.what()));
         throw;
@@ -83,39 +80,46 @@ void runGeneticAlgorithm(
     const std::string& outputFile,
     int processId,
     const std::string& configFile,
-    [[maybe_unused]] bool debugMode)
+    bool debugMode)
 {
     const std::string procId = safeToString(processId);
     LOG_INFO("Process " + procId + ": Starting genetic algorithm execution");
     
     try {
-        // Load and validate configuration
+        // Load configuration
         GAConfig config;
-        if (!config.loadFromFile(configFile)) {
-            throw std::runtime_error("Failed to load configuration from file: " + configFile);
+        if (!configFile.empty()) {
+            if (!config.loadFromFile(configFile)) {
+                throw std::runtime_error("Failed to load configuration from file: " + configFile);
+            }
         }
         
         // Update configuration with instance parameters
         updateConfigWithInstanceParams(instance, config);
         
-        // Create components
-        auto representation = std::make_unique<DirectDNARepresentation>();
-        auto ga = std::make_unique<GeneticAlgorithm>(std::move(representation), config);
-        ga->setProcessId(processId);
+        // Create representation
+        auto representation = std::make_unique<PermutationRepresentation>();
         
-        // Run algorithm
-        std::string result = ga->run(instance);
+        // Create and run genetic algorithm
+        GeneticAlgorithm ga(std::move(representation), config, debugMode);
+        ga.setProcessId(processId);
         
-        // Save results
-        std::ofstream out(outputFile);
-        if (out.is_open()) {
-            out << "Best DNA: " << ga->getBestDNA() << "\n";
-            out << "Best Fitness: " << ga->getBestFitness() << "\n";
-            out.close();
+        // Run the algorithm
+        std::string result = ga.run(instance);
+        
+        // Save result if output file is specified
+        if (!outputFile.empty()) {
+            std::ofstream out(outputFile);
+            if (out.is_open()) {
+                out << result;
+                out.close();
+            } else {
+                LOG_ERROR("Failed to open output file: " + outputFile);
+            }
         }
         
     } catch (const std::exception& e) {
-        LOG_ERROR("Process " + procId + ": " + e.what());
+        LOG_ERROR("Error in genetic algorithm runner: " + std::string(e.what()));
         throw;
     }
     

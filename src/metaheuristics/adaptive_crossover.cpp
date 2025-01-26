@@ -6,6 +6,7 @@
 #include "../../include/interfaces/i_crossover.h"
 #include "../../include/interfaces/i_representation.h"
 #include "../../include/utils/logging.h"
+#include "../../include/utils/random.h"
 #include <random>
 #include <iostream>
 #include <algorithm>
@@ -42,32 +43,35 @@ AdaptiveCrossover::AdaptiveCrossover()
     metrics.avgFitness = 0.0;
 }
 
-AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config) {
+AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config)
+    : m_config(config)
+    , m_random(std::make_unique<Random>())
+    , previousBestFitness(-std::numeric_limits<double>::infinity())
+    , bestSeenFitness(-std::numeric_limits<double>::infinity())
+    , currentCrossoverIndex(0)
+    , generationCount(0)
+    , INERTIA(0.7)
+    , ADAPTATION_INTERVAL(20)
+    , MIN_TRIALS(5)
+    , MIN_PROB(0.1)
+{
     // Initialize crossovers with crossover probability from config
     double crossoverProb = config.getCrossoverProbability();
     
-    // Only OnePointCrossover takes crossover probability
-    crossovers.emplace_back(CrossoverPerformance(std::make_shared<OnePointCrossover>(crossoverProb)));
     crossovers.emplace_back(CrossoverPerformance(std::make_shared<OrderCrossover>()));
     crossovers.emplace_back(CrossoverPerformance(std::make_shared<EdgeRecombination>()));
-    
-    // Initialize tracking variables
-    previousBestFitness = -std::numeric_limits<double>::infinity();
-    bestSeenFitness = -std::numeric_limits<double>::infinity();
-    currentCrossoverIndex = 0;
-    generationCount = 0;
-    
-    // Set parameters from config
-    const auto& params = config.getAdaptiveParams();
-    INERTIA = params.inertia;
-    ADAPTATION_INTERVAL = params.adaptationInterval;
-    MIN_TRIALS = params.minTrials;
-    MIN_PROB = params.minProb;
+    crossovers.emplace_back(CrossoverPerformance(std::make_shared<PMXCrossover>()));
     
     // Initialize metrics
     metrics.convergenceGeneration = -1;
     metrics.bestFitness = -std::numeric_limits<double>::infinity();
     metrics.avgFitness = 0.0;
+    
+    // Initialize success rates evenly
+    double initialRate = 1.0 / crossovers.size();
+    for (auto& crossover : crossovers) {
+        crossover.successRate = initialRate;
+    }
 }
 
 void AdaptiveCrossover::setParameters(double inertia, int adaptInterval, int minTrials, double minProb) {
@@ -210,13 +214,13 @@ std::shared_ptr<ICrossover> AdaptiveCrossover::selectCrossover() {
     return crossovers.back().crossover;
 }
 
-std::vector<std::shared_ptr<std::vector<int>>> AdaptiveCrossover::crossover(
-    const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
+    const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation) 
 {
     if (parents.empty()) {
-        std::cerr << "[ERROR] Empty parents in crossover\n";
+        LOG_ERROR("Empty parents in crossover");
         return {};
     }
     
@@ -224,18 +228,21 @@ std::vector<std::shared_ptr<std::vector<int>>> AdaptiveCrossover::crossover(
     if (!selectedCrossover) {
         return {};
     }
+    
+    // Call the selected crossover directly with Individual objects
     auto offspring = selectedCrossover->crossover(parents, instance, representation);
-    int startIndex = instance.getStartIndex();
     
     // Validate and fix offspring
     for (auto it = offspring.begin(); it != offspring.end();) {
-        if (!(*it) || (*it)->empty() || !isValidPermutation(**it, instance.getSpectrum().size())) {
+        if (!(*it) || (*it)->getGenes().empty() || 
+            !representation->isValid(*it, instance)) {
             it = offspring.erase(it);
         } else {
-            // Ensure startIndex is at the beginning
-            auto startIt = std::find((*it)->begin(), (*it)->end(), startIndex);
-            if (startIt != (*it)->begin()) {
-                std::iter_swap((*it)->begin(), startIt);
+            // Ensure startIndex is at the beginning if needed
+            auto& genes = (*it)->getGenes();
+            auto startIt = std::find(genes.begin(), genes.end(), instance.getStartIndex());
+            if (startIt != genes.begin()) {
+                std::iter_swap(genes.begin(), startIt);
             }
             ++it;
         }
