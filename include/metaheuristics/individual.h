@@ -9,82 +9,36 @@
 #include <mutex>
 #include <cmath>
 
+/**
+ * Class representing an individual in the genetic algorithm.
+ */
 class Individual {
 public:
-    // Constructors
     Individual() = default;
-    Individual(const Individual& other) {
-        m_genes = other.m_genes;
-    }
-    Individual& operator=(const Individual& other) {
-        if (this != &other) {
-            m_genes = other.m_genes;
-        }
-        return *this;
-    }
-    explicit Individual(std::vector<int> genes) : m_genes(std::move(genes)), m_fitness(0.0) {}
-    
-    // Allow move operations
-    Individual(Individual&& other) noexcept {
-        std::lock_guard<std::mutex> lock(other.m_mutex);
-        m_genes = std::move(other.m_genes);
-        m_fitness = other.m_fitness;
-    }
-    
-    Individual& operator=(Individual&& other) noexcept {
-        if (this != &other) {
-            std::lock_guard<std::mutex> lock1(m_mutex);
-            std::lock_guard<std::mutex> lock2(other.m_mutex);
-            m_genes = std::move(other.m_genes);
-            m_fitness = other.m_fitness;
-        }
-        return *this;
-    }
-    
-    virtual ~Individual() = default;
+    explicit Individual(std::vector<int> genes);
+    Individual(const Individual& other);
+    Individual(Individual&& other) noexcept;
+    ~Individual() = default;
 
-    // Getters and setters with validation
-    std::vector<int>& getGenes() { return m_genes; }
+    Individual& operator=(const Individual& other);
+    Individual& operator=(Individual&& other) noexcept;
+
+    // Getters
     const std::vector<int>& getGenes() const { return m_genes; }
-    
-    void setGenes(const std::vector<int>& genes) { m_genes = genes; }
-    
-    double getFitness() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_fitness;
-    }
-    
-    void setFitness(double fitness) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (!std::isfinite(fitness)) {
-            throw std::invalid_argument("Fitness must be a finite number");
-        }
-        m_fitness = fitness;
-        m_isValid = true;
-    }
+    std::vector<int>& getGenes() { return m_genes; }  // Non-const version for mutation
+    double getFitness() const { return m_fitness; }
+    size_t getSize() const { return m_genes.size(); }
+
+    // Setters
+    void setGenes(const std::vector<int>& genes);
+    void setFitness(double fitness);
 
     // Utility methods
-    bool empty() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_genes.empty();
-    }
-    
-    size_t size() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_genes.size();
-    }
-    
-    bool isValid() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_isValid;
-    }
-    
-    void setValid(bool valid) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_isValid = valid;
-    }
-    
+    bool isValid() const;
     std::string toString() const;
+    void mutate(size_t pos1, size_t pos2);
+    void reverse(size_t start, size_t end);
+    void shift(size_t start, size_t end, int positions);
 
     // Validation methods
     void validate() {
@@ -95,7 +49,8 @@ public:
 
     std::shared_ptr<Individual> clone() const {
         auto newIndividual = std::make_shared<Individual>();
-        newIndividual->m_genes = m_genes;  // Copy genes
+        newIndividual->setGenes(m_genes);
+        newIndividual->setFitness(m_fitness);
         return newIndividual;
     }
 
@@ -104,7 +59,7 @@ private:
     void validateGenesVector(const std::vector<int>& genes);
 
     std::vector<int> m_genes;
-    double m_fitness;
+    double m_fitness = 0.0;
     bool m_isValid = false;
     mutable std::mutex m_mutex;  // For thread safety
 }; 

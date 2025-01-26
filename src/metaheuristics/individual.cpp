@@ -10,20 +10,18 @@
 // Currently all methods are implemented inline in the header file
 // This file exists for future implementations of more complex methods 
 
-Individual::Individual(std::vector<int> genes) : m_genes(std::move(genes)) {
+Individual::Individual(std::vector<int> genes) : m_genes(std::move(genes)), m_fitness(0.0) {
     validateGenesVector(m_genes);
     m_isValid = true;
 }
 
 Individual::Individual(const Individual& other) {
-    std::lock_guard<std::mutex> lock(other.m_mutex);
     m_genes = other.m_genes;
     m_fitness = other.m_fitness;
     m_isValid = other.m_isValid;
 }
 
 Individual::Individual(Individual&& other) noexcept {
-    std::lock_guard<std::mutex> lock(other.m_mutex);
     m_genes = std::move(other.m_genes);
     m_fitness = other.m_fitness;
     m_isValid = other.m_isValid;
@@ -35,13 +33,7 @@ Individual::Individual(Individual&& other) noexcept {
 
 Individual& Individual::operator=(const Individual& other) {
     if (this != &other) {
-        std::lock_guard<std::mutex> lock1(m_mutex);
-        std::lock_guard<std::mutex> lock2(other.m_mutex);
-        
-        std::vector<int> tempGenes = other.m_genes;  // Copy genes first
-        validateGenesVector(tempGenes);  // Validate before modifying state
-        
-        m_genes = std::move(tempGenes);
+        m_genes = other.m_genes;
         m_fitness = other.m_fitness;
         m_isValid = other.m_isValid;
     }
@@ -50,9 +42,6 @@ Individual& Individual::operator=(const Individual& other) {
 
 Individual& Individual::operator=(Individual&& other) noexcept {
     if (this != &other) {
-        std::lock_guard<std::mutex> lock1(m_mutex);
-        std::lock_guard<std::mutex> lock2(other.m_mutex);
-        
         m_genes = std::move(other.m_genes);
         m_fitness = other.m_fitness;
         m_isValid = other.m_isValid;
@@ -64,11 +53,8 @@ Individual& Individual::operator=(Individual&& other) noexcept {
     return *this;
 }
 
-void Individual::setGenes(std::vector<int> genes) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    validateGenesVector(genes);  // Validate before modifying state
-    m_genes = std::move(genes);
-    m_isValid = true;
+void Individual::setGenes(const std::vector<int>& genes) {
+    m_genes = genes;
 }
 
 void Individual::setFitness(double fitness) {
@@ -82,22 +68,22 @@ void Individual::setFitness(double fitness) {
     m_fitness = fitness;
 }
 
+bool Individual::isValid() const {
+    return !m_genes.empty();
+}
+
 std::string Individual::toString() const {
-    std::lock_guard<std::mutex> lock(m_mutex);
     std::ostringstream oss;
     oss << "Individual(genes=[";
-    if (!m_genes.empty()) {
-        for (size_t i = 0; i < m_genes.size() - 1; ++i) {
-            oss << m_genes[i] << ", ";
-        }
-        oss << m_genes.back();
+    for (size_t i = 0; i < m_genes.size(); ++i) {
+        if (i > 0) oss << ", ";
+        oss << m_genes[i];
     }
     oss << "], fitness=" << m_fitness << ", valid=" << std::boolalpha << m_isValid << ")";
     return oss.str();
 }
 
 void Individual::validateGenes() {
-    std::lock_guard<std::mutex> lock(m_mutex);
     validateGenesVector(m_genes);
     m_isValid = true;
 }
@@ -120,4 +106,33 @@ void Individual::validateGenesVector(const std::vector<int>& genes) {
     })) {
         throw std::invalid_argument("Genes vector contains invalid values");
     }
+}
+
+void Individual::mutate(size_t pos1, size_t pos2) {
+    if (pos1 >= m_genes.size() || pos2 >= m_genes.size()) {
+        throw std::out_of_range("Mutation positions out of range");
+    }
+    std::swap(m_genes[pos1], m_genes[pos2]);
+}
+
+void Individual::reverse(size_t start, size_t end) {
+    if (start >= m_genes.size() || end >= m_genes.size() || start > end) {
+        throw std::out_of_range("Invalid reverse range");
+    }
+    std::reverse(m_genes.begin() + start, m_genes.begin() + end + 1);
+}
+
+void Individual::shift(size_t start, size_t end, int positions) {
+    if (start >= m_genes.size() || end >= m_genes.size() || start > end) {
+        throw std::out_of_range("Invalid shift range");
+    }
+    
+    if (positions == 0) return;
+    
+    std::vector<int> temp(m_genes.begin() + start, m_genes.begin() + end + 1);
+    size_t length = end - start + 1;
+    positions = ((positions % length) + length) % length; // Normalize positions
+    
+    std::rotate(temp.begin(), temp.begin() + positions, temp.end());
+    std::copy(temp.begin(), temp.end(), m_genes.begin() + start);
 } 

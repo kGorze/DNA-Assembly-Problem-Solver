@@ -11,10 +11,11 @@
 
 // =========== PointMutation ===========
 
-PointMutation::PointMutation(double mutationRate) : m_mutationRate(mutationRate) {
+PointMutation::PointMutation(double mutationRate) {
     if (mutationRate < 0.0 || mutationRate > 1.0) {
         throw std::invalid_argument("Mutation rate must be between 0 and 1");
     }
+    m_mutationRate = mutationRate;
 }
 
 void PointMutation::mutate(
@@ -23,38 +24,36 @@ void PointMutation::mutate(
     std::shared_ptr<IRepresentation> representation) {
     
     if (!individual) {
-        LOG_ERROR("Null individual in mutation");
+        LOG_ERROR("Individual is null");
         return;
     }
-    
-    auto& genes = individual->getGenes();
-    if (genes.size() < 2) {
-        LOG_ERROR("Individual has too few genes for mutation");
+
+    if (individual->getSize() < 2) {
+        LOG_ERROR("Individual has less than 2 genes, cannot perform mutation");
         return;
     }
-    
+
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
-    
-    // For each position, attempt mutation with probability m_mutationRate
-    for (size_t i = 0; i < genes.size(); ++i) {
-        if (dist(gen) < m_mutationRate) {
-            // Select random position to swap with
-            std::uniform_int_distribution<size_t> posDist(0, genes.size() - 1);
-            size_t j = posDist(gen);
-            
-            // Swap genes
-            std::swap(genes[i], genes[j]);
+    std::uniform_real_distribution<> dis(0.0, 1.0);
+    std::uniform_int_distribution<> posDis(0, individual->getSize() - 1);
+
+    if (dis(gen) < m_mutationRate) {
+        int i = posDis(gen);
+        int j;
+        do {
+            j = posDis(gen);
+        } while (i == j);
+
+        // Create a copy of the individual for mutation
+        auto mutated = individual->clone();
+        auto& genes = mutated->getGenes();  // Get non-const reference
+        std::swap(genes[i], genes[j]);
+
+        // Only apply mutation if it results in a valid individual
+        if (representation->isValid(mutated, instance)) {
+            individual = mutated;
         }
-    }
-    
-    // Create new individual with mutated genes
-    auto mutated = std::make_shared<Individual>(genes);
-    
-    // Only apply mutation if it results in a valid individual
-    if (representation->isValid(mutated, instance)) {
-        individual = mutated;
     }
 }
 

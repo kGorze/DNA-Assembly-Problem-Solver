@@ -41,6 +41,8 @@ set(SOURCES
     src/dna/dna_instance_io.cpp
     src/dna/dna_instance_builder.cpp
     src/dna/error_introduction.cpp
+    src/dna/dna_generator.cpp
+    src/dna/spectrum_generator.cpp
     src/utils/logging.cpp
     src/utils/utility_functions.cpp
     src/utils/performance_profilling_framework.cpp
