@@ -13,7 +13,8 @@
 #include <limits>
 
 namespace {
-    bool isValidPermutation(const std::vector<int>& vec, size_t size) {
+    [[maybe_unused]]
+    static bool isValidPermutation(const std::vector<int>& vec, size_t size) {
         if (vec.size() != size) return false;
         std::vector<bool> used(size, false);
         for (int val : vec) {
@@ -44,19 +45,16 @@ AdaptiveCrossover::AdaptiveCrossover()
 }
 
 AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config)
-    : m_config(config)
-    , m_random(std::make_unique<Random>())
-    , previousBestFitness(-std::numeric_limits<double>::infinity())
+    : previousBestFitness(-std::numeric_limits<double>::infinity())
     , bestSeenFitness(-std::numeric_limits<double>::infinity())
     , currentCrossoverIndex(0)
     , generationCount(0)
-    , INERTIA(0.7)
-    , ADAPTATION_INTERVAL(20)
+    , INERTIA(0.5)
+    , ADAPTATION_INTERVAL(10)
     , MIN_TRIALS(5)
     , MIN_PROB(0.1)
-{
-    // Initialize crossovers with crossover probability from config
-    double crossoverProb = config.getCrossoverProbability();
+    , m_config(config)
+    , m_random(std::make_unique<Random>()) {
     
     crossovers.emplace_back(CrossoverPerformance(std::make_shared<OrderCrossover>()));
     crossovers.emplace_back(CrossoverPerformance(std::make_shared<EdgeRecombination>()));
@@ -138,28 +136,24 @@ void AdaptiveCrossover::adjustProbabilities() {
         }
     }
 
-    // Jeśli nie mamy wystarczająco danych, ustaw równo
     if (!hasEnoughData) {
         for (auto& c : crossovers) {
             c.successRate = 1.0 / crossovers.size();
         }
     }
     else {
-        // Oblicz średni recentSuccessRate
         double avgSuccessRate = 0.0;
         for (const auto& c : crossovers) {
             avgSuccessRate += c.recentSuccessRate;
         }
         avgSuccessRate /= crossovers.size();
 
-        // Aktualizuj successRate z uwzględnieniem INERTIA
         for (auto& c : crossovers) {
             double newRate = (c.recentSuccessRate / (avgSuccessRate + EPSILON));
             c.successRate = INERTIA * c.successRate + (1.0 - INERTIA) * newRate;
         }
     }
 
-    // Normalizacja z uwzględnieniem MIN_PROB
     double totalRate = 0.0;
     for (auto& c : crossovers) {
         totalRate += c.successRate;
@@ -168,15 +162,11 @@ void AdaptiveCrossover::adjustProbabilities() {
         totalRate = 1.0;
     }
 
-    // Wymuszamy minimalne prawdopodobieństwo i ponownie normalizujemy
     for (auto& c : crossovers) {
-        // Najpierw ratio
         c.successRate /= totalRate;
-        // Potem MIN_PROB
         c.successRate = std::max(MIN_PROB, c.successRate);
     }
 
-    // Druga faza normalizacji
     double sumRates = 0.0;
     for (auto& c : crossovers) {
         sumRates += c.successRate;
@@ -186,7 +176,6 @@ void AdaptiveCrossover::adjustProbabilities() {
     }
     for (auto& c : crossovers) {
         c.successRate /= sumRates;
-        // Reset statystyk
         c.recentUsageCount = 0;
         c.recentSuccessCount = 0;
         c.recentSuccessRate = 0.0;
@@ -209,7 +198,6 @@ std::shared_ptr<ICrossover> AdaptiveCrossover::selectCrossover() {
         }
     }
     
-    // Zapobiegawczo, jeśli nie wylosowano wcześniej
     currentCrossoverIndex = static_cast<int>(crossovers.size() - 1);
     return crossovers.back().crossover;
 }
@@ -229,16 +217,13 @@ std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
         return {};
     }
     
-    // Call the selected crossover directly with Individual objects
     auto offspring = selectedCrossover->crossover(parents, instance, representation);
     
-    // Validate and fix offspring
     for (auto it = offspring.begin(); it != offspring.end();) {
         if (!(*it) || (*it)->getGenes().empty() || 
             !representation->isValid(*it, instance)) {
             it = offspring.erase(it);
         } else {
-            // Ensure startIndex is at the beginning if needed
             auto& genes = (*it)->getGenes();
             auto startIt = std::find(genes.begin(), genes.end(), instance.getStartIndex());
             if (startIt != genes.begin()) {

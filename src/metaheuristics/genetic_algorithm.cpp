@@ -57,7 +57,6 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
         
         // Main loop
         int generation = 1;
-        auto startTime = std::chrono::steady_clock::now();
         
         while (!stopping->shouldStop(generation, m_globalBestFit)) {
             // Selection
@@ -162,7 +161,7 @@ void GeneticAlgorithm::evaluatePopulation(
 
 void GeneticAlgorithm::updateGlobalBest(
     const std::vector<std::shared_ptr<Individual>>& population,
-    const DNAInstance& instance)
+    [[maybe_unused]] const DNAInstance& instance)
 {
     for (const auto& individual : population) {
         if (!individual) continue;
@@ -179,7 +178,7 @@ void GeneticAlgorithm::updateGlobalBest(
 
 void GeneticAlgorithm::logGenerationStats(
     const std::vector<std::shared_ptr<Individual>>& population,
-    const DNAInstance& instance,
+    [[maybe_unused]] const DNAInstance& instance,
     int generation)
 {
     double sumFitness = 0.0;

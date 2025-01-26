@@ -182,8 +182,13 @@ TuningResult runParameterTuning(const DNAInstance& testInstance, const std::vect
 }
 
 void runParameterTuningWithRacing(const DNAInstance& instance) {
-    // ... existing code ...
+    // Create racing configuration
+    Racing::Configuration rc;
+    rc.significanceLevel = 0.05;
+    rc.maxTrialsPerCandidate = 10;
+    rc.minTrialsBeforeElimination = 3;
     
+    [[maybe_unused]] // Mark as unused since it's a placeholder for future use
     auto evaluateFunc = [&instance](const ParameterSet& ps) -> TuningResult {
         try {
             // Create configuration

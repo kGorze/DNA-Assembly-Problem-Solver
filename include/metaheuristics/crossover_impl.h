@@ -19,6 +19,7 @@
 
 namespace {
     // Validate parents and get their genes
+    [[maybe_unused]]
     std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(
         const std::vector<std::shared_ptr<Individual>>& parents) {
         
@@ -40,6 +41,7 @@ namespace {
     }
     
     // Create offspring with validation
+    [[maybe_unused]]
     std::shared_ptr<Individual> createOffspring(
         std::vector<int> genes,
         std::shared_ptr<IRepresentation> representation,

@@ -13,6 +13,7 @@
  * Helper function to verify if a chromosome is a valid permutation
  * in the range 0..(size-1).
  */
+[[maybe_unused]]
 static bool validateAndClampChromosome(std::shared_ptr<std::vector<int>> indiv, int size) {
     if (!indiv) return false;
     if ((int)indiv->size() != size) {
