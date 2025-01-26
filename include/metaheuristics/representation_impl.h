@@ -33,7 +33,8 @@ public:
         return population;
     }
 
-    bool isValid(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+    bool isValid(const std::shared_ptr<Individual>& individual, 
+                [[maybe_unused]] const DNAInstance& instance) const override {
         if (!individual) return false;
         
         const auto& genes = individual->getGenes();
@@ -45,7 +46,8 @@ public:
         });
     }
 
-    std::string toString(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+    std::string toString(const std::shared_ptr<Individual>& individual, 
+                        [[maybe_unused]] const DNAInstance& instance) const override {
         if (!individual) return "";
         
         const auto& genes = individual->getGenes();
@@ -68,7 +70,8 @@ public:
         return result;
     }
 
-    std::string toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+    std::string toDNA(const std::shared_ptr<Individual>& individual, 
+                     [[maybe_unused]] const DNAInstance& instance) const override {
         if (!individual) return "";
         
         const auto& genes = individual->getGenes();
@@ -218,7 +221,8 @@ public:
         return population;
     }
 
-    bool isValid(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+    bool isValid(const std::shared_ptr<Individual>& individual, 
+                [[maybe_unused]] const DNAInstance& instance) const override {
         if (!individual) return false;
         
         const auto& genes = individual->getGenes();
@@ -235,7 +239,8 @@ public:
         return true;
     }
 
-    std::string toString(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+    std::string toString(const std::shared_ptr<Individual>& individual, 
+                        [[maybe_unused]] const DNAInstance& instance) const override {
         if (!individual) return "";
         
         const auto& genes = individual->getGenes();
@@ -243,16 +248,17 @@ public:
 
         std::string result;
         result.reserve(genes.size() * 3);  // Estimate 3 chars per number
-        
+
         for (size_t i = 0; i < genes.size(); ++i) {
             if (i > 0) result += " ";
             result += std::to_string(genes[i]);
         }
-        
+
         return result;
     }
 
-    std::string toDNA(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) const override {
+    std::string toDNA(const std::shared_ptr<Individual>& individual, 
+                     const DNAInstance& instance) const override {
         if (!individual) return "";
         
         const auto& genes = individual->getGenes();
@@ -272,7 +278,7 @@ public:
         // For subsequent oligonucleotides, add only non-overlapping part
         for (size_t i = 1; i < genes.size(); ++i) {
             const auto& oligo = spectrum[genes[i]];
-            if (oligo.size() > instance.getK()) {
+            if (oligo.size() > static_cast<size_t>(instance.getK())) {
                 dna += oligo.substr(instance.getK());
             }
         }

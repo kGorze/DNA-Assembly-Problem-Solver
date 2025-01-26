@@ -117,10 +117,10 @@ void runGeneticAlgorithm(const DNAInstance& instance,
                         bool debugMode);
 
 double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
-                          const std::string& outputFile,
+                          [[maybe_unused]] const std::string& outputFile,
                           int maxIterations,
-                          const std::string& logFile,
-                          bool verbose) {
+                          [[maybe_unused]] const std::string& logFile,
+                          [[maybe_unused]] bool verbose) {
     GeneticConfig config;
     config.maxGenerations = maxIterations;
     config.populationSize = 100;
@@ -141,7 +141,9 @@ double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
     }
 }
 
-double evaluateParameterSet(const DNAInstance& testInstance, const ParameterSet& ps, double (*calculateFitness)(const DNAInstance&, const std::vector<int>&)) {
+double evaluateParameterSet(const DNAInstance& testInstance, 
+                        const ParameterSet& ps, 
+                        [[maybe_unused]] double (*calculateFitness)(const DNAInstance&, const std::vector<int>&)) {
     GeneticConfig config;
     config.maxGenerations = 100;  // Default value
     config.populationSize = ps.contains("populationSize") ? ps.getInt("populationSize") : 100;

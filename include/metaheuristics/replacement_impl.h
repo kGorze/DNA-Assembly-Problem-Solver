@@ -22,35 +22,34 @@ public:
     }
     
     std::vector<std::shared_ptr<Individual>> replace(
-        const std::vector<std::shared_ptr<Individual>>& population,
+        const std::vector<std::shared_ptr<Individual>>& parents,
         const std::vector<std::shared_ptr<Individual>>& offspring,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) override {
+        [[maybe_unused]] const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override {
         std::lock_guard<std::mutex> lock(m_mutex);
 
-        if (population.empty() || offspring.empty()) {
+        if (parents.empty() || offspring.empty()) {
             LOG_WARNING("Empty population or offspring in replacement");
-            return population;
+            return parents;
         }
 
         if (!representation) {
             LOG_ERROR("Null representation provided to replacement operator");
-            return population;
+            return parents;
         }
 
         try {
             // Calculate number of individuals to replace
-            size_t numToReplace = static_cast<size_t>(m_replacementRatio * population.size());
+            size_t numToReplace = static_cast<size_t>(m_replacementRatio * parents.size());
             numToReplace = std::min(numToReplace, offspring.size());
 
             // Create a new population with the best individuals
             std::vector<std::shared_ptr<Individual>> newPopulation;
-            newPopulation.reserve(population.size());
+            newPopulation.reserve(parents.size());
 
             // Keep the best from the original population
-            size_t keepFromPopulation = population.size() - numToReplace;
-            auto sortedPopulation = population;
+            size_t keepFromPopulation = parents.size() - numToReplace;
+            auto sortedPopulation = parents;
             std::sort(sortedPopulation.begin(), sortedPopulation.end(),
                 [](const auto& a, const auto& b) {
                     return a && b && a->getFitness() > b->getFitness();
@@ -76,7 +75,7 @@ public:
             }
 
             // If we don't have enough individuals, fill with the remaining best from population
-            while (newPopulation.size() < population.size() && keepFromPopulation < sortedPopulation.size()) {
+            while (newPopulation.size() < parents.size() && keepFromPopulation < sortedPopulation.size()) {
                 if (sortedPopulation[keepFromPopulation] && sortedPopulation[keepFromPopulation]->isValid()) {
                     newPopulation.push_back(std::make_shared<Individual>(*sortedPopulation[keepFromPopulation]));
                 }
@@ -87,7 +86,7 @@ public:
             return newPopulation;
         } catch (const std::exception& e) {
             LOG_ERROR("Error during replacement: " + std::string(e.what()));
-            return population;
+            return parents;
         }
     }
 
@@ -100,35 +99,34 @@ private:
 class ElitistReplacement : public IReplacement {
 public:
     std::vector<std::shared_ptr<Individual>> replace(
-        const std::vector<std::shared_ptr<Individual>>& population,
+        const std::vector<std::shared_ptr<Individual>>& parents,
         const std::vector<std::shared_ptr<Individual>>& offspring,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) override {
+        [[maybe_unused]] const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override {
         std::lock_guard<std::mutex> lock(m_mutex);
 
-        if (population.empty() || offspring.empty()) {
+        if (parents.empty() || offspring.empty()) {
             LOG_WARNING("Empty population or offspring in elitist replacement");
-            return population;
+            return parents;
         }
 
         if (!representation) {
             LOG_ERROR("Null representation provided to elitist replacement operator");
-            return population;
+            return parents;
         }
 
         try {
             // Find the best individual from the current population
-            auto bestFromPopulation = std::max_element(population.begin(), population.end(),
+            auto bestFromPopulation = std::max_element(parents.begin(), parents.end(),
                 [](const auto& a, const auto& b) {
                     return !a || !b || a->getFitness() < b->getFitness();
                 });
 
             // Create new population starting with the best individual
             std::vector<std::shared_ptr<Individual>> newPopulation;
-            newPopulation.reserve(population.size());
+            newPopulation.reserve(parents.size());
 
-            if (bestFromPopulation != population.end() && *bestFromPopulation && (*bestFromPopulation)->isValid()) {
+            if (bestFromPopulation != parents.end() && *bestFromPopulation && (*bestFromPopulation)->isValid()) {
                 newPopulation.push_back(std::make_shared<Individual>(**bestFromPopulation));
             }
 
@@ -141,21 +139,21 @@ public:
 
             // Add best offspring
             for (const auto& individual : sortedOffspring) {
-                if (newPopulation.size() >= population.size()) break;
+                if (newPopulation.size() >= parents.size()) break;
                 if (individual && individual->isValid()) {
                     newPopulation.push_back(std::make_shared<Individual>(*individual));
                 }
             }
 
             // If we still need more individuals, take them from original population
-            auto sortedPopulation = population;
+            auto sortedPopulation = parents;
             std::sort(sortedPopulation.begin(), sortedPopulation.end(),
                 [](const auto& a, const auto& b) {
                     return a && b && a->getFitness() > b->getFitness();
                 });
 
             for (const auto& individual : sortedPopulation) {
-                if (newPopulation.size() >= population.size()) break;
+                if (newPopulation.size() >= parents.size()) break;
                 if (individual && individual->isValid()) {
                     newPopulation.push_back(std::make_shared<Individual>(*individual));
                 }
@@ -165,7 +163,7 @@ public:
             return newPopulation;
         } catch (const std::exception& e) {
             LOG_ERROR("Error during elitist replacement: " + std::string(e.what()));
-            return population;
+            return parents;
         }
     }
 

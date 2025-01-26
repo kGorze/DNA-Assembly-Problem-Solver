@@ -17,7 +17,7 @@ public:
         , m_generationsWithoutImprovement(0)
         , m_bestFitnessSoFar(-1e9) {}
 
-    bool shouldStop(int currentGeneration, double bestFitness) const override {
+    bool shouldStop([[maybe_unused]] int currentGeneration, double bestFitness) const override {
         if (bestFitness > m_bestFitnessSoFar) {
             m_bestFitnessSoFar = bestFitness;
             m_generationsWithoutImprovement = 0;
@@ -44,7 +44,7 @@ public:
     MaxGenerationsStopping(int maxGenerations = 100)
         : m_maxGenerations(maxGenerations) {}
 
-    bool shouldStop(int currentGeneration, double bestFitness) const override {
+    bool shouldStop(int currentGeneration, [[maybe_unused]] double bestFitness) const override {
         return currentGeneration >= m_maxGenerations;
     }
 
@@ -63,7 +63,8 @@ public:
         m_startTime = std::chrono::high_resolution_clock::now();
     }
 
-    bool shouldStop(int currentGeneration, double bestFitness) const override {
+    bool shouldStop([[maybe_unused]] int currentGeneration, 
+                   [[maybe_unused]] double bestFitness) const override {
         auto currentTime = std::chrono::high_resolution_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::seconds>(currentTime - m_startTime);
         return elapsedTime >= m_timeLimit;

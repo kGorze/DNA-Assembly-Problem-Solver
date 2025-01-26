@@ -399,9 +399,10 @@ private:
 
 public:
     std::vector<std::shared_ptr<Individual>> crossover(
-        const std::vector<std::shared_ptr<Individual>>& parents,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation) override {
+        [[maybe_unused]] const std::vector<std::shared_ptr<Individual>>& parents,
+        [[maybe_unused]] const DNAInstance& instance,
+        [[maybe_unused]] std::shared_ptr<IRepresentation> representation) override {
+        // Implementation here
         return std::vector<std::shared_ptr<Individual>>();
     }
 }; 

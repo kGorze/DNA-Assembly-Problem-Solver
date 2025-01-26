@@ -36,7 +36,8 @@ public:
         return m_cache.find(individual) != m_cache.end();
     }
 
-    double getOrCalculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) override {
+    double getOrCalculateFitness(const std::shared_ptr<Individual>& individual, 
+                               [[maybe_unused]] const DNAInstance& instance) override {
         auto it = m_cache.find(individual);
         if (it != m_cache.end()) {
             return it->second;
