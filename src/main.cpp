@@ -51,7 +51,7 @@
 
 #include "../include/utils/logging.h"
 #include "../include/metaheuristics/representation.h"
-#include "../include/dna/error_introducers.h"
+#include "../include/dna/error_introduction.h"
 
 // Create error introducers
 auto negativeErrorIntroducer = std::make_unique<NegativeErrorIntroducer>();
@@ -204,10 +204,8 @@ void runParameterTuningWithRacing(const DNAInstance& instance) {
                 }
             }
             
-            // Create representation
+            // Create representation and genetic algorithm
             auto representation = std::make_unique<PermutationRepresentation>();
-            
-            // Create and run genetic algorithm
             GeneticAlgorithm ga(std::move(representation), config);
             std::string result = ga.run(instance);
             
@@ -616,10 +614,8 @@ int main(int argc, char* argv[]) {
                 }
                 
                 // Create genetic algorithm
-                auto random = std::make_unique<Random>();
-                auto generator = std::make_unique<DNAGenerator>(std::move(random));
-                DNAInstanceBuilder builder(std::move(generator));
-                GeneticAlgorithm ga(std::move(builder.build()), config);
+                auto representation = std::make_unique<PermutationRepresentation>();
+                GeneticAlgorithm ga(std::move(representation), config);
                 
                 // Run the algorithm
                 auto startTime = std::chrono::high_resolution_clock::now();
