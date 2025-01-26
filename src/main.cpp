@@ -255,7 +255,7 @@ int main(int argc, char* argv[]) {
         // Parse arguments with proper string handling
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];  // Direct assignment
-            if (arg == "-c" && i + 1 < argc) {
+            if (arg == "-cfg" && i + 1 < argc) {
                 configFile = argv[++i];  // Direct assignment
                 LOG_INFO("Config file set to: " + configFile);
             } else if (arg == "-d") {
@@ -269,9 +269,14 @@ int main(int argc, char* argv[]) {
             try {
                 std::filesystem::path configPath(configFile);
                 if (!std::filesystem::exists(configPath)) {
-                    std::string errMsg = "Config file not found: " + configFile;
-                    LOG_ERROR(errMsg);
-                    return 1;
+                    // Try looking in the build directory's config subdirectory
+                    std::filesystem::path buildDirConfig = std::filesystem::current_path() / configFile;
+                    if (!std::filesystem::exists(buildDirConfig)) {
+                        std::string errMsg = "Config file not found at: " + configFile + " or " + buildDirConfig.string();
+                        LOG_ERROR(errMsg);
+                        return 1;
+                    }
+                    configFile = buildDirConfig.string();
                 }
                 std::string existsMsg = "Config file exists: " + configFile;
                 LOG_INFO(existsMsg);
@@ -423,6 +428,32 @@ int main(int argc, char* argv[]) {
                 LOG_ERROR("Genetic algorithm failed: " + std::string(e.what()));
                 return 1;
             }
+        } else if (mode == "debug") {
+            LOG_INFO("Entering debug mode");
+            
+            // Set debug log level
+            Logger::setLogLevel(LogLevel::DEBUG);
+            LOG_DEBUG("Debug logging enabled");
+            
+            // Create a default test instance for debugging
+            DNAInstanceBuilder builder;
+            builder.setN(300)
+                   .setK(7)
+                   .setDeltaK(0)
+                   .setLNeg(10)
+                   .setLPoz(10)
+                   .setRepAllowed(true)
+                   .setProbablePositive(0)
+                   .buildDNA()
+                   .buildSpectrum();
+            
+            DNAInstance instance = builder.getInstance();
+            std::string outputFile = "debug_output.txt";
+            int processId = 0;
+            
+            // Run genetic algorithm in debug mode
+            runGeneticAlgorithm(instance, outputFile, processId, configFile, true);
+            
         } else if (mode == "generate_instance") {
             int n = 400, k = 8, deltaK = 1, lNeg = 10, lPoz = 10;
             std::string outputFile = "generated_instance.txt";

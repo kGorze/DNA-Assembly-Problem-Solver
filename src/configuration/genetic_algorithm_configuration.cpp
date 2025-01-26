@@ -49,6 +49,14 @@ void GAConfig::resetToDefaults()
     m_lPoz = 25;
     m_repAllowed = false;
     m_probablePositive = 0;
+    
+    // Reset new fields to defaults
+    m_mutationMethod = "point";
+    m_replacementMethod = "partial";
+    m_stoppingMethod = "maxGenerations";
+    m_fitnessType = "optimized_graph";
+    m_noImprovementGenerations = 30;
+    m_timeLimitSeconds = 60;
 }
 
 bool GAConfig::loadFromFile(const std::string& filename) {
@@ -67,6 +75,12 @@ bool GAConfig::loadFromFile(const std::string& filename) {
         std::string value;
 
         if (std::getline(iss, key, '=') && std::getline(iss, value)) {
+            // Trim whitespace from key and value
+            key.erase(0, key.find_first_not_of(" \t"));
+            key.erase(key.find_last_not_of(" \t") + 1);
+            value.erase(0, value.find_first_not_of(" \t"));
+            value.erase(value.find_last_not_of(" \t") + 1);
+            
             try {
                 if (key == "populationSize") m_populationSize = std::stoi(value);
                 else if (key == "maxGenerations") m_maxGenerations = std::stoi(value);
@@ -83,6 +97,13 @@ bool GAConfig::loadFromFile(const std::string& filename) {
                 else if (key == "lPoz") m_lPoz = std::stoi(value);
                 else if (key == "repAllowed") m_repAllowed = (value == "true" || value == "1");
                 else if (key == "probablePositive") m_probablePositive = std::stod(value);
+                // Add new configuration parameters
+                else if (key == "mutationMethod") m_mutationMethod = value;
+                else if (key == "replacementMethod") m_replacementMethod = value;
+                else if (key == "stoppingMethod") m_stoppingMethod = value;
+                else if (key == "fitnessType") m_fitnessType = value;
+                else if (key == "noImprovementGenerations") m_noImprovementGenerations = std::stoi(value);
+                else if (key == "timeLimitSeconds") m_timeLimitSeconds = std::stoi(value);
                 else {
                     LOG_WARNING("Unknown configuration key: " + key);
                 }
@@ -162,6 +183,27 @@ bool GAConfig::validate() const {
     // Check string parameters
     if (m_selectionMethod.empty()) return false;
     if (m_crossoverType.empty()) return false;
+    
+    // Validate new fields
+    if (m_mutationMethod.empty()) return false;
+    if (m_replacementMethod.empty()) return false;
+    if (m_stoppingMethod.empty()) return false;
+    if (m_fitnessType.empty()) return false;
+    if (m_noImprovementGenerations < 0) return false;
+    if (m_timeLimitSeconds < 0) return false;
+    
+    // Validate method values
+    std::vector<std::string> validMutationMethods = {"point", "swap", "inversion"};
+    if (std::find(validMutationMethods.begin(), validMutationMethods.end(), m_mutationMethod) == validMutationMethods.end()) return false;
+    
+    std::vector<std::string> validReplacementMethods = {"partial", "generational", "elitist"};
+    if (std::find(validReplacementMethods.begin(), validReplacementMethods.end(), m_replacementMethod) == validReplacementMethods.end()) return false;
+    
+    std::vector<std::string> validStoppingMethods = {"maxGenerations", "noImprovement", "timeLimit"};
+    if (std::find(validStoppingMethods.begin(), validStoppingMethods.end(), m_stoppingMethod) == validStoppingMethods.end()) return false;
+    
+    std::vector<std::string> validFitnessTypes = {"simple", "optimized_graph", "weighted"};
+    if (std::find(validFitnessTypes.begin(), validFitnessTypes.end(), m_fitnessType) == validFitnessTypes.end()) return false;
     
     return true;
 }

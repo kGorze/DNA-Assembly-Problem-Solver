@@ -78,8 +78,12 @@ void Logger::log(LogLevel level, const std::string& message, const char* file, i
     logFile << ss.str();
     logFile.flush();
     
-    // Also print to console for ERROR level
-    if (level == LogLevel::ERROR) {
-        std::cerr << ss.str();
+    // Print to console for all levels in debug mode or ERROR level
+    if (level == LogLevel::ERROR || currentLevel == LogLevel::DEBUG) {
+        if (level == LogLevel::ERROR) {
+            std::cerr << ss.str();
+        } else {
+            std::cout << ss.str();
+        }
     }
 }

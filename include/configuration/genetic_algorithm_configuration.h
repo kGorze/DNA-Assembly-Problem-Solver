@@ -73,6 +73,12 @@ public:
     double getReplacementRatio() const { return m_replacementRatio; }
     std::string getCrossoverType() const { return m_crossoverType; }
     std::string getSelectionMethod() const { return m_selectionMethod; }
+    std::string getMutationMethod() const { return m_mutationMethod; }
+    std::string getReplacementMethod() const { return m_replacementMethod; }
+    std::string getStoppingMethod() const { return m_stoppingMethod; }
+    std::string getFitnessType() const { return m_fitnessType; }
+    int getNoImprovementGenerations() const { return m_noImprovementGenerations; }
+    int getTimeLimitSeconds() const { return m_timeLimitSeconds; }
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
@@ -90,6 +96,12 @@ public:
     void setReplacementRatio(double ratio) { m_replacementRatio = ratio; }
     void setCrossoverType(const std::string& type) { m_crossoverType = type; }
     void setSelectionMethod(const std::string& method) { m_selectionMethod = method; }
+    void setMutationMethod(const std::string& method) { m_mutationMethod = method; }
+    void setReplacementMethod(const std::string& method) { m_replacementMethod = method; }
+    void setStoppingMethod(const std::string& method) { m_stoppingMethod = method; }
+    void setFitnessType(const std::string& type) { m_fitnessType = type; }
+    void setNoImprovementGenerations(int gens) { m_noImprovementGenerations = gens; }
+    void setTimeLimitSeconds(int seconds) { m_timeLimitSeconds = seconds; }
 
     // Cache management
     void setCache(std::shared_ptr<IPopulationCache> cachePtr) {
@@ -135,6 +147,14 @@ private:
     double m_replacementRatio = 0.5;
     std::string m_crossoverType = "single";
     std::string m_selectionMethod = "tournament";
+    
+    // New configuration fields
+    std::string m_mutationMethod = "point";
+    std::string m_replacementMethod = "partial";
+    std::string m_stoppingMethod = "maxGenerations";
+    std::string m_fitnessType = "optimized_graph";
+    int m_noImprovementGenerations = 30;
+    int m_timeLimitSeconds = 60;
     
     AdaptiveCrossoverParams adaptiveParams;
     

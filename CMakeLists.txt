@@ -10,6 +10,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
+# Find Python (if needed)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
 # Define include directories at the top level
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -48,23 +51,36 @@ target_include_directories(optymalizacja_kombinatoryczna_lib PUBLIC
 
 # Main executable
 add_executable(optymalizacja_kombinatoryczna
-        src/main.cpp
+    src/main.cpp
 )
 
 # Link the library
 target_link_libraries(optymalizacja_kombinatoryczna PRIVATE optymalizacja_kombinatoryczna_lib)
 
-# Google Test setup
-include(FetchContent)
-FetchContent_Declare(
-    googletest
-    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-    DOWNLOAD_EXTRACT_TIMESTAMP true
+# Copy configuration files to build directory
+file(COPY ${CMAKE_SOURCE_DIR}/config DESTINATION ${CMAKE_BINARY_DIR})
+
+# Set working directory for the executable
+set_target_properties(optymalizacja_kombinatoryczna PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
-FetchContent_MakeAvailable(googletest)
 
-# Enable testing
-enable_testing()
+# Only include tests if ENABLE_TESTING is set
+option(ENABLE_TESTING "Enable testing" OFF)
+if(ENABLE_TESTING)
+    # Google Test setup
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+        DOWNLOAD_EXTRACT_TIMESTAMP true
+    )
+    FetchContent_MakeAvailable(googletest)
 
-# Add tests
-add_subdirectory(tests)
+    # Enable testing
+    enable_testing()
+
+    # Add tests
+    add_subdirectory(tests)
+endif()
