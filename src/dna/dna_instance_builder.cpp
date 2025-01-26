@@ -38,6 +38,21 @@ DNAInstanceBuilder& DNAInstanceBuilder::setProbablePositive(double value) {
     return *this;
 }
 
+DNAInstanceBuilder& DNAInstanceBuilder::setStartIndex(int value) {
+    m_instance.setStartIndex(value);
+    return *this;
+}
+
+DNAInstanceBuilder& DNAInstanceBuilder::setDNA(const std::string& dna) {
+    m_instance.setDNA(dna);
+    return *this;
+}
+
+DNAInstanceBuilder& DNAInstanceBuilder::setSpectrum(const std::vector<std::string>& spectrum) {
+    m_instance.setSpectrum(spectrum);
+    return *this;
+}
+
 DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
     try {
         m_generator.setParameters(m_instance.getN(), m_instance.getK(), m_instance.getDeltaK());

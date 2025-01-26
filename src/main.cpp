@@ -116,38 +116,69 @@ void runGeneticAlgorithm(const DNAInstance& instance,
                         const std::string& configFile,
                         bool debugMode);
 
-double runGeneticAlgorithm(const DNAInstance& instance, 
+double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
                           const std::string& outputFile,
                           int maxIterations,
                           const std::string& logFile,
                           bool verbose) {
-    // Create configuration
-    GAConfig config;
+    GeneticConfig config;
     config.maxGenerations = maxIterations;
     config.populationSize = 100;
     config.mutationProbability = 0.1;
     config.crossoverProbability = 0.8;
-    config.targetFitness = 1.0;
+    config.targetFitness = 0.95;
     config.tournamentSize = 5;
-    
-    // Create genetic algorithm components
+
     auto representation = std::make_unique<DirectDNARepresentation>();
-    auto selection = std::make_unique<TournamentSelection>(config);
-    auto crossover = std::make_unique<PMXCrossover>();
-    auto mutation = std::make_unique<SwapMutation>(config.mutationProbability);
-    auto replacement = std::make_unique<ElitistReplacement>();
-    auto fitness = std::make_unique<SimpleFitness>();
-    auto stopping = std::make_unique<MaxGenerationsStopping>(maxIterations);
-    auto cache = std::make_unique<SimplePopulationCache>();
-    
-    // Create and run genetic algorithm
-    GeneticAlgorithm ga(std::move(representation), std::move(selection),
-                       std::move(crossover), std::move(mutation),
-                       std::move(replacement), std::move(fitness),
-                       std::move(stopping), std::move(cache), config);
-    
-    auto result = ga.run(instance);
-    return result.fitness;
+    GeneticAlgorithm ga(std::move(representation), config);
+
+    std::string result = ga.run(instance);
+    try {
+        return std::stod(result);
+    } catch (const std::exception& e) {
+        std::cerr << "Error converting result to double: " << e.what() << std::endl;
+        return 0.0;
+    }
+}
+
+double evaluateParameterSet(const DNAInstance& testInstance, const ParameterSet& ps, double (*calculateFitness)(const DNAInstance&, const std::vector<int>&)) {
+    GeneticConfig config;
+    config.maxGenerations = 100;  // Default value
+    config.populationSize = ps.contains("populationSize") ? ps.getInt("populationSize") : 100;
+    config.mutationProbability = ps.contains("mutationRate") ? ps.getDouble("mutationRate") : 0.1;
+    config.crossoverProbability = ps.contains("crossoverProb") ? ps.getDouble("crossoverProb") : 0.8;
+    config.targetFitness = 0.95;  // Default value
+    config.tournamentSize = 5;    // Default value
+
+    auto representation = std::make_unique<DirectDNARepresentation>();
+    GeneticAlgorithm ga(std::move(representation), config);
+
+    std::string result = ga.run(testInstance);
+    try {
+        return std::stod(result);
+    } catch (const std::exception& e) {
+        std::cerr << "Error converting result to double: " << e.what() << std::endl;
+        return 0.0;
+    }
+}
+
+TuningResult runParameterTuning(const DNAInstance& testInstance, const std::vector<ParameterSet>& parameterSets) {
+    ParameterSet bestSet;
+    double bestFitness = std::numeric_limits<double>::lowest();
+
+    for (const auto& ps : parameterSets) {
+        double fitness = evaluateParameterSet(testInstance, ps, nullptr);  // Replace nullptr with actual fitness function
+        if (fitness > bestFitness) {
+            bestFitness = fitness;
+            bestSet = ps;
+        }
+    }
+
+    TuningResult tr;
+    tr.parameterSet = bestSet;
+    tr.fitness = bestFitness;
+    tr.executionTime = 0.0;  // Add actual timing if needed
+    return tr;
 }
 
 int main(int argc, char* argv[]) {
@@ -459,35 +490,23 @@ int main(int argc, char* argv[]) {
             
             // Define evaluation function
             auto evaluateFunc = [&testInstance, &calculateFitness](const ParameterSet& ps) {
-                // Create local config
-                GAConfig config;
-                if (!config.loadFromFile("config.cfg")) {
-                    throw std::runtime_error("Failed to load configuration");
-                }
+                // Create local config with default values
+                GeneticConfig config;
                 
                 // Update config with parameters from parameter set
                 if (ps.contains("populationSize")) {
-                    config.setPopulationSize(ps.getInt("populationSize"));
+                    config.populationSize = ps.getInt("populationSize");
                 }
                 if (ps.contains("mutationRate")) {
-                    config.setMutationRate(ps.getDouble("mutationRate"));
+                    config.mutationProbability = ps.getDouble("mutationRate");
                 }
                 if (ps.contains("crossoverProb")) {
-                    config.setCrossoverProbability(ps.getDouble("crossoverProb"));
+                    config.crossoverProbability = ps.getDouble("crossoverProb");
                 }
                 
-                // Create genetic algorithm configuration
-                GeneticConfig gaConfig;
-                gaConfig.populationSize = config.getPopulationSize();
-                gaConfig.maxGenerations = config.getMaxGenerations();
-                gaConfig.mutationProbability = config.getMutationRate();
-                gaConfig.crossoverProbability = config.getCrossoverProbability();
-                gaConfig.targetFitness = config.getTargetFitness();
-                gaConfig.tournamentSize = config.getTournamentSize();
-
                 // Create genetic algorithm
                 auto representation = std::make_unique<DirectDNARepresentation>();
-                GeneticAlgorithm ga(std::move(representation), gaConfig);
+                GeneticAlgorithm ga(std::move(representation), config);
                 
                 // Run the algorithm
                 auto startTime = std::chrono::high_resolution_clock::now();
@@ -545,18 +564,15 @@ int main(int argc, char* argv[]) {
                        .buildSpectrum();
                 DNAInstance instance = builder.getInstance();
 
-                // Create a new config instance
-                GAConfig config;
-                if (!config.loadFromFile("config.cfg")) {
-                    throw std::runtime_error("Failed to load configuration");
-                }
+                // Create a new config instance with default values
+                GeneticConfig config;
 
                 // Update parameters
                 for (const auto &[key, value] : ps.params) {
                     if (key == "populationSize") {
-                        config.setPopulationSize(std::stoi(value));
+                        config.populationSize = std::stoi(value);
                     } else if (key == "mutationRate") {
-                        config.setMutationRate(std::stod(value));
+                        config.mutationProbability = std::stod(value);
                     }
                 }
 
@@ -566,7 +582,7 @@ int main(int argc, char* argv[]) {
 
                 TuningResult tr;
                 tr.parameterSet = bestSet;
-                tr.fitness = config.getGlobalBestFitness();
+                tr.fitness = config.targetFitness;
                 tr.executionTime = 0.0;
                 return tr;
             };

@@ -11,6 +11,31 @@ private:
     std::unordered_map<std::shared_ptr<Individual>, double> m_cache;
 
 public:
+    void updatePopulation(const std::vector<std::shared_ptr<Individual>>& population) override {
+        clear();
+        for (const auto& individual : population) {
+            add(individual);
+        }
+    }
+
+    void clear() override {
+        m_cache.clear();
+    }
+
+    void reserve(size_t size) override {
+        m_cache.reserve(size);
+    }
+
+    void add(const std::shared_ptr<Individual>& individual) override {
+        if (!contains(individual)) {
+            m_cache[individual] = calculateFitness(individual);
+        }
+    }
+
+    bool contains(const std::shared_ptr<Individual>& individual) const override {
+        return m_cache.find(individual) != m_cache.end();
+    }
+
     double getOrCalculateFitness(const std::shared_ptr<Individual>& individual, const DNAInstance& instance) override {
         auto it = m_cache.find(individual);
         if (it != m_cache.end()) {

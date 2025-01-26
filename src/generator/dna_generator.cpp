@@ -162,21 +162,6 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string &
  * **********************************************/
 // void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) { ... }
 
-int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
-    const std::string& startFragment = instance.getDNA().substr(0, instance.getK());
-    const auto& spectrum = instance.getSpectrum();
-
-    // Znajdź indeks fragmentu startowego w spektrum
-    auto it = std::find(spectrum.begin(), spectrum.end(), startFragment);
-    
-    if (it != spectrum.end()) {
-        return std::distance(spectrum.begin(), it);
-    }
-
-    // Jeśli nie znaleziono, zwróć -1 lub obsłuż błąd
-    return -1;
-}
-
 DNAInstance DNAGenerator::generateRandomInstance(
     int size,
     int k,
