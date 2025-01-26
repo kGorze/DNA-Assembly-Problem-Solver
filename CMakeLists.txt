@@ -32,6 +32,9 @@ set(SOURCES
     src/tuning/parameter_tuning_manager.cpp
     src/tuning/parameter_parser.cpp
     src/tuning/tuning_structures.cpp
+    src/configuration/genetic_algorithm_configuration.cpp
+    src/metaheuristics/fitness_impl.cpp
+    src/metaheuristics/representation_impl.cpp
 )
 
 # Create library

@@ -27,26 +27,14 @@ namespace {
     std::mutex s_outputMutex;
 }
 
-GeneticAlgorithm::GeneticAlgorithm(std::unique_ptr<IRepresentation> representation, const GeneticConfig& config)
+GeneticAlgorithm::GeneticAlgorithm(std::unique_ptr<IRepresentation> representation, const GAConfig& config)
     : m_representation(std::move(representation))
     , m_random(std::make_unique<Random>())
     , m_config(config)
     , m_globalBestFit(-std::numeric_limits<double>::infinity())
 {
-    if (config.populationSize <= 0) {
-        throw std::invalid_argument("Population size must be positive");
-    }
-    if (config.maxGenerations <= 0) {
-        throw std::invalid_argument("Maximum generations must be positive");
-    }
-    if (config.mutationProbability < 0.0 || config.mutationProbability > 1.0) {
-        throw std::invalid_argument("Mutation probability must be between 0 and 1");
-    }
-    if (config.crossoverProbability < 0.0 || config.crossoverProbability > 1.0) {
-        throw std::invalid_argument("Crossover probability must be between 0 and 1");
-    }
-    if (config.tournamentSize <= 0) {
-        throw std::invalid_argument("Tournament size must be positive");
+    if (!m_representation) {
+        throw std::invalid_argument("Invalid representation");
     }
 }
 
@@ -117,84 +105,103 @@ void GeneticAlgorithm::updateGlobalBest(const std::vector<std::shared_ptr<Indivi
 }
 
 std::string GeneticAlgorithm::run(const DNAInstance& instance) {
-    m_population = m_representation->initializePopulation(m_config.populationSize, instance);
-    evaluatePopulation(instance, m_population);
-    updateGlobalBest(m_population, instance);
-    logGenerationStats(m_population, instance, 0);
-
-    for (int generation = 1; generation <= m_config.maxGenerations; ++generation) {
-        std::vector<std::shared_ptr<Individual>> newPopulation;
-        newPopulation.reserve(m_config.populationSize);
-
-        // Selection and reproduction
-        while (newPopulation.size() < static_cast<size_t>(m_config.populationSize)) {
-            // Tournament selection for two parents
-            std::shared_ptr<Individual> parent1 = nullptr;
-            std::shared_ptr<Individual> parent2 = nullptr;
-            
-            // Select first parent
-            for (int j = 0; j < m_config.tournamentSize; ++j) {
-                size_t idx = static_cast<size_t>(m_random->getGenerator()() % m_population.size());
-                if (!parent1 || m_population[idx]->getFitness() > parent1->getFitness()) {
-                    parent1 = m_population[idx];
-                }
-            }
-            
-            // Select second parent
-            for (int j = 0; j < m_config.tournamentSize; ++j) {
-                size_t idx = static_cast<size_t>(m_random->getGenerator()() % m_population.size());
-                if (!parent2 || m_population[idx]->getFitness() > parent2->getFitness()) {
-                    parent2 = m_population[idx];
-                }
-            }
-
-            // Create child through crossover or copy
-            auto child = std::make_shared<Individual>();
-            if (m_random->generateProbability() < m_config.crossoverProbability && 
-                !parent1->getGenes().empty() && !parent2->getGenes().empty()) {
-                // Single-point crossover
-                std::vector<int> childGenes = parent1->getGenes();
-                size_t crossPoint = static_cast<size_t>(m_random->getGenerator()() % parent1->getGenes().size());
-                for (size_t i = crossPoint; i < parent2->getGenes().size() && i < childGenes.size(); ++i) {
-                    childGenes[i] = parent2->getGenes()[i];
-                }
-                child->setGenes(childGenes);
-            } else {
-                // Copy from first parent
-                child->setGenes(parent1->getGenes());
-            }
-
-            // Mutation
-            if (m_random->generateProbability() < m_config.mutationProbability) {
-                std::vector<int> genes = child->getGenes();
-                if (!genes.empty()) {
-                    size_t mutationPoint = static_cast<size_t>(m_random->getGenerator()() % genes.size());
-                    genes[mutationPoint] = static_cast<int>(m_random->getGenerator()() % 4); // Assuming 4 possible values (0-3)
-                    child->setGenes(genes);
-                }
-            }
-
-            newPopulation.push_back(child);
+    try {
+        // Initialize population
+        m_population = m_representation->initializePopulation(m_config.getPopulationSize(), instance);
+        if (m_population.empty()) {
+            LOG_ERROR("Failed to initialize population");
+            return "";
         }
 
-        // Replace old population
-        m_population = std::move(newPopulation);
-        
-        // Evaluate new population
-        evaluatePopulation(instance, m_population);
-        updateGlobalBest(m_population, instance);
-        logGenerationStats(m_population, instance, generation);
+        // Main loop
+        for (int generation = 1; generation <= m_config.getMaxGenerations(); ++generation) {
+            // Create new population
+            std::vector<std::shared_ptr<Individual>> newPopulation;
+            newPopulation.reserve(m_config.getPopulationSize());
 
-        if (m_globalBestFit >= m_config.targetFitness) {
-            LOG_INFO("Target fitness reached. Stopping early.");
-            break;
+            // Selection and crossover
+            while (newPopulation.size() < static_cast<size_t>(m_config.getPopulationSize())) {
+                // Tournament selection for parent 1
+                std::shared_ptr<Individual> parent1;
+                double bestFitness1 = -1e9;
+                for (int j = 0; j < m_config.getTournamentSize(); ++j) {
+                    int idx = m_random->getRandomInt(0, static_cast<int>(m_population.size() - 1));
+                    double fitness = calculateFitness(m_population[idx], instance);
+                    if (fitness > bestFitness1) {
+                        bestFitness1 = fitness;
+                        parent1 = m_population[idx];
+                    }
+                }
+
+                // Tournament selection for parent 2
+                std::shared_ptr<Individual> parent2;
+                double bestFitness2 = -1e9;
+                for (int j = 0; j < m_config.getTournamentSize(); ++j) {
+                    int idx = m_random->getRandomInt(0, static_cast<int>(m_population.size() - 1));
+                    double fitness = calculateFitness(m_population[idx], instance);
+                    if (fitness > bestFitness2) {
+                        bestFitness2 = fitness;
+                        parent2 = m_population[idx];
+                    }
+                }
+
+                // Crossover
+                if (m_random->generateProbability() < m_config.getCrossoverProbability() &&
+                    parent1 && parent2) {
+                    auto child = std::make_shared<Individual>();
+                    auto& parent1Genes = parent1->getGenes();
+                    auto& parent2Genes = parent2->getGenes();
+
+                    // Single-point crossover
+                    int crossPoint = m_random->getRandomInt(0, static_cast<int>(parent1Genes.size() - 1));
+                    std::vector<int> childGenes;
+                    childGenes.insert(childGenes.end(), parent1Genes.begin(), parent1Genes.begin() + crossPoint);
+                    childGenes.insert(childGenes.end(), parent2Genes.begin() + crossPoint, parent2Genes.end());
+                    child->setGenes(childGenes);
+
+                    // Mutation
+                    if (m_random->generateProbability() < m_config.getMutationRate()) {
+                        auto& genes = child->getGenes();
+                        int pos1 = m_random->getRandomInt(0, static_cast<int>(genes.size() - 1));
+                        int pos2 = m_random->getRandomInt(0, static_cast<int>(genes.size() - 1));
+                        std::swap(genes[pos1], genes[pos2]);
+                        child->setGenes(genes);
+                    }
+
+                    if (m_representation->isValid(child, instance)) {
+                        newPopulation.push_back(child);
+                    }
+                }
+            }
+
+            // Update population
+            m_population = std::move(newPopulation);
+
+            // Update global best
+            updateGlobalBest(m_population, instance);
+
+            // Log progress
+            logGenerationStats(m_population, instance, generation);
+
+            // Check termination condition
+            if (m_globalBestFit >= m_config.getTargetFitness()) {
+                LOG_INFO("Target fitness reached");
+                break;
+            }
         }
+
+        // Return best solution
+        if (m_globalBestGenes.empty()) {
+            LOG_ERROR("No valid solution found");
+            return "";
+        }
+
+        return m_representation->toDNA(std::make_shared<Individual>(m_globalBestGenes), instance);
+
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error in genetic algorithm: " + std::string(e.what()));
+        return "";
     }
-
-    // Convert best solution to DNA string
-    auto bestIndividual = *std::max_element(m_population.begin(), m_population.end(),
-        [](const auto& a, const auto& b) { return a->getFitness() < b->getFitness(); });
-    return m_representation->toString(bestIndividual, instance);
 }
 
 void GeneticAlgorithm::evaluatePopulation(const DNAInstance& instance, const std::vector<std::shared_ptr<Individual>>& population) {

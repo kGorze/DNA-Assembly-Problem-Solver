@@ -116,52 +116,49 @@ void runGeneticAlgorithm(const DNAInstance& instance,
                         const std::string& configFile,
                         bool debugMode);
 
-double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
-                          [[maybe_unused]] const std::string& outputFile,
-                          int maxIterations,
-                          [[maybe_unused]] const std::string& logFile,
-                          [[maybe_unused]] bool verbose) {
-    GeneticConfig config;
-    config.maxGenerations = maxIterations;
-    config.populationSize = 100;
-    config.mutationProbability = 0.1;
-    config.crossoverProbability = 0.8;
-    config.targetFitness = 0.95;
-    config.tournamentSize = 5;
-
+double runGeneticAlgorithmWithFitness(const DNAInstance& instance, 
+                                [[maybe_unused]] const std::string& outputFile, 
+                                [[maybe_unused]] int processId, 
+                                [[maybe_unused]] const std::string& configFile, 
+                                [[maybe_unused]] bool debugMode) {
+    // Create configuration
+    GAConfig config;
+    config.setMaxGenerations(100);  // Default value instead of maxIterations
+    config.setPopulationSize(100);
+    config.setMutationRate(0.1);
+    config.setCrossoverProbability(0.8);
+    config.setTournamentSize(5);
+    
+    // Create representation
     auto representation = std::make_unique<DirectDNARepresentation>();
+    
+    // Create and run genetic algorithm
     GeneticAlgorithm ga(std::move(representation), config);
-
+    ga.setProcessId(processId);
+    
     std::string result = ga.run(instance);
-    try {
-        return std::stod(result);
-    } catch (const std::exception& e) {
-        std::cerr << "Error converting result to double: " << e.what() << std::endl;
-        return 0.0;
-    }
+    return ga.getBestFitness();
 }
 
-double evaluateParameterSet(const DNAInstance& testInstance, 
-                        const ParameterSet& ps, 
-                        [[maybe_unused]] double (*calculateFitness)(const DNAInstance&, const std::vector<int>&)) {
-    GeneticConfig config;
-    config.maxGenerations = 100;  // Default value
-    config.populationSize = ps.contains("populationSize") ? ps.getInt("populationSize") : 100;
-    config.mutationProbability = ps.contains("mutationRate") ? ps.getDouble("mutationRate") : 0.1;
-    config.crossoverProbability = ps.contains("crossoverProb") ? ps.getDouble("crossoverProb") : 0.8;
-    config.targetFitness = 0.95;  // Default value
-    config.tournamentSize = 5;    // Default value
-
+double evaluateParameterSet(const DNAInstance& instance, 
+                          const ParameterSet& params, 
+                          [[maybe_unused]] double (*fitnessFunc)(const DNAInstance&, const std::vector<int>&)) {
+    // Create configuration
+    GAConfig config;
+    config.setMaxGenerations(100);  // Default value
+    config.setPopulationSize(params.getInt("populationSize"));
+    config.setMutationRate(params.getDouble("mutationRate"));
+    config.setCrossoverProbability(params.getDouble("crossoverProb"));
+    config.setTournamentSize(5);  // Default value
+    
+    // Create representation
     auto representation = std::make_unique<DirectDNARepresentation>();
+    
+    // Create and run genetic algorithm
     GeneticAlgorithm ga(std::move(representation), config);
-
-    std::string result = ga.run(testInstance);
-    try {
-        return std::stod(result);
-    } catch (const std::exception& e) {
-        std::cerr << "Error converting result to double: " << e.what() << std::endl;
-        return 0.0;
-    }
+    std::string result = ga.run(instance);
+    
+    return ga.getBestFitness();
 }
 
 TuningResult runParameterTuning(const DNAInstance& testInstance, const std::vector<ParameterSet>& parameterSets) {
@@ -181,6 +178,52 @@ TuningResult runParameterTuning(const DNAInstance& testInstance, const std::vect
     tr.fitness = bestFitness;
     tr.executionTime = 0.0;  // Add actual timing if needed
     return tr;
+}
+
+void runParameterTuningWithRacing(const DNAInstance& instance) {
+    // ... existing code ...
+    
+    auto evaluateFunc = [&instance](const ParameterSet& ps) -> TuningResult {
+        try {
+            // Create configuration
+            GAConfig config;
+            
+            // Set parameters from ParameterSet
+            for (const auto& [key, value] : ps.params) {
+                try {
+                    if (key == "populationSize") {
+                        config.setPopulationSize(std::stoi(value));
+                    } else if (key == "mutationRate") {
+                        config.setMutationRate(std::stod(value));
+                    } else if (key == "crossoverProb") {
+                        config.setCrossoverProbability(std::stod(value));
+                    }
+                } catch (const std::exception& e) {
+                    LOG_ERROR("Error setting parameter " + key + ": " + std::string(e.what()));
+                }
+            }
+            
+            // Create representation
+            auto representation = std::make_unique<DirectDNARepresentation>();
+            
+            // Create and run genetic algorithm
+            GeneticAlgorithm ga(std::move(representation), config);
+            std::string result = ga.run(instance);
+            
+            // Create and return result
+            TuningResult tr;
+            tr.parameterSet = ps;
+            tr.fitness = ga.getBestFitness();
+            tr.executionTime = 0.0;  // TODO: Add timing
+            return tr;
+            
+        } catch (const std::exception& e) {
+            LOG_ERROR("Error in parameter evaluation: " + std::string(e.what()));
+            return TuningResult(ps, 0.0, 0.0);
+        }
+    };
+    
+    // ... rest of the function ...
 }
 
 int main(int argc, char* argv[]) {
@@ -493,17 +536,17 @@ int main(int argc, char* argv[]) {
             // Define evaluation function
             auto evaluateFunc = [&testInstance, &calculateFitness](const ParameterSet& ps) {
                 // Create local config with default values
-                GeneticConfig config;
+                GAConfig config;
                 
                 // Update config with parameters from parameter set
                 if (ps.contains("populationSize")) {
-                    config.populationSize = ps.getInt("populationSize");
+                    config.setPopulationSize(ps.getInt("populationSize"));
                 }
                 if (ps.contains("mutationRate")) {
-                    config.mutationProbability = ps.getDouble("mutationRate");
+                    config.setMutationRate(ps.getDouble("mutationRate"));
                 }
                 if (ps.contains("crossoverProb")) {
-                    config.crossoverProbability = ps.getDouble("crossoverProb");
+                    config.setCrossoverProbability(ps.getDouble("crossoverProb"));
                 }
                 
                 // Create genetic algorithm
@@ -567,14 +610,14 @@ int main(int argc, char* argv[]) {
                 DNAInstance instance = builder.getInstance();
 
                 // Create a new config instance with default values
-                GeneticConfig config;
+                GAConfig config;
 
                 // Update parameters
                 for (const auto &[key, value] : ps.params) {
                     if (key == "populationSize") {
-                        config.populationSize = std::stoi(value);
+                        config.setPopulationSize(std::stoi(value));
                     } else if (key == "mutationRate") {
-                        config.mutationProbability = std::stod(value);
+                        config.setMutationRate(std::stod(value));
                     }
                 }
 
@@ -584,7 +627,7 @@ int main(int argc, char* argv[]) {
 
                 TuningResult tr;
                 tr.parameterSet = bestSet;
-                tr.fitness = config.targetFitness;
+                tr.fitness = config.getTargetFitness();
                 tr.executionTime = 0.0;
                 return tr;
             };

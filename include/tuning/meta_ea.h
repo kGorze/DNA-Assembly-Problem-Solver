@@ -94,9 +94,14 @@ public:
     TuningResult evaluateParamSet(const ParameterSet& params, const DNAInstance& instance) {
         // Create local config
         GAConfig config;
-        if (!config.loadFromFile("config.cfg")) {
-            throw std::runtime_error("Failed to load configuration");
-        }
+        
+        // Set parameters from ParameterSet using setters
+        config.setPopulationSize(params.getInt("populationSize"));
+        config.setMaxGenerations(params.getInt("maxGenerations"));
+        config.setMutationRate(params.getDouble("mutationRate"));
+        config.setCrossoverProbability(params.getDouble("crossoverRate"));
+        config.setTargetFitness(params.getDouble("targetFitness"));
+        config.setTournamentSize(params.getInt("tournamentSize"));
         
         // Create result object
         TuningResult result;
@@ -106,15 +111,6 @@ public:
         
         try {
             auto start = std::chrono::high_resolution_clock::now();
-            
-            // Run genetic algorithm with parameters
-            GeneticConfig config;
-            config.populationSize = params.getInt("populationSize");
-            config.maxGenerations = params.getInt("maxGenerations");
-            config.mutationProbability = params.getDouble("mutationRate");
-            config.crossoverProbability = params.getDouble("crossoverRate");
-            config.targetFitness = params.getDouble("targetFitness");
-            config.tournamentSize = params.getInt("tournamentSize");
             
             // Create representation
             auto representation = std::make_unique<DirectDNARepresentation>();
@@ -314,21 +310,18 @@ public:
     }
 
     TuningResult evaluateParamSet(const ParameterSet& params, const DNAInstance& instance) override {
-        TuningResult result;
-        result.parameterSet = params;
-        result.fitness = 0.0;
-        result.executionTime = 0.0;
-        
         try {
-            // Create genetic algorithm configuration
-            GeneticConfig config;
-            config.populationSize = params.getInt("populationSize");
-            config.maxGenerations = params.getInt("maxGenerations");
-            config.mutationProbability = params.getDouble("mutationRate");
-            config.crossoverProbability = params.getDouble("crossoverRate");
-            config.targetFitness = params.getDouble("targetFitness");
-            config.tournamentSize = params.getInt("tournamentSize");
-
+            // Create local config
+            GAConfig config;
+            
+            // Set parameters from ParameterSet using setters
+            config.setPopulationSize(params.getInt("populationSize"));
+            config.setMaxGenerations(params.getInt("maxGenerations"));
+            config.setMutationRate(params.getDouble("mutationRate"));
+            config.setCrossoverProbability(params.getDouble("crossoverRate"));
+            config.setTargetFitness(params.getDouble("targetFitness"));
+            config.setTournamentSize(params.getInt("tournamentSize"));
+            
             // Create representation
             auto representation = std::make_unique<DirectDNARepresentation>();
 
@@ -336,23 +329,19 @@ public:
             GeneticAlgorithm ga(std::move(representation), config);
 
             // Run the algorithm
-            auto startTime = std::chrono::high_resolution_clock::now();
             auto solution = ga.run(instance);
-            auto endTime = std::chrono::high_resolution_clock::now();
-
-            // Calculate elapsed time
-            std::chrono::duration<double> elapsed = endTime - startTime;
-            result.executionTime = elapsed.count();
-
-            // Calculate fitness
+            
+            // Return result
+            TuningResult result;
+            result.parameterSet = params;
             result.fitness = calculateFitness(solution, instance);
-            result.extraMetrics["converged"] = 1.0; // Success
+            result.executionTime = 0.0;  // TODO: Add timing
+            return result;
+            
         } catch (const std::exception& e) {
-            result.extraMetrics["converged"] = 0.0; // Failure
-            LOG_ERROR("Error in evaluateParamSet: " + std::string(e.what()));
+            LOG_ERROR("Error in HybridOnePlusLambdaEA::evaluateParamSet: " + std::string(e.what()));
+            return TuningResult{params, 0.0, 0.0};
         }
-
-        return result;
     }
 
 private:

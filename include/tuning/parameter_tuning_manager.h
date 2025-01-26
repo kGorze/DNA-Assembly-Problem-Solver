@@ -112,7 +112,7 @@ private:
         runGeneticAlgorithm(instance, "output.txt", 100, "log.txt", false);
 
         // Return the result with fitness and execution time
-        return TuningResult{parameterSet, fitness, 0.0, std::unordered_map<std::string, double>()};
+        return TuningResult(parameterSet, fitness, 0.0);
     }
 
     /**

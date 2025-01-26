@@ -47,91 +47,56 @@ struct AdaptiveCrossoverParams {
 
 class GAConfig {
 public:
-    // Make constructor public and remove singleton
-    GAConfig() { resetToDefaults(); }
-    
+    GAConfig() = default;
+    GAConfig(const GAConfig& other) = default;
+    GAConfig& operator=(const GAConfig& other) = default;
+
     // Load configuration from file
     bool loadFromFile(const std::string& filename);
     
     // Reset to default values
     void resetToDefaults();
 
-    // Getters with thread safety
-    int getPopulationSize() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return m_populationSize;
-    }
+    // Getters
+    int getPopulationSize() const { return m_populationSize; }
+    int getMaxGenerations() const { return m_maxGenerations; }
+    double getMutationRate() const { return m_mutationRate; }
+    double getCrossoverProbability() const { return m_crossoverProbability; }
+    double getTargetFitness() const { return m_targetFitness; }
+    int getTournamentSize() const { return m_tournamentSize; }
+    int getK() const { return m_k; }
+    int getDeltaK() const { return m_deltaK; }
+    int getLNeg() const { return m_lNeg; }
+    int getLPoz() const { return m_lPoz; }
+    bool isRepAllowed() const { return m_repAllowed; }
+    double getProbablePositive() const { return m_probablePositive; }
+    double getReplacementRatio() const { return m_replacementRatio; }
+    std::string getCrossoverType() const { return m_crossoverType; }
+    std::string getSelectionMethod() const { return m_selectionMethod; }
 
-    double getMutationRate() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return m_mutationRate;
-    }
-
-    // Setters with thread safety and validation
-    void setPopulationSize(int size) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (size > 0) {
-            m_populationSize = size;
-        }
-    }
-
-    void setMutationRate(double rate) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (rate >= 0.0 && rate <= 1.0) {
-            m_mutationRate = rate;
-        }
-    }
-    
-    // Thread-safe getters/setters using shared mutex for better read performance
-    void setMaxGenerations(int value) { 
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (value <= 0) {
-            std::cerr << "[GAConfig] Invalid maxGenerations value: " << value << ", using default of 100" << std::endl;
-            m_maxGenerations = 100;
-        } else {
-            m_maxGenerations = value;
-        }
-        std::cout << "[GAConfig] Setting maxGenerations = " << m_maxGenerations << std::endl;
-    }
-    
-    int getMaxGenerations() const { 
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return m_maxGenerations;
-    }
-    
-    double getReplacementRatio() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return replacementRatio;
-    }
-    
-    double getCrossoverProbability() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return crossoverProbability;
-    }
-    
-    std::string getSelectionMethod() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return selectionMethod;
-    }
-    
-    std::string getCrossoverType() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return crossoverType;
-    }
-    
-    std::string getMutationMethod() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return mutationMethod;
-    }
+    // Setters
+    void setPopulationSize(int size) { m_populationSize = size; }
+    void setMaxGenerations(int generations) { m_maxGenerations = generations; }
+    void setMutationRate(double rate) { m_mutationRate = rate; }
+    void setCrossoverProbability(double probability) { m_crossoverProbability = probability; }
+    void setTargetFitness(double fitness) { m_targetFitness = fitness; }
+    void setTournamentSize(int size) { m_tournamentSize = size; }
+    void setK(int k) { m_k = k; }
+    void setDeltaK(int deltaK) { m_deltaK = deltaK; }
+    void setLNeg(int lNeg) { m_lNeg = lNeg; }
+    void setLPoz(int lPoz) { m_lPoz = lPoz; }
+    void setRepAllowed(bool allowed) { m_repAllowed = allowed; }
+    void setProbablePositive(double prob) { m_probablePositive = prob; }
+    void setReplacementRatio(double ratio) { m_replacementRatio = ratio; }
+    void setCrossoverType(const std::string& type) { m_crossoverType = type; }
+    void setSelectionMethod(const std::string& method) { m_selectionMethod = method; }
 
     // Cache management
     void setCache(std::shared_ptr<IPopulationCache> cachePtr) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
         m_cache = cachePtr;
     }
     
     std::shared_ptr<IPopulationCache> getCache() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
         return m_cache;
     }
 
@@ -144,106 +109,35 @@ public:
     std::shared_ptr<IFitness> getFitness() const;
     std::shared_ptr<IStopping> getStopping() const;
 
-    // Instance parameters
-    void setK(int value) { k = value; }
-    void setDeltaK(int value) { deltaK = value; }
-    void setLNeg(int value) { lNeg = value; }
-    void setLPoz(int value) { lPoz = value; }
-    void setRepAllowed(bool value) { repAllowed = value; }
-    void setProbablePositive(int value) { probablePositive = value; }
-    
-    int getK() const { return k; }
-    int getDeltaK() const { return deltaK; }
-    int getLNeg() const { return lNeg; }
-    int getLPoz() const { return lPoz; }
-    bool isRepAllowed() const { return repAllowed; }
-    int getProbablePositive() const { return probablePositive; }
-
-    // Add missing getters and setters
-    void setCrossoverProbability(double value) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (value >= 0.0 && value <= 1.0) crossoverProbability = value;
-    }
-
-    void setReplacementRatio(double ratio) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (ratio >= 0.0 && ratio <= 1.0) replacementRatio = ratio;
-    }
-
-    int getTournamentSize() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return tournamentSize;
-    }
-
-    void setTournamentSize(int size) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        if (size > 0) tournamentSize = size;
-    }
-
-    // Global best fitness tracking
-    double getGlobalBestFitness() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
-        return m_globalBestFit;
-    }
-
-    void setGlobalBestFitness(double fitness) {
-        std::unique_lock<std::shared_mutex> lock(configMutex);
-        m_globalBestFit = fitness;
-    }
-
     // Parameter management
     void setParameters(const ParameterSet& ps);
     bool validate() const;
 
     const AdaptiveCrossoverParams& getAdaptiveParams() const {
-        std::shared_lock<std::shared_mutex> lock(configMutex);
         return adaptiveParams;
     }
 
     int getParentCount() const { return 2; }
-    double getTargetFitness() const { return targetFitness; }
 
 private:
-    mutable std::shared_mutex configMutex;
-    std::atomic<bool> isInitialized{false};
-    std::string lastLoadedConfig;
-    
-    // Configuration parameters
-    int m_maxGenerations{100};
-    int m_populationSize{100};
-    double m_mutationRate{0.15};
-    double replacementRatio{0.7};
-    double crossoverProbability{1.0};
-    
-    std::string selectionMethod{"tournament"};
-    std::string crossoverType{"order"};
-    std::string mutationMethod{"point"};
-    std::string replacementMethod{"partial"};
-    std::string stoppingMethod{"maxGenerations"};
-    std::string fitnessType{"optimized_graph"};
-    
-    int noImprovementGenerations{30};
-    int tournamentSize{3};
-    int timeLimitSeconds{60};
+    int m_populationSize = 100;
+    int m_maxGenerations = 1000;
+    double m_mutationRate = 0.1;
+    double m_crossoverProbability = 0.8;
+    double m_targetFitness = 1.0;
+    int m_tournamentSize = 5;
+    int m_k = 0;
+    int m_deltaK = 0;
+    int m_lNeg = 0;
+    int m_lPoz = 0;
+    bool m_repAllowed = false;
+    double m_probablePositive = 0.0;
+    double m_replacementRatio = 0.5;
+    std::string m_crossoverType = "single";
+    std::string m_selectionMethod = "tournament";
     
     AdaptiveCrossoverParams adaptiveParams;
     
-    double alpha{0.7};
-    double beta{0.3};
-    
-    // DNA Generation parameters
-    int k{8};
-    int deltaK{2};
-    int lNeg{25};
-    int lPoz{25};
-    bool repAllowed{false};
-    int probablePositive{0};
-    
-    // Global best fitness tracking
-    double m_globalBestFit{-std::numeric_limits<double>::infinity()};
-    
     // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;
-
-    double targetFitness;
 };

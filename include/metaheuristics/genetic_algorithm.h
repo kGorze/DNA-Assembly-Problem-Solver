@@ -4,21 +4,13 @@
 #include "interfaces/i_representation.h"
 #include "utils/random.h"
 #include "dna/dna_instance.h"
+#include "configuration/genetic_algorithm_configuration.h"
 #include <memory>
 #include <vector>
 
-struct GeneticConfig {
-    int populationSize = 100;
-    int maxGenerations = 1000;
-    double mutationProbability = 0.1;
-    double crossoverProbability = 0.8;
-    double targetFitness = 0.95;
-    int tournamentSize = 3;
-};
-
 class GeneticAlgorithm : public IAlgorithm {
 public:
-    explicit GeneticAlgorithm(std::unique_ptr<IRepresentation> representation, const GeneticConfig& config = GeneticConfig());
+    GeneticAlgorithm(std::unique_ptr<IRepresentation> representation, const GAConfig& config);
     ~GeneticAlgorithm() override = default;
 
     std::string run(const DNAInstance& instance) override;
@@ -46,7 +38,7 @@ private:
 
     std::unique_ptr<IRepresentation> m_representation;
     std::unique_ptr<Random> m_random;
-    GeneticConfig m_config;
+    GAConfig m_config;
     std::vector<std::shared_ptr<Individual>> m_population;
     std::vector<int> m_globalBestGenes;
     double m_globalBestFit = 0.0;

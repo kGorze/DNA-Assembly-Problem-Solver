@@ -113,8 +113,6 @@ struct ParameterSet {
  * Struktura wyników pojedynczego uruchomienia AE z zadanym zestawem parametrów.
  */
 struct TuningResult {
-
-    
     ParameterSet parameterSet;
     double fitness = 0.0;       // Ostateczny fitness
     double executionTime = 0.0; // Czas wykonania (sekundy albo ms)
@@ -122,6 +120,15 @@ struct TuningResult {
     // Można dodać dowolne metryki – np. coverage, edgeScore, itp.
     // "Dodatkowe metryki wydajności":
     std::unordered_map<std::string, double> extraMetrics;
+
+    // Constructor for easy initialization
+    TuningResult() = default;
+    
+    TuningResult(const ParameterSet& ps, double fit, double time)
+        : parameterSet(ps)
+        , fitness(fit)
+        , executionTime(time)
+        , extraMetrics() {}
     
     std::string toCSV() const {
         // Przykład – finalny format można zmodyfikować

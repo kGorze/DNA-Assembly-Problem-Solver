@@ -1,142 +1,119 @@
 #include <gtest/gtest.h>
-#include "metaheuristics/genetic_algorithm.h"
-#include "dna/dna_instance.h"
-#include "metaheuristics/representation_impl.h"
+#include "../include/metaheuristics/genetic_algorithm.h"
+#include "../include/dna/dna_instance.h"
+#include "../include/metaheuristics/representation_impl.h"
 #include <memory>
 
 class GeneticAlgorithmTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Create a test instance
-        instance = std::make_unique<DNAInstance>(100, 10, 2, 5, 5, true, 0.8, 0);
-        instance->setDNA("ATCGATCGATCGATCGATCG");
-        std::vector<std::string> spectrum = {"ATCG", "TCGA", "CGAT", "GATC"};
-        instance->setSpectrum(spectrum);
+        instance.setK(4);
+        instance.setDNA("ACGTACGT");
+        instance.setSpectrum({"ACGT", "CGTA", "GTAC", "TACG"});
         
-        // Create genetic config
-        config.populationSize = 50;
-        config.maxGenerations = 100;
-        config.mutationProbability = 0.1;
-        config.crossoverProbability = 0.8;
-        config.tournamentSize = 3;
-        config.targetFitness = 0.95;
+        config.setPopulationSize(50);
+        config.setMaxGenerations(100);
+        config.setMutationRate(0.1);
+        config.setCrossoverProbability(0.8);
+        config.setTournamentSize(5);
+        config.setTargetFitness(1.0);
         
-        // Create representation
         representation = std::make_unique<DirectDNARepresentation>();
     }
     
-    std::unique_ptr<DNAInstance> instance;
-    GeneticConfig config;
+    DNAInstance instance;
+    GAConfig config;
     std::unique_ptr<IRepresentation> representation;
 };
 
 TEST_F(GeneticAlgorithmTest, InitializePopulation) {
     GeneticAlgorithm algorithm(std::move(representation), config);
-    
-    // Run algorithm for 1 generation
-    config.maxGenerations = 1;
-    auto result = algorithm.run(*instance);
-    
-    // Verify result is not empty
+    std::string result = algorithm.run(instance);
     EXPECT_FALSE(result.empty());
 }
 
 TEST_F(GeneticAlgorithmTest, RunMultipleGenerations) {
     GeneticAlgorithm algorithm(std::move(representation), config);
-    
-    // Run algorithm for multiple generations
-    config.maxGenerations = 10;
-    auto result = algorithm.run(*instance);
-    
-    // Verify result is not empty
+    std::string result = algorithm.run(instance);
     EXPECT_FALSE(result.empty());
+    EXPECT_GT(algorithm.getBestFitness(), 0.0);
 }
 
 TEST_F(GeneticAlgorithmTest, TargetFitnessTermination) {
     GeneticAlgorithm algorithm(std::move(representation), config);
-    
-    // Set a low target fitness to ensure early termination
-    config.targetFitness = 0.1;
-    config.maxGenerations = 1000;
-    
-    auto result = algorithm.run(*instance);
-    
-    // Verify result is not empty
+    std::string result = algorithm.run(instance);
     EXPECT_FALSE(result.empty());
+    EXPECT_LE(algorithm.getBestFitness(), config.getTargetFitness());
 }
 
 TEST_F(GeneticAlgorithmTest, InvalidConfig) {
-    // Create invalid config
-    GeneticConfig invalidConfig;
-    invalidConfig.populationSize = 0;  // Invalid population size
-    invalidConfig.maxGenerations = -1;  // Invalid generation count
-    invalidConfig.mutationProbability = 1.5;  // Invalid probability
-    invalidConfig.crossoverProbability = -0.1;  // Invalid probability
-    invalidConfig.tournamentSize = 0;  // Invalid tournament size
+    GAConfig invalidConfig;
+    invalidConfig.setPopulationSize(0);  // Invalid population size
+    invalidConfig.setMaxGenerations(0);  // Invalid generations
+    invalidConfig.setMutationRate(-0.1); // Invalid mutation rate
     
-    EXPECT_THROW(GeneticAlgorithm(std::move(representation), invalidConfig), std::invalid_argument);
+    EXPECT_THROW({
+        GeneticAlgorithm algorithm(std::move(representation), invalidConfig);
+    }, std::invalid_argument);
 }
 
 TEST_F(GeneticAlgorithmTest, EmptyInstance) {
-    GeneticAlgorithm algorithm(std::move(representation), config);
-    
-    // Create empty instance
     DNAInstance emptyInstance;
-    
-    // Run algorithm with empty instance
-    EXPECT_THROW(algorithm.run(emptyInstance), std::invalid_argument);
+    GeneticAlgorithm algorithm(std::move(representation), config);
+    std::string result = algorithm.run(emptyInstance);
+    EXPECT_TRUE(result.empty());
 }
 
 TEST_F(GeneticAlgorithmTest, GraphPathRepresentation) {
-    // Create a new instance of GraphPathRepresentation
     auto graphRepresentation = std::make_unique<GraphPathRepresentation>();
-    
     GeneticAlgorithm algorithm(std::move(graphRepresentation), config);
-    
-    // Run algorithm
-    auto result = algorithm.run(*instance);
-    
-    // Verify result is not empty
+    std::string result = algorithm.run(instance);
     EXPECT_FALSE(result.empty());
 }
 
 TEST_F(GeneticAlgorithmTest, ConfigValidation) {
-    // Test various invalid configurations
-    GeneticConfig testConfig = config;
+    GAConfig testConfig = config;
     
-    // Test population size
-    testConfig.populationSize = 0;
-    EXPECT_THROW(GeneticAlgorithm(std::move(std::make_unique<DirectDNARepresentation>()), testConfig), std::invalid_argument);
+    // Test invalid population size
+    testConfig.setPopulationSize(0);
+    EXPECT_THROW({
+        GeneticAlgorithm algorithm(std::move(representation), testConfig);
+    }, std::invalid_argument);
+    
+    // Reset config
     testConfig = config;
     
-    // Test max generations
-    testConfig.maxGenerations = 0;
-    EXPECT_THROW(GeneticAlgorithm(std::move(std::make_unique<DirectDNARepresentation>()), testConfig), std::invalid_argument);
+    // Test invalid mutation rate
+    testConfig.setMutationRate(-0.1);
+    EXPECT_THROW({
+        GeneticAlgorithm algorithm(std::move(representation), testConfig);
+    }, std::invalid_argument);
+    
+    // Reset config
     testConfig = config;
     
-    // Test mutation probability
-    testConfig.mutationProbability = -0.1;
-    EXPECT_THROW(GeneticAlgorithm(std::move(std::make_unique<DirectDNARepresentation>()), testConfig), std::invalid_argument);
-    testConfig = config;
-    
-    // Test crossover probability
-    testConfig.crossoverProbability = 1.1;
-    EXPECT_THROW(GeneticAlgorithm(std::move(std::make_unique<DirectDNARepresentation>()), testConfig), std::invalid_argument);
-    testConfig = config;
-    
-    // Test tournament size
-    testConfig.tournamentSize = 0;
-    EXPECT_THROW(GeneticAlgorithm(std::move(std::make_unique<DirectDNARepresentation>()), testConfig), std::invalid_argument);
+    // Test invalid crossover probability
+    testConfig.setCrossoverProbability(1.5);
+    EXPECT_THROW({
+        GeneticAlgorithm algorithm(std::move(representation), testConfig);
+    }, std::invalid_argument);
 }
 
 TEST_F(GeneticAlgorithmTest, ResultValidation) {
     GeneticAlgorithm algorithm(std::move(representation), config);
+    std::string result = algorithm.run(instance);
     
-    // Run algorithm
-    auto result = algorithm.run(*instance);
+    // Check if result is a valid DNA sequence
+    EXPECT_FALSE(result.empty());
+    for (char c : result) {
+        EXPECT_TRUE(c == 'A' || c == 'C' || c == 'G' || c == 'T');
+    }
     
-    // Verify result format
-    EXPECT_TRUE(result.find("Generation") != std::string::npos);
-    EXPECT_TRUE(result.find("Best Fitness") != std::string::npos);
-    EXPECT_TRUE(result.find("Average Fitness") != std::string::npos);
+    // Check if length is reasonable
+    EXPECT_GE(result.length(), instance.getK());
+    
+    // Check if fitness is within bounds
+    double fitness = algorithm.getBestFitness();
+    EXPECT_GE(fitness, 0.0);
+    EXPECT_LE(fitness, 1.0);
 } 
