@@ -11,7 +11,12 @@
 
 class DNAInstanceBuilder {
 public:
-    DNAInstanceBuilder() = default;
+    explicit DNAInstanceBuilder(std::unique_ptr<DNAGenerator> generator) 
+        : m_generator(std::move(generator)) {
+        if (!m_generator) {
+            throw std::invalid_argument("Generator cannot be null");
+        }
+    }
     
     // Builder methods with validation
     DNAInstanceBuilder& setN(int n);
@@ -38,7 +43,7 @@ public:
 private:
     mutable std::mutex m_mutex;
     DNAInstance m_instance;
-    DNAGenerator m_generator;
+    std::unique_ptr<DNAGenerator> m_generator;
     int m_n = 0;
     int m_k = 0;
     int m_deltaK = 0;

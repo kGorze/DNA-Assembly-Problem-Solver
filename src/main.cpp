@@ -85,11 +85,9 @@ void printUsage() {
 // Funkcja pomocnicza do generowania instancji
 DNAInstance generateInstance(int n, int k, int deltaK, int lNeg, int lPoz) {
     try {
-        // Create both negative and positive error introducers
-        auto negativeErrorIntroducer = ErrorIntroducerFactory::createNegativeErrorIntroducer(lNeg);
-        auto positiveErrorIntroducer = ErrorIntroducerFactory::createPositiveErrorIntroducer(lPoz, k);
-
-        DNAInstanceBuilder builder;
+        auto random = std::make_unique<Random>();
+        auto generator = std::make_unique<DNAGenerator>(std::move(random));
+        DNAInstanceBuilder builder(std::move(generator));
         builder.setN(n)
                .setK(k)
                .setDeltaK(deltaK)
@@ -397,7 +395,21 @@ int main(int argc, char* argv[]) {
                 LOG_INFO("Loading instance from: " + inputFile);
                 // Load instance from file
                 try {
-                    instance = InstanceIO::loadInstance(inputFile);
+                    auto random = std::make_unique<Random>();
+                    auto generator = std::make_unique<DNAGenerator>(std::move(random));
+                    DNAInstanceBuilder builder(std::move(generator));
+                    instance = builder.setN(300)
+                                    .setK(7)
+                                    .setDeltaK(0)
+                                    .setLNeg(10)
+                                    .setLPoz(10)
+                                    .setRepAllowed(true)
+                                    .setProbablePositive(0)
+                                    .buildDNA()
+                                    .buildSpectrum()
+                                    .applyError(negativeErrorIntroducer.get())  // Apply negative errors
+                                    .applyError(positiveErrorIntroducer.get())  // Apply positive errors
+                                    .getInstance();
                 } catch (const std::exception& e) {
                     std::cerr << "Error loading instance: " << e.what() << std::endl;
                     return 1;
@@ -435,7 +447,9 @@ int main(int argc, char* argv[]) {
             LOG_DEBUG("Debug logging enabled");
             
             // Create a default test instance for debugging
-            DNAInstanceBuilder builder;
+            auto random = std::make_unique<Random>();
+            auto generator = std::make_unique<DNAGenerator>(std::move(random));
+            DNAInstanceBuilder builder(std::move(generator));
             builder.setN(300)
                    .setK(7)
                    .setDeltaK(0)
@@ -567,7 +581,9 @@ int main(int argc, char* argv[]) {
             rc.minTrialsBeforeElimination = 3;
             
             // Create test instance for evaluation
-            DNAInstanceBuilder builder;
+            auto random = std::make_unique<Random>();
+            auto generator = std::make_unique<DNAGenerator>(std::move(random));
+            DNAInstanceBuilder builder(std::move(generator));
             builder.setN(300)
                    .setK(7)
                    .setDeltaK(2)
@@ -595,8 +611,10 @@ int main(int argc, char* argv[]) {
                 }
                 
                 // Create genetic algorithm
-                auto representation = std::make_unique<PermutationRepresentation>();
-                GeneticAlgorithm ga(std::move(representation), config);
+                auto random = std::make_unique<Random>();
+                auto generator = std::make_unique<DNAGenerator>(std::move(random));
+                DNAInstanceBuilder builder(std::move(generator));
+                GeneticAlgorithm ga(std::move(builder.buildRepresentation()), config);
                 
                 // Run the algorithm
                 auto startTime = std::chrono::high_resolution_clock::now();
@@ -643,7 +661,9 @@ int main(int argc, char* argv[]) {
 
             auto evaluateFunc = [&](const ParameterSet &ps) -> TuningResult {
                 // Create test instance
-                DNAInstanceBuilder builder;
+                auto random = std::make_unique<Random>();
+                auto generator = std::make_unique<DNAGenerator>(std::move(random));
+                DNAInstanceBuilder builder(std::move(generator));
                 builder.setN(300)
                        .setK(7)
                        .setDeltaK(2)

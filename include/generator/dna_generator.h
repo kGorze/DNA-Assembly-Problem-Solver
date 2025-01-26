@@ -22,34 +22,23 @@
  * "powtórzeń").
  */
 class DNAGenerator {
-private:
-    mutable std::mutex m_mutex;
-    int m_n = 0;
-    int m_k = 0;
-    int m_deltaK = 0;
-    
-    bool validateParameters() const;
-
 public:
-    explicit DNAGenerator(std::unique_ptr<Random> random = nullptr);
+    explicit DNAGenerator(std::unique_ptr<Random> random);
     
     void setParameters(int n, int k, int deltaK);
-    std::string generateDNA(int length, bool repAllowed = true) const;
-    DNAInstance generateRandomInstance(
-        int size,
-        int k,
-        int lNeg = 0,
-        int lPoz = 0,
-        int maxErrors = 0,
-        bool allowNegative = false,
-        double errorProb = 0.0
-    ) const;
+    std::string generateDNA(int length, bool introduceErrors = false) const;
+    DNAInstance generateRandomInstance(int size, int k, int lNeg, int lPoz) const;
     bool saveToFile(const DNAInstance& instance, const std::string& filename) const;
     static DNAInstance loadFromFile(const std::string& filename);
     std::vector<std::string> generateDNASpectrum(const DNAInstance& instance);
 
 private:
+    bool validateParameters() const;
+    mutable std::mutex m_mutex;
     std::unique_ptr<Random> m_random;
+    int m_n;
+    int m_k;
+    int m_deltaK;
 };
 
 /**
