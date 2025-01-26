@@ -93,13 +93,6 @@ void Individual::validateGenesVector(const std::vector<int>& genes) {
         throw std::invalid_argument("Genes vector cannot be empty");
     }
     
-    // Check for duplicate genes
-    std::vector<int> sortedGenes = genes;
-    std::sort(sortedGenes.begin(), sortedGenes.end());
-    if (std::adjacent_find(sortedGenes.begin(), sortedGenes.end()) != sortedGenes.end()) {
-        throw std::invalid_argument("Genes vector contains duplicate values");
-    }
-    
     // Check for invalid gene values
     if (std::any_of(genes.begin(), genes.end(), [](int gene) {
         return gene < 0 || gene >= std::numeric_limits<int>::max();

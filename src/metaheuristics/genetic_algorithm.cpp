@@ -33,9 +33,10 @@ GeneticAlgorithm::GeneticAlgorithm(
     bool debugMode)
     : m_representation(std::move(representation))
     , m_config(config)
-    , m_debugMode(debugMode)
     , m_random(std::make_unique<Random>())
     , m_globalBestFit(-std::numeric_limits<double>::infinity())
+    , m_bestFitness(0.0)
+    , m_debugMode(debugMode)
 {
     if (!m_representation) {
         throw std::invalid_argument("Invalid representation pointer");
@@ -43,45 +44,37 @@ GeneticAlgorithm::GeneticAlgorithm(
 }
 
 std::string GeneticAlgorithm::run(const DNAInstance& instance) {
-    if (!m_representation) {
-        LOG_ERROR("No representation set");
-        return "";
-    }
-
     try {
-        // Initialize population
+        if (!m_representation) {
+            LOG_ERROR("No representation set for genetic algorithm");
+            return "";
+        }
+        
+        int generation = 0;
+        calculateTheoreticalMaxFitness(instance);
+        
+        // Initialize population before transferring ownership of m_representation
         initializePopulation(m_config.getPopulationSize(), instance);
         
-        // Create stopping criteria
-        auto stopping = m_config.getStopping();
+        // Create a proper shared pointer for the representation that will live throughout the run
+        auto sharedRepresentation = std::shared_ptr<IRepresentation>(
+            m_representation.release(),
+            [](IRepresentation* ptr) { delete ptr; }
+        );
         
         // Main loop
-        int generation = 1;
-        
+        auto stopping = m_config.getStopping();
         while (!stopping->shouldStop(generation, m_globalBestFit)) {
             // Selection
             std::vector<std::shared_ptr<Individual>> parents;
             parents.reserve(m_config.getPopulationSize());
             
-            // Tournament selection
-            for (int i = 0; i < m_config.getPopulationSize(); i++) {
-                double bestFitness = -std::numeric_limits<double>::infinity();
-                std::shared_ptr<Individual> selectedParent;
-                
-                for (int j = 0; j < m_config.getTournamentSize(); j++) {
-                    int idx = m_random->getRandomInt(0, m_config.getPopulationSize() - 1);
-                    double fitness = m_population[idx]->getFitness();
-                    
-                    if (fitness > bestFitness) {
-                        bestFitness = fitness;
-                        selectedParent = m_population[idx];
-                    }
-                }
-                
-                if (selectedParent) {
-                    parents.push_back(selectedParent);
-                }
-            }
+            auto selection = m_config.getSelection();
+            auto fitness = m_config.getFitness();
+            
+            // Select parents using tournament selection
+            auto selectedParents = selection->select(m_population, instance, fitness, sharedRepresentation);
+            parents.insert(parents.end(), selectedParents.begin(), selectedParents.end());
             
             // Crossover and Mutation
             std::vector<std::shared_ptr<Individual>> offspring;
@@ -92,7 +85,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                 
                 if (m_random->generateProbability() < m_config.getCrossoverProbability()) {
                     auto crossover = m_config.getCrossover("");
-                    auto children = crossover->crossover(parentPair, instance, std::shared_ptr<IRepresentation>(m_representation.get()));
+                    auto children = crossover->crossover(parentPair, instance, sharedRepresentation);
                     offspring.insert(offspring.end(), children.begin(), children.end());
                 } else {
                     offspring.push_back(parents[i]);
@@ -109,16 +102,16 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             auto mutation = m_config.getMutation();
             for (auto& individual : offspring) {
                 if (m_random->generateProbability() < m_config.getMutationRate()) {
-                    mutation->mutate(individual, instance, std::shared_ptr<IRepresentation>(m_representation.get()));
+                    mutation->mutate(individual, instance, sharedRepresentation);
                 }
             }
             
             // Evaluate offspring
-            evaluatePopulation(instance, offspring);
+            evaluatePopulation(instance, offspring, sharedRepresentation);
             
             // Replacement
             auto replacement = m_config.getReplacement();
-            m_population = replacement->replace(m_population, offspring, instance, std::shared_ptr<IRepresentation>(m_representation.get()));
+            m_population = replacement->replace(m_population, offspring, instance, sharedRepresentation);
             
             // Update best solution
             updateGlobalBest(m_population, instance);
@@ -141,20 +134,46 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
 }
 
 void GeneticAlgorithm::initializePopulation(int popSize, const DNAInstance& instance) {
+    if (!m_representation) {
+        LOG_ERROR("Null representation in initializePopulation");
+        return;
+    }
+    
     m_population.clear();
     m_population = m_representation->initializePopulation(popSize, instance);
-    evaluatePopulation(instance, m_population);
+    
+    // Create a temporary shared_ptr for evaluation
+    auto tempRepresentation = std::shared_ptr<IRepresentation>(
+        m_representation.get(),
+        [](IRepresentation*){} // Empty deleter since we don't own the pointer
+    );
+    
+    evaluatePopulation(instance, m_population, tempRepresentation);
     updateGlobalBest(m_population, instance);
 }
 
 void GeneticAlgorithm::evaluatePopulation(
     const DNAInstance& instance,
-    const std::vector<std::shared_ptr<Individual>>& population)
+    const std::vector<std::shared_ptr<Individual>>& population,
+    const std::shared_ptr<IRepresentation>& representation)
 {
+    if (!representation) {
+        LOG_ERROR("Null representation in evaluatePopulation");
+        return;
+    }
+    
     auto fitness = m_config.getFitness();
+    if (!fitness) {
+        LOG_ERROR("Null fitness in evaluatePopulation");
+        return;
+    }
+    
     for (auto& individual : population) {
-        if (!individual) continue;
-        double fitnessValue = fitness->calculateFitness(individual, instance, std::shared_ptr<IRepresentation>(m_representation.get()));
+        if (!individual) {
+            LOG_ERROR("Null individual in evaluatePopulation");
+            continue;
+        }
+        double fitnessValue = fitness->calculateFitness(individual, instance, representation);
         individual->setFitness(fitnessValue);
     }
 }

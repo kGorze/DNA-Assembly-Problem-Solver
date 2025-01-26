@@ -48,11 +48,10 @@ public:
             int idx2 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
             std::swap(genes[idx1], genes[idx2]);
             
-            // Validate and update the individual
-            auto mutatedIndividual = std::make_shared<Individual>();
-            mutatedIndividual->setGenes(genes);
+            // Create a new individual with the mutated genes
+            auto mutatedIndividual = std::make_shared<Individual>(genes);
             if (representation->isValid(mutatedIndividual, instance)) {
-                individual->setGenes(std::move(genes));
+                individual = mutatedIndividual;
             }
         }
     }

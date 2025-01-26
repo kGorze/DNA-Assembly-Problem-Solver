@@ -65,6 +65,11 @@ private:
     GAConfig m_config;
     std::unique_ptr<Random> m_random;
     
+    // Store crossover operators to ensure proper lifetime
+    std::shared_ptr<ICrossover> m_orderCrossover;
+    std::shared_ptr<ICrossover> m_edgeRecombination;
+    std::shared_ptr<ICrossover> m_pmxCrossover;
+    
     void updatePerformance(bool improved);
     void adjustProbabilities();
     std::shared_ptr<ICrossover> selectCrossover();

@@ -1,0 +1,131 @@
+2025-01-26 17:59:18.738 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:244 - Starting program with 14 arguments
+2025-01-26 17:59:18.796 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:249 - Mode set to: generate_instance
+2025-01-26 17:59:18.800 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:257 - Arguments:
+  0: ../../build_valgrind/optymalizacja_kombinatoryczna
+  1: generate_instance
+  2: -n
+  3: 100
+  4: -k
+  5: 6
+  6: -dk
+  7: 1
+  8: -ln
+  9: 8
+  10: -lp
+  11: 8
+  12: -o
+  13: ../../tests/outputs/generated_instance.txt
+2025-01-26 17:59:19.881 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:244 - Starting program with 10 arguments
+2025-01-26 17:59:19.943 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:249 - Mode set to: test_instance
+2025-01-26 17:59:19.946 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:257 - Arguments:
+  0: ../../build_valgrind/optymalizacja_kombinatoryczna
+  1: test_instance
+  2: -i
+  3: ../../tests/outputs/generated_instance.txt
+  4: -o
+  5: ../../tests/outputs/test_results.txt
+  6: -pid
+  7: 12345
+  8: -diff
+  9: Easy
+2025-01-26 17:59:19.948 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:296 - Entering test_instance mode
+2025-01-26 17:59:19.951 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:313 - Input file set to: ../../tests/outputs/generated_instance.txt
+2025-01-26 17:59:19.952 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:317 - Output file set to: ../../tests/outputs/test_results.txt
+2025-01-26 17:59:19.957 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:326 - Process ID set to: 12345
+2025-01-26 17:59:19.965 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:341 - Difficulty set to: Easy
+2025-01-26 17:59:19.989 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:373 - Input file exists: ../../tests/outputs/generated_instance.txt
+2025-01-26 17:59:19.997 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:403 - Loading instance from: ../../tests/outputs/generated_instance.txt
+2025-01-26 17:59:20.077 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:432 - Instance loaded and validated successfully
+2025-01-26 17:59:20.080 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:433 - Instance details: N=300, K=7
+2025-01-26 17:59:20.082 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:442 - Starting genetic algorithm with process ID: 12345
+2025-01-26 17:59:20.084 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:86 - Process 12345: Starting genetic algorithm execution
+2025-01-26 17:59:20.086 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:30 - Updating configuration with instance parameters
+2025-01-26 17:59:20.109 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:62 - Configuration updated successfully
+2025-01-26 18:00:21.742 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:244 - Starting program with 3 arguments
+2025-01-26 18:00:21.801 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:249 - Mode set to: debug
+2025-01-26 18:00:21.805 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:257 - Arguments:
+  0: ../../build_valgrind/optymalizacja_kombinatoryczna
+  1: debug
+  2: --quick-test
+2025-01-26 18:00:21.807 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:451 - Entering debug mode
+2025-01-26 18:00:21.808 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:455 - Debug logging enabled
+2025-01-26 18:00:21.876 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:476 - Instance details:
+2025-01-26 18:00:21.880 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:477 -   DNA length (N): 300
+2025-01-26 18:00:21.881 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:478 -   Oligo length (K): 7
+2025-01-26 18:00:21.883 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:479 -   Delta K: 0
+2025-01-26 18:00:21.885 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:480 -   Negative errors (LNeg): 10
+2025-01-26 18:00:21.886 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:481 -   Positive errors (LPoz): 10
+2025-01-26 18:00:21.887 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:482 -   Repetitions allowed: yes
+2025-01-26 18:00:21.889 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:483 -   DNA sequence: CGAATCCCAACAGTGCACGGGTTGACTATCATGACTGCGAATTTTCTCTTGCTTAGCGGTCGACTCGGGAGTTACCGTGTGTAGCTCCGACACCGACGGCAAGGTTAAGAACCCACGTGCCACTGCAAGTTTGCTTCAGTAGTACATCACGACAAGTTACCTGTCCAGGTAGCTGCTTTAACTGCGCGAACAGCCGACAGATTATTTGGAGTCAGGTTCTCATCGACGAGCAGCTTCCCTTCTCATATCCTCGATGTAGGCTCTACGGCGAGGTTATTGCTGAATGACAGACTAATAATG
+2025-01-26 18:00:21.890 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:484 -   Target sequence: CGAATCCCAACAGTGCACGGGTTGACTATCATGACTGCGAATTTTCTCTTGCTTAGCGGTCGACTCGGGAGTTACCGTGTGTAGCTCCGACACCGACGGCAAGGTTAAGAACCCACGTGCCACTGCAAGTTTGCTTCAGTAGTACATCACGACAAGTTACCTGTCCAGGTAGCTGCTTTAACTGCGCGAACAGCCGACAGATTATTTGGAGTCAGGTTCTCATCGACGAGCAGCTTCCCTTCTCATATCCTCGATGTAGGCTCTACGGCGAGGTTATTGCTGAATGACAGACTAATAATG
+2025-01-26 18:00:21.892 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:485 -   Spectrum size: 292
+2025-01-26 18:00:21.894 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:86 - Process 0: Starting genetic algorithm execution
+2025-01-26 18:00:21.896 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:30 - Updating configuration with instance parameters
+2025-01-26 18:00:21.897 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:34 - Preserving algorithm parameters from config file
+2025-01-26 18:00:21.898 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:40 - Current algorithm parameters:
+2025-01-26 18:00:21.900 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:41 -   Population size: 100
+2025-01-26 18:00:21.919 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:42 -   Mutation rate: 0.100000
+2025-01-26 18:00:21.920 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:43 -   Crossover probability: 0.800000
+2025-01-26 18:00:21.921 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:44 -   Replacement ratio: 0.500000
+2025-01-26 18:00:21.923 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:47 - Updating instance-specific parameters
+2025-01-26 18:00:21.924 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:56 - Restoring algorithm parameters
+2025-01-26 18:00:21.925 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:62 - Configuration updated successfully
+2025-01-26 18:00:21.927 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:63 - Final configuration parameters:
+2025-01-26 18:00:21.930 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:64 -   k=7, deltaK=0, lNeg=10, lPoz=10
+2025-01-26 18:00:21.933 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/genetic_algorithm_runner.cpp:68 -   populationSize=100, mutationRate=0.100000, crossoverProbability=0.800000, replacementRatio=0.500000
+2025-01-26 18:00:59.525 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.903309, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:00:59.964 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.897549, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:00.404 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.855392, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:00.835 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.700980, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:01.269 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.827083, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:01.697 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.778186, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:02.128 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 1.020098, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:02.564 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 1.017157, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:03.008 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.965931, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:03.465 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 1.066054, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:03.910 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.760907, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:04.352 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 1.005147, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:04.797 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.793995, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:05.243 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 1.031005, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:05.689 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.909314, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:06.137 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.994240, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:06.575 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.910172, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:07.021 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.941789, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:07.464 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.851838, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:07.901 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.836887, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:08.335 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.875123, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:08.777 [DEBUG  ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/metaheuristics/fitness_impl.cpp:72 - Scores - Coverage: 0.631849, Connectivity: 0.774142, Length: 0.899722, Quality: 0.900000
+2025-01-26 18:01:10.793 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:244 - Starting program with 12 arguments
+2025-01-26 18:01:10.853 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:249 - Mode set to: tuning
+2025-01-26 18:01:10.857 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:257 - Arguments:
+  0: ../../build_valgrind/optymalizacja_kombinatoryczna
+  1: tuning
+  2: -cfg
+  3: ../../config/config.cfg
+  4: -out
+  5: ../../tests/outputs/tuning_results.csv
+  6: -max-time
+  7: 45
+  8: -pop-size
+  9: 10
+  10: -generations
+  11: 5
+2025-01-26 18:01:10.859 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:264 - Config file set to: ../../config/config.cfg
+2025-01-26 18:01:10.870 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:287 - Config file exists: ../../config/config.cfg
+2025-01-26 18:02:12.811 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:244 - Starting program with 12 arguments
+2025-01-26 18:02:12.875 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:249 - Mode set to: tuning_hybrid
+2025-01-26 18:02:12.880 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:257 - Arguments:
+  0: ../../build_valgrind/optymalizacja_kombinatoryczna
+  1: tuning_hybrid
+  2: -cfg
+  3: ../../config/config.cfg
+  4: -out
+  5: ../../tests/outputs/hybrid_tuning_results.csv
+  6: -max-time
+  7: 45
+  8: -pop-size
+  9: 10
+  10: -generations
+  11: 5
+2025-01-26 18:02:12.882 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:264 - Config file set to: ../../config/config.cfg
+2025-01-26 18:02:12.895 [INFO   ] /mnt/c/Users/konrad_guest/CLionProjects/optymalizacja_kombinatoryczna/src/main.cpp:287 - Config file exists: ../../config/config.cfg
