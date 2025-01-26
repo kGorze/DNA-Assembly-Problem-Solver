@@ -81,6 +81,20 @@ struct ParameterSet {
         }
         throw std::runtime_error("Parameter not found: " + key);
     }
+
+    // Getters for common parameters with default values
+    int getPopulationSize() const { return contains("populationSize") ? getInt("populationSize") : 100; }
+    int getMaxGenerations() const { return contains("maxGenerations") ? getInt("maxGenerations") : 100; }
+    double getMutationRate() const { return contains("mutationRate") ? getDouble("mutationRate") : 0.1; }
+    double getCrossoverRate() const { return contains("crossoverRate") ? getDouble("crossoverRate") : 0.8; }
+    int getTournamentSize() const { return contains("tournamentSize") ? getInt("tournamentSize") : 5; }
+
+    // Setters for common parameters
+    void setPopulationSize(int value) { params["populationSize"] = std::to_string(value); }
+    void setMaxGenerations(int value) { params["maxGenerations"] = std::to_string(value); }
+    void setMutationRate(double value) { params["mutationRate"] = std::to_string(value); }
+    void setCrossoverRate(double value) { params["crossoverRate"] = std::to_string(value); }
+    void setTournamentSize(int value) { params["tournamentSize"] = std::to_string(value); }
     
     // Funkcja pomocnicza do wypisywania w CSV, debug, itp.
     std::string toString() const {

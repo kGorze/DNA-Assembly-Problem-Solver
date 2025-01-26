@@ -24,7 +24,14 @@
 #include "utils/logging.h"
 #include <random>
 #include <algorithm>
+#include "../dna/dna_instance.h"
 
+// Forward declaration of runGeneticAlgorithm
+void runGeneticAlgorithm(const DNAInstance& instance,
+                        const std::string& outputFile,
+                        int processId,
+                        const std::string& configFile,
+                        bool debugMode);
 
 /**
  * Główna klasa spinająca cały proces tuningu.
@@ -34,10 +41,7 @@
  */
 class ParameterTuningManager {
 public:
-    ParameterTuningManager(const std::string &outputCsvFile)
-    : m_outputFile(outputCsvFile)
-    {
-    }
+    explicit ParameterTuningManager(const std::string& outputFile) : m_outputFile(outputFile) {}
 
     /**
      * Przykładowy interfejs do "tylko Racing".
@@ -60,9 +64,10 @@ public:
         saveResults(results);
     }
 
-    void runRacingOnly(const std::vector<ParameterSet> &candidateParameters,
-                   const Racing::Configuration &racingCfg,
-                   std::function<TuningResult(const ParameterSet&)> evaluateFunc);
+    std::vector<TuningResult> runRacingOnly(
+        const std::vector<ParameterSet>& candidateParameters,
+        const Racing::Configuration& config,
+        std::function<TuningResult(const ParameterSet&)> evaluateFunc);
 
     /**
      * Tryb "Meta-EA + Racing".

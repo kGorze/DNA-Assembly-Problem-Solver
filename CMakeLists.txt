@@ -28,6 +28,10 @@ set(SOURCES
     src/utils/logging.cpp
     src/metaheuristics/genetic_algorithm.cpp
     src/metaheuristics/population_cache.cpp
+    src/metaheuristics/genetic_algorithm_runner.cpp
+    src/tuning/parameter_tuning_manager.cpp
+    src/tuning/parameter_parser.cpp
+    src/tuning/tuning_structures.cpp
 )
 
 # Create library

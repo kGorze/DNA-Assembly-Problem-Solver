@@ -3,6 +3,7 @@
 #include "../include/configuration/genetic_algorithm_configuration.h"
 #include "../include/metaheuristics/population_cache_impl.h"
 #include "../include/utils/logging.h"
+#include "../include/metaheuristics/representation_impl.h"
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -12,15 +13,14 @@
 #include <mutex>
 
 namespace {
-    std::mutex configMutex;  // Declare mutex in anonymous namespace
-    
-    // Helper function to create a string from numeric value with proper error handling
+    // Helper function to safely convert numbers to strings
     template<typename T>
-    std::string safeToString(const T& value) {
+    std::string safeToString(T value) {
         try {
             return std::to_string(value);
-        } catch (const std::exception&) {
-            return "error";
+        } catch (const std::exception& e) {
+            LOG_ERROR("Error converting value to string: " + std::string(e.what()));
+            return "";
         }
     }
 }
@@ -83,7 +83,7 @@ void runGeneticAlgorithm(
     const std::string& outputFile,
     int processId,
     const std::string& configFile,
-    bool debugMode)
+    [[maybe_unused]] bool debugMode)
 {
     const std::string procId = safeToString(processId);
     LOG_INFO("Process " + procId + ": Starting genetic algorithm execution");
@@ -91,97 +91,27 @@ void runGeneticAlgorithm(
     try {
         // Load and validate configuration
         GAConfig config;
-        {
-            std::lock_guard<std::mutex> lock(configMutex);
-            if (!config.loadFromFile(configFile)) {
-                throw std::runtime_error("Failed to load configuration from file: " + configFile);
-            }
+        if (!config.loadFromFile(configFile)) {
+            throw std::runtime_error("Failed to load configuration from file: " + configFile);
         }
         
         // Update configuration with instance parameters
         updateConfigWithInstanceParams(instance, config);
         
-        // Create and validate components with proper error handling
-        std::shared_ptr<IPopulationCache> cache;
-        std::shared_ptr<IRepresentation> representation;
-        std::shared_ptr<ISelection> selection;
-        std::shared_ptr<ICrossover> crossover;
-        std::shared_ptr<IMutation> mutation;
-        std::shared_ptr<IReplacement> replacement;
-        std::shared_ptr<IFitness> fitness;
-        std::shared_ptr<IStopping> stopping;
+        // Create components
+        auto representation = std::make_unique<DirectDNARepresentation>();
+        auto ga = std::make_unique<GeneticAlgorithm>(std::move(representation), config);
+        ga->setProcessId(processId);
         
-        try {
-            cache = config.getCache();
-            representation = config.getRepresentation();
-            selection = config.getSelection();
-            crossover = config.getCrossover(config.getCrossoverType());
-            mutation = config.getMutation();
-            replacement = config.getReplacement();
-            fitness = config.getFitness();
-            stopping = config.getStopping();
-            
-            // Validate all components
-            if (!cache) throw std::runtime_error("Failed to create cache");
-            if (!representation) throw std::runtime_error("Failed to create representation");
-            if (!selection) throw std::runtime_error("Failed to create selection");
-            if (!crossover) throw std::runtime_error("Failed to create crossover");
-            if (!mutation) throw std::runtime_error("Failed to create mutation");
-            if (!replacement) throw std::runtime_error("Failed to create replacement");
-            if (!fitness) throw std::runtime_error("Failed to create fitness");
-            if (!stopping) throw std::runtime_error("Failed to create stopping criteria");
-            
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Failed to create GA components: " + std::string(e.what()));
-        }
+        // Run algorithm
+        std::string result = ga->run(instance);
         
-        // Create and run GA with proper error handling
-        std::unique_ptr<GeneticAlgorithm> ga;
-        try {
-            ga = std::make_unique<GeneticAlgorithm>(
-                representation, selection, crossover, mutation,
-                replacement, fitness, stopping, cache, config
-            );
-            ga->setProcessId(processId);
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Failed to create genetic algorithm: " + std::string(e.what()));
-        }
-        
-        // Run the algorithm
-        try {
-            ga->run(instance);
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Error during GA execution: " + std::string(e.what()));
-        }
-        
-        // Save results with proper error handling
-        try {
-            const std::filesystem::path outputPath(outputFile);
-            const auto outputDir = outputPath.parent_path();
-            if (!outputDir.empty() && !std::filesystem::exists(outputDir)) {
-                std::filesystem::create_directories(outputDir);
-            }
-            
-            std::ofstream out(outputFile);
-            if (!out.is_open()) {
-                throw std::runtime_error("Cannot open output file for writing: " + outputFile);
-            }
-            
-            out << std::fixed << std::setprecision(6);
-            const auto bestFitness = ga->getBestFitness();
-            const auto bestDNA = ga->getBestDNA();
-            
-            if (bestDNA.empty()) {
-                throw std::runtime_error("Best DNA solution is empty");
-            }
-            
-            out << "Best Fitness: " << bestFitness << "\n";
-            out << "Best DNA: " << bestDNA << "\n";
+        // Save results
+        std::ofstream out(outputFile);
+        if (out.is_open()) {
+            out << "Best DNA: " << ga->getBestDNA() << "\n";
+            out << "Best Fitness: " << ga->getBestFitness() << "\n";
             out.close();
-            
-            LOG_INFO("Process " + procId + ": Results saved successfully");
-        } catch (const std::exception& e) {
-            throw std::runtime_error("Failed to save results: " + std::string(e.what()));
         }
         
     } catch (const std::exception& e) {

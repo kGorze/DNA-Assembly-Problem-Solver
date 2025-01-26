@@ -23,6 +23,10 @@ public:
 
     std::string run(const DNAInstance& instance) override;
 
+    void setProcessId(int id) { m_processId = id; }
+    double getBestFitness() const { return m_bestFitness; }
+    std::string getBestDNA() const { return m_bestDNA; }
+
 private:
     void initializePopulation(int popSize, const DNAInstance& instance);
     void evaluatePopulation(const DNAInstance& instance, const std::vector<std::shared_ptr<Individual>>& population);
@@ -46,4 +50,7 @@ private:
     std::vector<std::shared_ptr<Individual>> m_population;
     std::vector<int> m_globalBestGenes;
     double m_globalBestFit = 0.0;
+    int m_processId{0};
+    double m_bestFitness{0.0};
+    std::string m_bestDNA;
 };

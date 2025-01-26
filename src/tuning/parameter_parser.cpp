@@ -81,35 +81,30 @@ std::vector<ParameterSet> ParameterParser::generateGridOfCandidatesWithout() {
     std::vector<ParameterSet> candidates;
     
     // Define parameter ranges
-    std::vector<int> populationSizes = {50, 100, 200};
-    std::vector<int> maxGenerations = {100, 500, 1000};
-    std::vector<double> mutationRates = {0.01, 0.05, 0.1, 0.2};
-    std::vector<double> crossoverRates = {0.6, 0.7, 0.8, 0.9};
-    std::vector<int> tournamentSizes = {2, 3, 4, 5};
+    std::vector<int> popSizes = {50, 100, 200};
+    std::vector<int> maxGens = {50, 100, 200};
+    std::vector<double> mutRates = {0.05, 0.1, 0.2};
+    std::vector<double> crossRates = {0.7, 0.8, 0.9};
+    std::vector<int> tournSizes = {3, 5, 7};
     
     // Generate all combinations
-    for (int popSize : populationSizes) {
-        for (int maxGen : maxGenerations) {
-            for (double mutRate : mutationRates) {
-                for (double crossRate : crossoverRates) {
-                    for (int tournSize : tournamentSizes) {
+    for (int popSize : popSizes) {
+        for (int maxGen : maxGens) {
+            for (double mutRate : mutRates) {
+                for (double crossRate : crossRates) {
+                    for (int tournSize : tournSizes) {
                         ParameterSet params;
-                        params.populationSize = popSize;
-                        params.maxGenerations = maxGen;
-                        params.mutationRate = mutRate;
-                        params.crossoverRate = crossRate;
-                        params.tournamentSize = tournSize;
+                        params.setPopulationSize(popSize);
+                        params.setMaxGenerations(maxGen);
+                        params.setMutationRate(mutRate);
+                        params.setCrossoverRate(crossRate);
+                        params.setTournamentSize(tournSize);
                         candidates.push_back(params);
                     }
                 }
             }
         }
     }
-    
-    // Shuffle candidates to avoid bias
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::shuffle(candidates.begin(), candidates.end(), gen);
     
     return candidates;
 }

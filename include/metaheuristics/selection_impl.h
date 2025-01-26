@@ -35,10 +35,10 @@ public:
 
         try {
             std::vector<std::shared_ptr<Individual>> selected;
-            selected.reserve(m_config.getParentCount());
+            selected.reserve(static_cast<size_t>(m_config.getParentCount()));
 
             auto& rng = Random::instance();
-            while (selected.size() < m_config.getParentCount()) {
+            while (selected.size() < static_cast<size_t>(m_config.getParentCount())) {
                 std::vector<std::shared_ptr<Individual>> tournament;
                 tournament.reserve(m_config.getTournamentSize());
 
