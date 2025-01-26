@@ -69,10 +69,12 @@ public:
     AdaptiveCrossover();
     explicit AdaptiveCrossover(const GAConfig& config);
     
-    std::vector<std::shared_ptr<std::vector<int>>> crossover(
-        const std::vector<std::shared_ptr<std::vector<int>>>& parents,
-        const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation) override;
+    std::vector<std::shared_ptr<Individual>> crossover(
+            const std::vector<std::shared_ptr<Individual>>& parents,
+            const DNAInstance& instance,
+            std::shared_ptr<IRepresentation> representation) override {
+        return std::vector<std::shared_ptr<Individual>>();
+    }
         
     void updateFeedback(double currentBestFitness);
     

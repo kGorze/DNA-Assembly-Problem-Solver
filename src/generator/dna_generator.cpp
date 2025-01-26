@@ -155,84 +155,12 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string &
 /* **********************************************
  *      NegativeErrorIntroducer
  * **********************************************/
-void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
-    auto spectrum = instance.getSpectrum();
-    if (spectrum.empty() || m_lNeg <= 0) return;
-
-    std::uniform_int_distribution<int> dist(0, spectrum.size() - 1);
-    std::vector<int> indices;
-    indices.reserve(spectrum.size());
-    for (size_t i = 0; i < spectrum.size(); ++i) {
-        indices.push_back(i);
-    }
-
-    std::shuffle(indices.begin(), indices.end(), m_random);
-
-    int toRemove = std::min(m_lNeg, static_cast<int>(spectrum.size()));
-    indices.resize(toRemove);
-
-    std::sort(indices.begin(), indices.end(), std::greater<int>());
-    for (int idx : indices) {
-        spectrum.erase(spectrum.begin() + idx);
-    }
-
-    instance.setSpectrum(spectrum);
-}
+// void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) { ... }
 
 /* **********************************************
  *      PositiveErrorIntroducer
  * **********************************************/
-void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
-    if (m_lPoz <= 0) return;
-
-    auto spectrum = instance.getSpectrum();
-    auto k = instance.getK();
-    auto deltaK = instance.getDeltaK();
-
-    std::uniform_int_distribution<int> lengthDist(k - deltaK, k + deltaK);
-    std::uniform_int_distribution<int> baseDist(0, 3);
-
-    if (!instance.isRepAllowed()) {
-        std::set<std::string> uniqueOligos;
-        for (const auto& oligo : spectrum) {
-            uniqueOligos.insert(oligo);
-        }
-
-        for (int i = 0; i < m_lPoz && !spectrum.empty(); ++i) {
-            int length = lengthDist(m_random);
-            std::string oligo;
-            oligo.reserve(length);
-            bool found = false;
-            int attempts = 0;
-            const int maxAttempts = 100;
-
-            while (!found && attempts < maxAttempts) {
-                oligo.clear();
-                for (int j = 0; j < length; ++j) {
-                    oligo += "ACGT"[baseDist(m_random)];
-                }
-                if (uniqueOligos.find(oligo) == uniqueOligos.end()) {
-                    found = true;
-                    uniqueOligos.insert(oligo);
-                    spectrum.push_back(oligo);
-                }
-                ++attempts;
-            }
-        }
-    } else {
-        for (int i = 0; i < m_lPoz; ++i) {
-            int length = lengthDist(m_random);
-            std::string oligo;
-            oligo.reserve(length);
-            for (int j = 0; j < length; ++j) {
-                oligo += "ACGT"[baseDist(m_random)];
-            }
-            spectrum.push_back(oligo);
-        }
-    }
-
-    instance.setSpectrum(spectrum);
-}
+// void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) { ... }
 
 int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
     const std::string& startFragment = instance.getDNA().substr(0, instance.getK());
@@ -301,4 +229,18 @@ DNAInstance DNAGenerator::loadFromFile(const std::string& filename) {
     
     LOG_INFO("Successfully loaded DNA instance of size " + std::to_string(instance.getSize()));
     return instance;
+}
+
+DNAGenerator::DNAGenerator(std::unique_ptr<Random> random) : m_random(std::move(random)) {}
+
+std::vector<std::string> DNAGenerator::generateDNASpectrum(const DNAInstance& instance) {
+    std::vector<std::string> spectrum;
+    const std::string& dna = instance.getDNA();
+    int k = instance.getK();
+    
+    for (size_t i = 0; i <= dna.length() - k; ++i) {
+        spectrum.push_back(dna.substr(i, k));
+    }
+    
+    return spectrum;
 }

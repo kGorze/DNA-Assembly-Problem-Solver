@@ -31,7 +31,7 @@ private:
     bool validateParameters() const;
 
 public:
-    explicit DNAGenerator(std::unique_ptr<Random> random = std::make_unique<Random>());
+    explicit DNAGenerator(std::unique_ptr<Random> random = nullptr);
     
     void setParameters(int n, int k, int deltaK);
     std::string generateDNA(int length, bool repAllowed = true) const;
@@ -46,6 +46,10 @@ public:
     ) const;
     bool saveToFile(const DNAInstance& instance, const std::string& filename) const;
     static DNAInstance loadFromFile(const std::string& filename);
+    std::vector<std::string> generateDNASpectrum(const DNAInstance& instance);
+
+private:
+    std::unique_ptr<Random> m_random;
 };
 
 /**

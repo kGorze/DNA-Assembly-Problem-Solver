@@ -2,6 +2,8 @@
 // Created by konrad_guest on 23/01/2025.
 //
 #include "../include/tuning/parameters_parser.h"
+#include <algorithm>
+#include <random>
 
 // Implementacja parseConfigFile
 ParameterSet ParameterParser::parseConfigFile(const std::string &filename) {
@@ -76,64 +78,40 @@ std::vector<ParameterSet> ParameterParser::generateRandomCandidates(int numCandi
 
 // Implementacja generateGridOfCandidates
 std::vector<ParameterSet> ParameterParser::generateGridOfCandidatesWithout() {
-    std::vector<ParameterSet> result;
+    std::vector<ParameterSet> candidates;
     
-    // Reduce parameter ranges to prevent memory exhaustion
-    std::vector<int> popSizes = {50, 100, 200, 300};
-    std::vector<double> replacementRatios = {0.2, 0.4, 0.6};
-    std::vector<int> tournamentSizes = {3, 5, 10};
-    std::vector<double> mutRates = {0.1, 0.3, 0.5};
-    std::vector<double> inertias = {0.6, 0.7};
-    std::vector<int> intervals = {5, 10};
-    std::vector<int> minTrials = {3, 5};
-    std::vector<double> minProbs = {0.1, 0.2};
-
-    // Pre-calculate total size and reserve memory
-    size_t totalCombinations = popSizes.size() * replacementRatios.size() * 
-                              tournamentSizes.size() * mutRates.size() * 
-                              inertias.size() * intervals.size() * 
-                              minTrials.size() * minProbs.size();
+    // Define parameter ranges
+    std::vector<int> populationSizes = {50, 100, 200};
+    std::vector<int> maxGenerations = {100, 500, 1000};
+    std::vector<double> mutationRates = {0.01, 0.05, 0.1, 0.2};
+    std::vector<double> crossoverRates = {0.6, 0.7, 0.8, 0.9};
+    std::vector<int> tournamentSizes = {2, 3, 4, 5};
     
-    // Reserve space to prevent reallocation
-    result.reserve(totalCombinations);
-
-    // Generate combinations with proper initialization
-    for (int ps : popSizes) {
-        for (double mr : mutRates) {
-            for (double rr : replacementRatios) {
-                for (int ts : tournamentSizes) {
-                    for (double in : inertias) {
-                        for (int ai : intervals) {
-                            for (int mt : minTrials) {
-                                for (double mp : minProbs) {
-                                    ParameterSet pset;
-                                    
-                                    // Initialize map with exact size needed
-                                    pset.params.reserve(10);
-                                    
-                                    // Use emplace to avoid extra copies
-                                    pset.params.emplace("populationSize", std::to_string(ps));
-                                    pset.params.emplace("mutationRate", std::to_string(mr));
-                                    pset.params.emplace("replacementRatio", std::to_string(rr));
-                                    pset.params.emplace("tournamentSize", std::to_string(ts));
-                                    pset.params.emplace("crossoverType", "adaptive");
-                                    pset.params.emplace("adaptive.inertia", std::to_string(in));
-                                    pset.params.emplace("adaptive.adaptationInterval", std::to_string(ai));
-                                    pset.params.emplace("adaptive.minTrials", std::to_string(mt));
-                                    pset.params.emplace("adaptive.minProb", std::to_string(mp));
-                                    pset.params.emplace("selectionMethod", "tournament");
-                                    
-                                    result.push_back(std::move(pset));
-                                }
-                            }
-                        }
+    // Generate all combinations
+    for (int popSize : populationSizes) {
+        for (int maxGen : maxGenerations) {
+            for (double mutRate : mutationRates) {
+                for (double crossRate : crossoverRates) {
+                    for (int tournSize : tournamentSizes) {
+                        ParameterSet params;
+                        params.populationSize = popSize;
+                        params.maxGenerations = maxGen;
+                        params.mutationRate = mutRate;
+                        params.crossoverRate = crossRate;
+                        params.tournamentSize = tournSize;
+                        candidates.push_back(params);
                     }
                 }
             }
         }
     }
     
-    return result;
+    // Shuffle candidates to avoid bias
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(candidates.begin(), candidates.end(), gen);
+    
+    return candidates;
 }
 
 // Implementacja generateGridOfCandidatesRS

@@ -4,6 +4,7 @@
 #include "../dna/dna_instance.h"
 #include "individual.h"
 #include "../utils/logging.h"
+#include "utils/random.h"
 #include <vector>
 #include <memory>
 #include <random>
@@ -16,46 +17,6 @@
 #include <queue>
 
 namespace {
-    class CrossoverRandomGenerator {
-    private:
-        static CrossoverRandomGenerator* s_instance;
-        std::mt19937 m_generator;
-
-        CrossoverRandomGenerator() {
-            std::random_device rd;
-            auto seed = rd() ^ static_cast<unsigned>(std::chrono::system_clock::now().time_since_epoch().count());
-            m_generator.seed(seed);
-        }
-
-    public:
-        static CrossoverRandomGenerator& instance() {
-            if (!s_instance) {
-                s_instance = new CrossoverRandomGenerator();
-            }
-            return *s_instance;
-        }
-
-        int getRandomInt(int min, int max) {
-            std::uniform_int_distribution<int> dist(min, max);
-            return dist(m_generator);
-        }
-
-        double getRandomDouble(double min, double max) {
-            std::uniform_real_distribution<double> dist(min, max);
-            return dist(m_generator);
-        }
-
-        template<typename Container>
-        typename Container::value_type& getRandomElement(Container& container) {
-            int index = getRandomInt(0, static_cast<int>(container.size()) - 1);
-            auto it = std::begin(container);
-            std::advance(it, index);
-            return *it;
-        }
-    };
-
-    CrossoverRandomGenerator* CrossoverRandomGenerator::s_instance = nullptr;
-    
     // Validate parents and get their genes
     std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(
         const std::vector<std::shared_ptr<Individual>>& parents) {
@@ -124,7 +85,8 @@ public:
             std::vector<std::shared_ptr<Individual>> offspring;
             offspring.reserve(2);
             
-            int crossPoint = CrossoverRandomGenerator::instance().getRandomInt(1, static_cast<int>(genes1.size() - 1));
+            auto& rng = Random::instance();
+            int crossPoint = rng.getRandomInt(1, static_cast<int>(genes1.size() - 1));
             
             // Create first offspring
             std::vector<int> offspring1Genes(genes1.begin(), genes1.begin() + crossPoint);
@@ -168,7 +130,7 @@ public:
             std::vector<std::shared_ptr<Individual>> offspring;
             offspring.reserve(2);
             
-            auto& rng = CrossoverRandomGenerator::instance();
+            auto& rng = Random::instance();
             int start = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
             int end = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
             if (start > end) std::swap(start, end);
@@ -264,7 +226,7 @@ public:
                 );
             }
             
-            auto& rng = CrossoverRandomGenerator::instance();
+            auto& rng = Random::instance();
             
             // Create two offspring
             for (int k = 0; k < 2; k++) {
@@ -333,11 +295,96 @@ public:
 
 class PMXCrossover : public ICrossover {
 public:
-    std::vector<std::shared_ptr<std::vector<int>>> crossover(
-        const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+    std::vector<std::shared_ptr<Individual>> crossover(
+        const std::vector<std::shared_ptr<Individual>>& parents,
         const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) override;
+        std::shared_ptr<IRepresentation> representation) override {
+        
+        if (!representation) {
+            throw std::invalid_argument("Invalid representation pointer");
+        }
+        
+        try {
+            auto [genes1, genes2] = validateAndGetGenes(parents);
+            
+            std::vector<std::shared_ptr<Individual>> offspring;
+            offspring.reserve(2);
+            
+            auto& rng = Random::instance();
+            int start = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
+            int end = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
+            if (start > end) std::swap(start, end);
+            
+            // Create first offspring
+            std::vector<int> offspring1Genes(genes1.size(), -1);
+            std::vector<bool> used1(genes1.size(), false);
+            
+            // Copy segment from first parent
+            for (int i = start; i <= end; i++) {
+                offspring1Genes[i] = genes1[i];
+                used1[genes1[i]] = true;
+            }
+            
+            // Map corresponding segment from second parent
+            std::unordered_map<int, int> mapping;
+            for (int i = start; i <= end; i++) {
+                if (genes1[i] != genes2[i]) {
+                    mapping[genes2[i]] = genes1[i];
+                }
+            }
+            
+            // Fill remaining positions
+            for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+                if (i >= start && i <= end) continue;
+                
+                int value = genes2[i];
+                while (mapping.find(value) != mapping.end()) {
+                    value = mapping[value];
+                }
+                offspring1Genes[i] = value;
+            }
+            
+            if (auto child = createOffspring(offspring1Genes, representation, instance)) {
+                offspring.push_back(child);
+            }
+            
+            // Create second offspring (reverse roles)
+            std::vector<int> offspring2Genes(genes1.size(), -1);
+            std::vector<bool> used2(genes1.size(), false);
+            
+            for (int i = start; i <= end; i++) {
+                offspring2Genes[i] = genes2[i];
+                used2[genes2[i]] = true;
+            }
+            
+            mapping.clear();
+            for (int i = start; i <= end; i++) {
+                if (genes1[i] != genes2[i]) {
+                    mapping[genes1[i]] = genes2[i];
+                }
+            }
+            
+            for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+                if (i >= start && i <= end) continue;
+                
+                int value = genes1[i];
+                while (mapping.find(value) != mapping.end()) {
+                    value = mapping[value];
+                }
+                offspring2Genes[i] = value;
+            }
+            
+            if (auto child = createOffspring(offspring2Genes, representation, instance)) {
+                offspring.push_back(child);
+            }
+            
+            return offspring;
+            
+        } catch (const std::exception& e) {
+            LOG_ERROR("Error in PMX crossover: " + std::string(e.what()));
+            return {};
+        }
+    }
 };
 
 class DistancePreservingCrossover : public ICrossover {
@@ -351,9 +398,10 @@ private:
     };
 
 public:
-    std::vector<std::shared_ptr<std::vector<int>>> crossover(
-        const std::vector<std::shared_ptr<std::vector<int>>>& parents,
+    std::vector<std::shared_ptr<Individual>> crossover(
+        const std::vector<std::shared_ptr<Individual>>& parents,
         const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation
-    ) override;
+        std::shared_ptr<IRepresentation> representation) override {
+        return std::vector<std::shared_ptr<Individual>>();
+    }
 }; 

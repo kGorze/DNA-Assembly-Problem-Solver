@@ -108,15 +108,19 @@ public:
             auto start = std::chrono::high_resolution_clock::now();
             
             // Run genetic algorithm with parameters
-            GeneticConfig gaConfig;
-            gaConfig.populationSize = params.getInt("populationSize");
-            gaConfig.mutationProbability = params.getDouble("mutationRate");
+            GeneticConfig config;
+            config.populationSize = params.getInt("populationSize");
+            config.maxGenerations = params.getInt("maxGenerations");
+            config.mutationProbability = params.getDouble("mutationRate");
+            config.crossoverProbability = params.getDouble("crossoverRate");
+            config.targetFitness = params.getDouble("targetFitness");
+            config.tournamentSize = params.getInt("tournamentSize");
             
             // Create representation
             auto representation = std::make_unique<DirectDNARepresentation>();
 
             // Create genetic algorithm
-            GeneticAlgorithm ga(std::move(representation), gaConfig);
+            GeneticAlgorithm ga(std::move(representation), config);
 
             // Run the algorithm
             auto solution = ga.run(instance);
@@ -138,6 +142,23 @@ public:
 private:
     MetaEAConfig config;
     Racing::Configuration racingCfg; // Korzystanie z namespace
+
+    double calculateFitness(const std::string& solution, const DNAInstance& instance) const {
+        // Calculate Hamming distance between solution and target DNA
+        const std::string& targetDNA = instance.getDNA();
+        if (solution.length() != targetDNA.length()) {
+            return 0.0;  // Invalid solution
+        }
+        
+        int matches = 0;
+        for (size_t i = 0; i < solution.length(); ++i) {
+            if (solution[i] == targetDNA[i]) {
+                matches++;
+            }
+        }
+        
+        return static_cast<double>(matches) / solution.length();
+    }
 
     std::vector<ParameterSet> initPopulation(std::mt19937 &rng) {
         std::vector<ParameterSet> pop;
@@ -365,6 +386,10 @@ private:
             }
         }
         return child;
+    }
+
+    double calculateFitness(const std::string& solution, const DNAInstance& instance) {
+        return instance.calculateFitness(solution);
     }
 };
 

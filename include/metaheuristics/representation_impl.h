@@ -19,22 +19,17 @@ public:
         if (populationSize <= 0) {
             throw std::invalid_argument("Population size must be positive");
         }
-
+        
         std::vector<std::shared_ptr<Individual>> population;
         population.reserve(populationSize);
-
+        
         for (int i = 0; i < populationSize; ++i) {
             auto individual = std::make_shared<Individual>();
-            std::vector<int> genes;
-            // Generate random genes based on instance parameters
-            genes.resize(instance.getN());
-            std::generate(genes.begin(), genes.end(), []() {
-                return Random::instance().getRandomInt(0, 3);  // 0-3 for A,C,G,T
-            });
-            individual->setGenes(genes);
-            population.push_back(individual);
+            if (initializeIndividual(*individual, instance)) {
+                population.push_back(individual);
+            }
         }
-
+        
         return population;
     }
 
@@ -95,18 +90,54 @@ public:
         
         return dna;
     }
+
+    bool initializeIndividual(Individual& individual, const DNAInstance& instance) {
+        auto& rng = Random::instance();
+        std::vector<int> genes;
+        genes.resize(instance.getK());
+        for (int i = 0; i < instance.getK(); ++i) {
+            genes[i] = rng.getRandomInt(0, 3);  // 0=A, 1=C, 2=G, 3=T
+        }
+        individual.setGenes(genes);
+        return true;
+    }
 };
 
 class PermutationRepresentation : public IRepresentation {
 public:
     std::vector<std::shared_ptr<Individual>> initializePopulation(
         int populationSize,
-        const DNAInstance& instance) override;
+        const DNAInstance& instance) override {
+        if (populationSize <= 0) {
+            throw std::invalid_argument("Population size must be positive");
+        }
+        
+        std::vector<std::shared_ptr<Individual>> population;
+        population.reserve(populationSize);
+        
+        for (int i = 0; i < populationSize; ++i) {
+            auto individual = std::make_shared<Individual>();
+            if (initializeIndividual(*individual, instance)) {
+                population.push_back(individual);
+            }
+        }
+        
+        return population;
+    }
 
-    bool initializeIndividual(
-        Individual& individual,
-        const DNAInstance& instance) {
-        // Implementation here
+    bool initializeIndividual(Individual& individual, const DNAInstance& instance) {
+        auto& rng = Random::instance();
+        std::vector<int> genes;
+        genes.resize(instance.getSpectrum().size());
+        std::iota(genes.begin(), genes.end(), 0);  // Fill with 0, 1, 2, ..., n-1
+        
+        // Shuffle using random indices
+        for (size_t i = genes.size() - 1; i > 0; --i) {
+            int j = rng.getRandomInt(0, static_cast<int>(i));
+            std::swap(genes[i], genes[j]);
+        }
+        
+        individual.setGenes(genes);
         return true;
     }
 
@@ -173,21 +204,17 @@ public:
         if (populationSize <= 0) {
             throw std::invalid_argument("Population size must be positive");
         }
-
+        
         std::vector<std::shared_ptr<Individual>> population;
         population.reserve(populationSize);
-
+        
         for (int i = 0; i < populationSize; ++i) {
             auto individual = std::make_shared<Individual>();
-            std::vector<int> genes;
-            // Generate random permutation of indices
-            genes.resize(instance.getSpectrum().size());
-            std::iota(genes.begin(), genes.end(), 0);
-            std::shuffle(genes.begin(), genes.end(), Random::instance().getGenerator());
-            individual->setGenes(genes);
-            population.push_back(individual);
+            if (initializeIndividual(*individual, instance)) {
+                population.push_back(individual);
+            }
         }
-
+        
         return population;
     }
 
@@ -251,5 +278,21 @@ public:
         }
         
         return dna;
+    }
+
+    bool initializeIndividual(Individual& individual, const DNAInstance& instance) {
+        auto& rng = Random::instance();
+        std::vector<int> genes;
+        genes.resize(instance.getSpectrum().size());
+        std::iota(genes.begin(), genes.end(), 0);  // Fill with 0, 1, 2, ..., n-1
+        
+        // Shuffle using random indices
+        for (size_t i = genes.size() - 1; i > 0; --i) {
+            int j = rng.getRandomInt(0, static_cast<int>(i));
+            std::swap(genes[i], genes[j]);
+        }
+        
+        individual.setGenes(genes);
+        return true;
     }
 }; 

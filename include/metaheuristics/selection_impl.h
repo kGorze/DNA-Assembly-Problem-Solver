@@ -4,53 +4,25 @@
 #include "../dna/dna_instance.h"
 #include "../configuration/genetic_algorithm_configuration.h"
 #include "../utils/logging.h"
+#include "utils/random.h"
 #include <vector>
 #include <memory>
 #include <random>
 #include <mutex>
 #include <algorithm>
 
-namespace {
-    // Thread-safe random number generator
-    class RandomGenerator {
-    public:
-        static RandomGenerator& getInstance() {
-            static RandomGenerator instance;
-            return instance;
-        }
-
-        int getRandomInt(int min, int max) {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            std::uniform_int_distribution<int> dist(min, max);
-            return dist(m_gen);
-        }
-
-    private:
-        RandomGenerator() : m_gen(std::random_device{}()) {}
-        std::mt19937 m_gen;
-        std::mutex m_mutex;
-    };
-}
-
 class TournamentSelection : public ISelection {
+private:
+    const GAConfig& m_config;
+
 public:
-    TournamentSelection(GAConfig& config, std::shared_ptr<IPopulationCache> cache)
-        : m_config(config)
-        , m_tournamentSize(config.getTournamentSize())
-        , m_cache(cache)
-    {
-        if (m_tournamentSize <= 0) {
-            LOG_WARNING("Invalid tournament size " + std::to_string(m_tournamentSize) + " - setting to 2");
-            m_tournamentSize = 2;
-        }
-    }
-    
+    explicit TournamentSelection(const GAConfig& config) : m_config(config) {}
+
     std::vector<std::shared_ptr<Individual>> select(
-        const std::vector<std::shared_ptr<Individual>>& population,
-        const DNAInstance& instance,
-        std::shared_ptr<IFitness> fitness,
-        std::shared_ptr<IRepresentation> representation
-    ) override {
+            const std::vector<std::shared_ptr<Individual>>& population,
+            const DNAInstance& instance,
+            std::shared_ptr<IFitness> fitness,
+            std::shared_ptr<IRepresentation> representation) override {
         if (population.empty()) {
             LOG_WARNING("Empty population provided to selection operator");
             return {};
@@ -64,19 +36,15 @@ public:
         try {
             std::vector<std::shared_ptr<Individual>> selected;
             selected.reserve(m_config.getParentCount());
+
             auto& rng = Random::instance();
-
-            // Run tournaments until we have enough parents
             while (selected.size() < m_config.getParentCount()) {
-                // Select tournament participants
                 std::vector<std::shared_ptr<Individual>> tournament;
-                tournament.reserve(m_tournamentSize);
+                tournament.reserve(m_config.getTournamentSize());
 
-                for (int i = 0; i < m_tournamentSize; ++i) {
-                    int idx = rng.getRandomInt(0, population.size() - 1);
-                    if (population[idx] && population[idx]->isValid()) {
-                        tournament.push_back(population[idx]);
-                    }
+                for (int i = 0; i < m_config.getTournamentSize(); ++i) {
+                    int idx = rng.getRandomInt(0, static_cast<int>(population.size() - 1));
+                    tournament.push_back(population[idx]);
                 }
 
                 if (tournament.empty()) {
@@ -84,7 +52,6 @@ public:
                     continue;
                 }
 
-                // Find the best individual in the tournament
                 auto best = tournament[0];
                 double bestFitness = fitness->calculateFitness(best, instance, representation);
 
@@ -96,8 +63,7 @@ public:
                     }
                 }
 
-                // Add the winner to selected parents
-                selected.push_back(std::make_shared<Individual>(*best));
+                selected.push_back(best);
             }
 
             return selected;
@@ -106,10 +72,4 @@ public:
             return {};
         }
     }
-
-private:
-    GAConfig& m_config;
-    int m_tournamentSize;
-    std::shared_ptr<IPopulationCache> m_cache;
-    mutable std::mutex m_mutex;  // For thread safety
 }; 

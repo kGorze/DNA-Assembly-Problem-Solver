@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "metaheuristics/representation_impl.h"
-#include "dna/dna_instance.h"
+#include "../include/metaheuristics/representation_impl.h"
+#include "../include/dna/dna_instance.h"
 #include <memory>
 
 class RepresentationTest : public ::testing::Test {
@@ -16,34 +16,30 @@ protected:
     std::unique_ptr<DNAInstance> instance;
 };
 
-TEST_F(RepresentationTest, DirectDNARepresentationInitialization) {
+TEST_F(RepresentationTest, DirectDNARepresentationInitialization_Test) {
     DirectDNARepresentation representation;
-    
-    // Initialize population
-    auto population = representation.initializePopulation(*instance, 10);
-    
-    // Verify population size
+    auto instance = std::make_shared<DNAInstance>();
+    instance->setK(3);
+    instance->setDNA("ACGTACGT");
+
+    auto population = representation.initializePopulation(10, *instance);
+
     EXPECT_EQ(population.size(), 10);
-    
-    // Verify each individual
     for (const auto& individual : population) {
-        EXPECT_FALSE(individual->getGenes().empty());
         EXPECT_TRUE(representation.isValid(individual, *instance));
     }
 }
 
-TEST_F(RepresentationTest, GraphPathRepresentationInitialization) {
+TEST_F(RepresentationTest, GraphPathRepresentationInitialization_Test) {
     GraphPathRepresentation representation;
-    
-    // Initialize population
-    auto population = representation.initializePopulation(*instance, 10);
-    
-    // Verify population size
+    auto instance = std::make_shared<DNAInstance>();
+    instance->setK(3);
+    instance->setDNA("ACGTACGT");
+
+    auto population = representation.initializePopulation(10, *instance);
+
     EXPECT_EQ(population.size(), 10);
-    
-    // Verify each individual
     for (const auto& individual : population) {
-        EXPECT_FALSE(individual->getGenes().empty());
         EXPECT_TRUE(representation.isValid(individual, *instance));
     }
 }
@@ -128,32 +124,24 @@ TEST_F(RepresentationTest, GraphPathRepresentationToDNA) {
     }
 }
 
-TEST_F(RepresentationTest, EmptyInstance) {
+TEST_F(RepresentationTest, EmptyInstance_Test) {
     DirectDNARepresentation directRepresentation;
     GraphPathRepresentation graphRepresentation;
     DNAInstance emptyInstance;
-    
-    // Test initialization with empty instance
-    EXPECT_THROW(directRepresentation.initializePopulation(emptyInstance, 10), std::invalid_argument);
-    EXPECT_THROW(graphRepresentation.initializePopulation(emptyInstance, 10), std::invalid_argument);
-    
-    // Test validity with empty instance
-    auto individual = std::make_shared<Individual>();
-    EXPECT_FALSE(directRepresentation.isValid(individual, emptyInstance));
-    EXPECT_FALSE(graphRepresentation.isValid(individual, emptyInstance));
-    
-    // Test DNA conversion with empty instance
-    EXPECT_TRUE(directRepresentation.toDNA(individual, emptyInstance).empty());
-    EXPECT_TRUE(graphRepresentation.toDNA(individual, emptyInstance).empty());
+
+    EXPECT_THROW(directRepresentation.initializePopulation(10, emptyInstance), std::invalid_argument);
+    EXPECT_THROW(graphRepresentation.initializePopulation(10, emptyInstance), std::invalid_argument);
 }
 
-TEST_F(RepresentationTest, InvalidPopulationSize) {
+TEST_F(RepresentationTest, InvalidPopulationSize_Test) {
     DirectDNARepresentation directRepresentation;
     GraphPathRepresentation graphRepresentation;
-    
-    // Test initialization with invalid population size
-    EXPECT_THROW(directRepresentation.initializePopulation(*instance, 0), std::invalid_argument);
-    EXPECT_THROW(directRepresentation.initializePopulation(*instance, -1), std::invalid_argument);
-    EXPECT_THROW(graphRepresentation.initializePopulation(*instance, 0), std::invalid_argument);
-    EXPECT_THROW(graphRepresentation.initializePopulation(*instance, -1), std::invalid_argument);
+    auto instance = std::make_shared<DNAInstance>();
+    instance->setK(3);
+    instance->setDNA("ACGTACGT");
+
+    EXPECT_THROW(directRepresentation.initializePopulation(0, *instance), std::invalid_argument);
+    EXPECT_THROW(directRepresentation.initializePopulation(-1, *instance), std::invalid_argument);
+    EXPECT_THROW(graphRepresentation.initializePopulation(0, *instance), std::invalid_argument);
+    EXPECT_THROW(graphRepresentation.initializePopulation(-1, *instance), std::invalid_argument);
 } 

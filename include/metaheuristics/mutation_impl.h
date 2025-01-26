@@ -3,37 +3,10 @@
 #include "../interfaces/i_mutation.h"
 #include "../dna/dna_instance.h"
 #include "../utils/logging.h"
+#include "utils/random.h"
 #include <random>
 #include <algorithm>
 #include <mutex>
-
-namespace {
-    // Thread-safe random number generator
-    class RandomGenerator {
-    public:
-        static RandomGenerator& getInstance() {
-            static RandomGenerator instance;
-            return instance;
-        }
-
-        double getRandomReal(double min = 0.0, double max = 1.0) {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            std::uniform_real_distribution<double> dist(min, max);
-            return dist(m_gen);
-        }
-
-        int getRandomInt(int min, int max) {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            std::uniform_int_distribution<int> dist(min, max);
-            return dist(m_gen);
-        }
-
-    private:
-        RandomGenerator() : m_gen(std::random_device{}()) {}
-        std::mt19937 m_gen;
-        std::mutex m_mutex;
-    };
-}
 
 class PointMutation : public IMutation {
 public:
@@ -98,7 +71,9 @@ public:
             }
 
             // Validate and update the individual
-            if (representation->isValid(genes, instance)) {
+            auto mutatedIndividual = std::make_shared<Individual>();
+            mutatedIndividual->setGenes(genes);
+            if (representation->isValid(mutatedIndividual, instance)) {
                 individual->setGenes(std::move(genes));
             } else {
                 LOG_WARNING("Mutation produced invalid solution - rolling back changes");
@@ -113,4 +88,37 @@ public:
 
 private:
     double m_mutationRate;
+};
+
+class SwapMutation : public IMutation {
+private:
+    double m_mutationRate;
+
+public:
+    explicit SwapMutation(double mutationRate) : m_mutationRate(mutationRate) {}
+
+    void mutate(
+        std::shared_ptr<Individual>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override {
+        if (!individual || !representation) {
+            LOG_WARNING("Null individual or representation provided to mutation operator");
+            return;
+        }
+
+        auto& rng = Random::instance();
+        if (rng.generateProbability() < m_mutationRate) {
+            auto genes = individual->getGenes();
+            int idx1 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
+            int idx2 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
+            std::swap(genes[idx1], genes[idx2]);
+            
+            // Validate and update the individual
+            auto mutatedIndividual = std::make_shared<Individual>();
+            mutatedIndividual->setGenes(genes);
+            if (representation->isValid(mutatedIndividual, instance)) {
+                individual->setGenes(std::move(genes));
+            }
+        }
+    }
 }; 

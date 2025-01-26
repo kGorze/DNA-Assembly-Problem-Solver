@@ -95,37 +95,19 @@ private:
      *    - Albo ładujesz nowy plik .cfg
      *    - Zwracasz TuningResult (fitness, czas, ewentualnie coverage).
      */
-    TuningResult runOneEvaluation(const ParameterSet& params) {
-        TuningResult result;
-        try {
-            // Create a test instance using DNAInstanceBuilder instead
-            DNAInstanceBuilder builder;
-            builder.setN(100)
-                   .setK(7)
-                   .setDeltaK(1)
-                   .setLNeg(0)
-                   .setLPoz(0)
-                   .setRepAllowed(true)
-                   .buildDNA()
-                   .buildSpectrum();
-            
-            DNAInstance instance = builder.getInstance();
-            
-            // Run GA with these parameters
-            auto start = std::chrono::high_resolution_clock::now();
-            double fitness = runGeneticAlgorithmWrapper(instance);
-            auto end = std::chrono::high_resolution_clock::now();
-            
-            result.fitness = fitness;
-            result.executionTime = std::chrono::duration<double>(end - start).count();
-            result.parameterSet = params;
-            
-        } catch (const std::exception& e) {
-            result.fitness = 0.0;  // or some other invalid fitness value
-            result.executionTime = 0.0;
-            result.parameterSet = params;
-        }
-        return result;
+    TuningResult runOneEvaluation(const ParameterSet& parameterSet) {
+        // Create a new instance for testing
+        DNAInstance instance;
+        instance.setK(10);
+        instance.setDNA("ACGTACGTACGTACGTACGT");
+        instance.setSpectrum({"ACGT", "CGTA", "GTAC", "TACG"});
+
+        // Run genetic algorithm with the parameters
+        double fitness = 0.0;
+        runGeneticAlgorithm(instance, "output.txt", 100, "log.txt", false);
+
+        // Return the result with fitness and execution time
+        return TuningResult{parameterSet, fitness, 0.0, std::unordered_map<std::string, double>()};
     }
 
     /**

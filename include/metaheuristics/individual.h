@@ -12,12 +12,17 @@
 class Individual {
 public:
     // Constructors
-    Individual() : m_fitness(0.0) {}
+    Individual() = default;
+    Individual(const Individual& other) {
+        m_genes = other.m_genes;
+    }
+    Individual& operator=(const Individual& other) {
+        if (this != &other) {
+            m_genes = other.m_genes;
+        }
+        return *this;
+    }
     explicit Individual(std::vector<int> genes) : m_genes(std::move(genes)), m_fitness(0.0) {}
-    
-    // Delete copy operations due to mutex member
-    Individual(const Individual&) = delete;
-    Individual& operator=(const Individual&) = delete;
     
     // Allow move operations
     Individual(Individual&& other) noexcept {
@@ -39,15 +44,10 @@ public:
     virtual ~Individual() = default;
 
     // Getters and setters with validation
-    const std::vector<int>& getGenes() const {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        return m_genes;
-    }
+    std::vector<int>& getGenes() { return m_genes; }
+    const std::vector<int>& getGenes() const { return m_genes; }
     
-    void setGenes(std::vector<int> genes) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_genes = std::move(genes);
-    }
+    void setGenes(const std::vector<int>& genes) { m_genes = genes; }
     
     double getFitness() const {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -91,6 +91,12 @@ public:
         if (!m_isValid) {
             validateGenes();
         }
+    }
+
+    std::shared_ptr<Individual> clone() const {
+        auto newIndividual = std::make_shared<Individual>();
+        newIndividual->m_genes = m_genes;  // Copy genes
+        return newIndividual;
     }
 
 private:

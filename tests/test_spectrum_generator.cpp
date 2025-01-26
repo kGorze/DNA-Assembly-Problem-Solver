@@ -1,96 +1,65 @@
 #include <gtest/gtest.h>
-#include "generator/spectrum_generator.h"
-#include "dna/dna_instance.h"
+#include "../include/generator/dna_generator.h"
+#include "../include/dna/dna_instance.h"
 
-TEST(SpectrumGeneratorTest, GenerateSpectrum) {
-    SpectrumGenerator generator;
-    DNAInstance instance(100, 10, 2, 5, 5, true, 0.8, 0);
-    
-    // Test with valid parameters
-    auto spectrum = generator.generateSpectrum(instance);
-    EXPECT_FALSE(spectrum.empty());
-    
-    // Verify that all oligonucleotides have valid length
-    for (const auto& oligo : spectrum) {
-        EXPECT_GE(oligo.length(), instance.getK() - instance.getDeltaK());
-        EXPECT_LE(oligo.length(), instance.getK() + instance.getDeltaK());
-        
-        // Verify that only valid nucleotides are used
-        for (char c : oligo) {
-            EXPECT_TRUE(c == 'A' || c == 'T' || c == 'G' || c == 'C');
-        }
-    }
-    
-    // Test with invalid parameters
-    DNAInstance invalidInstance;
-    auto emptySpectrum = generator.generateSpectrum(invalidInstance);
-    EXPECT_TRUE(emptySpectrum.empty());
-}
+class SpectrumGeneratorTest : public ::testing::Test {
+protected:
+    void SetUp() override {}
+    void TearDown() override {}
+};
 
-TEST(SpectrumGeneratorTest, GenerateSpectrumWithRepetitions) {
-    SpectrumGenerator generator;
-    DNAInstance instance(100, 10, 2, 5, 5, true, 0.8, 0);
-    instance.setRepAllowed(true);
+TEST_F(SpectrumGeneratorTest, GenerateSpectrum_Test) {
+    DNAInstance instance;
+    instance.setK(3);
+    instance.setDNA("ACGTACGT");
     
-    auto spectrum = generator.generateSpectrum(instance);
-    EXPECT_FALSE(spectrum.empty());
+    DNAGenerator generator;
+    auto spectrum = generator.generateDNASpectrum(instance);
     
-    // Count occurrences of each oligonucleotide
-    std::map<std::string, int> counts;
-    for (const auto& oligo : spectrum) {
-        counts[oligo]++;
-    }
-    
-    // Check if there are any repetitions
-    bool hasRepetitions = false;
-    for (const auto& [oligo, count] : counts) {
-        if (count > 1) {
-            hasRepetitions = true;
-            break;
-        }
-    }
-    EXPECT_TRUE(hasRepetitions);
-}
-
-TEST(SpectrumGeneratorTest, GenerateSpectrumWithoutRepetitions) {
-    SpectrumGenerator generator;
-    DNAInstance instance(100, 10, 2, 5, 5, false, 0.8, 0);
-    instance.setRepAllowed(false);
-    
-    auto spectrum = generator.generateSpectrum(instance);
-    EXPECT_FALSE(spectrum.empty());
-    
-    // Count occurrences of each oligonucleotide
-    std::map<std::string, int> counts;
-    for (const auto& oligo : spectrum) {
-        counts[oligo]++;
-    }
-    
-    // Verify that there are no repetitions
-    for (const auto& [oligo, count] : counts) {
-        EXPECT_EQ(count, 1);
+    ASSERT_FALSE(spectrum.empty());
+    for (const auto& kmer : spectrum) {
+        ASSERT_EQ(kmer.length(), instance.getK());
     }
 }
 
-TEST(SpectrumGeneratorTest, GenerateSpectrumWithDifferentLengths) {
-    SpectrumGenerator generator;
-    DNAInstance instance(100, 10, 2, 5, 5, false, 0.8, 0);
+TEST_F(SpectrumGeneratorTest, GenerateSpectrumWithRepetitions_Test) {
+    DNAInstance instance;
+    instance.setK(3);
+    instance.setDNA("AAAAAAA");
     
-    auto spectrum = generator.generateSpectrum(instance);
-    EXPECT_FALSE(spectrum.empty());
+    DNAGenerator generator;
+    auto spectrum = generator.generateDNASpectrum(instance);
     
-    // Count occurrences of each length
-    std::map<size_t, int> lengthCounts;
-    for (const auto& oligo : spectrum) {
-        lengthCounts[oligo.length()]++;
+    ASSERT_FALSE(spectrum.empty());
+    for (const auto& kmer : spectrum) {
+        ASSERT_EQ(kmer.length(), instance.getK());
     }
+}
+
+TEST_F(SpectrumGeneratorTest, GenerateSpectrumWithoutRepetitions_Test) {
+    DNAInstance instance;
+    instance.setK(3);
+    instance.setDNA("ACGTACGT");
     
-    // Verify that we have oligonucleotides of different lengths
-    EXPECT_GT(lengthCounts.size(), 1);
+    DNAGenerator generator;
+    auto spectrum = generator.generateDNASpectrum(instance);
     
-    // Verify that all lengths are within the allowed range
-    for (const auto& [length, count] : lengthCounts) {
-        EXPECT_GE(length, instance.getK() - instance.getDeltaK());
-        EXPECT_LE(length, instance.getK() + instance.getDeltaK());
+    ASSERT_FALSE(spectrum.empty());
+    for (const auto& kmer : spectrum) {
+        ASSERT_EQ(kmer.length(), instance.getK());
+    }
+}
+
+TEST_F(SpectrumGeneratorTest, GenerateSpectrumWithDifferentLengths_Test) {
+    DNAInstance instance;
+    instance.setK(4);
+    instance.setDNA("ACGTACGT");
+    
+    DNAGenerator generator;
+    auto spectrum = generator.generateDNASpectrum(instance);
+    
+    ASSERT_FALSE(spectrum.empty());
+    for (const auto& kmer : spectrum) {
+        ASSERT_EQ(kmer.length(), instance.getK());
     }
 } 

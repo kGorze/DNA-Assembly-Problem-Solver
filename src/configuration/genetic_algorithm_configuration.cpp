@@ -22,6 +22,7 @@
 #include "../../include/metaheuristics/population_cache_impl.h"
 #include "../../include/metaheuristics/representation_impl.h"
 #include "../../include/metaheuristics/adaptive_crossover.h"
+#include <json/json.h>
 
 /*
     Konstruktor prywatny: ustawiamy domyślne wartości.
@@ -32,11 +33,12 @@ void GAConfig::resetToDefaults()
 {
     std::unique_lock<std::shared_mutex> lock(configMutex);
     
-    m_maxGenerations = 100;
+    m_maxGenerations = 1000;
     m_populationSize = 100;
-    m_mutationRate = 0.15;
-    replacementRatio = 0.7;
-    crossoverProbability = 1.0;
+    m_mutationRate = 0.1;
+    replacementRatio = 0.8;
+    crossoverProbability = 0.8;
+    targetFitness = 1.0;
     
     selectionMethod = "tournament";
     crossoverType = "order";
@@ -46,7 +48,7 @@ void GAConfig::resetToDefaults()
     fitnessType = "optimized_graph";
     
     noImprovementGenerations = 30;
-    tournamentSize = 3;
+    tournamentSize = 5;
     timeLimitSeconds = 60;
     
     adaptiveParams = {0.7, 20, 5, 0.1};
@@ -84,11 +86,11 @@ bool GAConfig::loadFromFile(const std::string& filePath)
     }
     
     // Create temporary storage for the new values
-    int maxGen = 100;
+    int maxGen = 1000;
     int popSize = 100;
-    double mutRate = 0.15;
-    double replRatio = 0.7;
-    double crossProb = 1.0;
+    double mutRate = 0.1;
+    double replRatio = 0.8;
+    double crossProb = 0.8;
     std::string selMethod = "tournament";
     std::string crossType = "order";
     std::string mutMethod = "point";
@@ -96,13 +98,14 @@ bool GAConfig::loadFromFile(const std::string& filePath)
     std::string stopMethod = "maxGenerations";
     std::string fitType = "optimized_graph";
     int noImprovGen = 30;
-    int tournSize = 3;
+    int tournSize = 5;
     int timeLimit = 60;
     AdaptiveCrossoverParams adaptParams = {0.7, 20, 5, 0.1};
     double a = 0.7, b = 0.3;
     int k_val = 8, dk = 2, ln = 25, lp = 25;
     bool rep = false;
     int probPos = 0;
+    double targetFitness = 1.0;
     
     std::string line;
     while (std::getline(in, line)) {
@@ -147,6 +150,7 @@ bool GAConfig::loadFromFile(const std::string& filePath)
             else if (key == "adaptive.adaptationInterval") adaptParams.adaptationInterval = std::stoi(value);
             else if (key == "adaptive.minTrials") adaptParams.minTrials = std::stoi(value);
             else if (key == "adaptive.minProb") adaptParams.minProb = std::stod(value);
+            else if (key == "targetFitness") targetFitness = std::stod(value);
         } catch (const std::exception& e) {
             std::cerr << "[GAConfig] Error parsing " << key << ": " << e.what() << std::endl;
         }
@@ -178,6 +182,7 @@ bool GAConfig::loadFromFile(const std::string& filePath)
     lPoz = lp;
     repAllowed = rep;
     probablePositive = probPos;
+    targetFitness = targetFitness;
     
     lastLoadedConfig = filePath;
     isInitialized.store(true);
@@ -361,5 +366,17 @@ bool GAConfig::validate() const {
     if (fitnessType.empty()) return false;
     
     return true;
+}
+
+int GAConfig::getParentCount() const {
+    return 2;  // Default to 2 parents for crossover
+}
+
+double GAConfig::getTargetFitness() const {
+    return targetFitness;
+}
+
+int GAConfig::getTournamentSize() const {
+    return tournamentSize;
 }
 

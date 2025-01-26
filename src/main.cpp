@@ -116,6 +116,40 @@ void runGeneticAlgorithm(const DNAInstance& instance,
                         const std::string& configFile,
                         bool debugMode);
 
+double runGeneticAlgorithm(const DNAInstance& instance, 
+                          const std::string& outputFile,
+                          int maxIterations,
+                          const std::string& logFile,
+                          bool verbose) {
+    // Create configuration
+    GAConfig config;
+    config.maxGenerations = maxIterations;
+    config.populationSize = 100;
+    config.mutationProbability = 0.1;
+    config.crossoverProbability = 0.8;
+    config.targetFitness = 1.0;
+    config.tournamentSize = 5;
+    
+    // Create genetic algorithm components
+    auto representation = std::make_unique<DirectDNARepresentation>();
+    auto selection = std::make_unique<TournamentSelection>(config);
+    auto crossover = std::make_unique<PMXCrossover>();
+    auto mutation = std::make_unique<SwapMutation>(config.mutationProbability);
+    auto replacement = std::make_unique<ElitistReplacement>();
+    auto fitness = std::make_unique<SimpleFitness>();
+    auto stopping = std::make_unique<MaxGenerationsStopping>(maxIterations);
+    auto cache = std::make_unique<SimplePopulationCache>();
+    
+    // Create and run genetic algorithm
+    GeneticAlgorithm ga(std::move(representation), std::move(selection),
+                       std::move(crossover), std::move(mutation),
+                       std::move(replacement), std::move(fitness),
+                       std::move(stopping), std::move(cache), config);
+    
+    auto result = ga.run(instance);
+    return result.fitness;
+}
+
 int main(int argc, char* argv[]) {
     // Initialize logger first
     Logger::initialize("log.txt");
@@ -368,6 +402,24 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            // Add helper function for fitness calculation
+            auto calculateFitness = [](const std::string& solution, const DNAInstance& instance) -> double {
+                // Calculate Hamming distance between solution and target DNA
+                const std::string& targetDNA = instance.getDNA();
+                if (solution.length() != targetDNA.length()) {
+                    return 0.0;  // Invalid solution
+                }
+                
+                int matches = 0;
+                for (size_t i = 0; i < solution.length(); ++i) {
+                    if (solution[i] == targetDNA[i]) {
+                        matches++;
+                    }
+                }
+                
+                return static_cast<double>(matches) / solution.length();
+            };
+            
             // Create parameter tuning manager with output file
             ParameterTuningManager tuner(tuningOutputFile);
             
@@ -406,8 +458,8 @@ int main(int argc, char* argv[]) {
             DNAInstance testInstance = builder.getInstance();
             
             // Define evaluation function
-            auto evaluateFunc = [&testInstance](const ParameterSet& ps) {
-                // Create local config for this evaluation
+            auto evaluateFunc = [&testInstance, &calculateFitness](const ParameterSet& ps) {
+                // Create local config
                 GAConfig config;
                 if (!config.loadFromFile("config.cfg")) {
                     throw std::runtime_error("Failed to load configuration");
@@ -424,25 +476,30 @@ int main(int argc, char* argv[]) {
                     config.setCrossoverProbability(ps.getDouble("crossoverProb"));
                 }
                 
-                // Create genetic algorithm with configuration
+                // Create genetic algorithm configuration
                 GeneticConfig gaConfig;
-                gaConfig.populationSize = config.populationSize;
-                gaConfig.maxGenerations = config.maxGenerations;
-                gaConfig.mutationProbability = config.mutationProbability;
-                gaConfig.crossoverProbability = config.crossoverProbability;
-                gaConfig.targetFitness = config.targetFitness;
-                gaConfig.tournamentSize = config.tournamentSize;
+                gaConfig.populationSize = config.getPopulationSize();
+                gaConfig.maxGenerations = config.getMaxGenerations();
+                gaConfig.mutationProbability = config.getMutationRate();
+                gaConfig.crossoverProbability = config.getCrossoverProbability();
+                gaConfig.targetFitness = config.getTargetFitness();
+                gaConfig.tournamentSize = config.getTournamentSize();
 
-                GeneticAlgorithm ga(std::move(config.getRepresentation()), gaConfig);
+                // Create genetic algorithm
+                auto representation = std::make_unique<DirectDNARepresentation>();
+                GeneticAlgorithm ga(std::move(representation), gaConfig);
                 
                 // Run the algorithm
-                std::string result = ga.run(testInstance);
-                result.fitness = calculateFitness(result, testInstance);
+                auto startTime = std::chrono::high_resolution_clock::now();
+                auto solution = ga.run(testInstance);
+                auto endTime = std::chrono::high_resolution_clock::now();
                 
+                // Calculate fitness and create result
                 TuningResult tr;
                 tr.parameterSet = ps;
-                tr.fitness = result.fitness;
-                tr.executionTime = 0.0;
+                tr.fitness = calculateFitness(solution, testInstance);
+                tr.executionTime = std::chrono::duration<double>(endTime - startTime).count();
+                tr.extraMetrics["converged"] = 1.0;
                 return tr;
             };
             

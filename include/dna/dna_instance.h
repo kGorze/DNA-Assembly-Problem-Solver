@@ -7,6 +7,7 @@
 #include <mutex>
 #include <random>
 #include <memory>
+#include <algorithm>
 
 class DNAInstance {
 private:
@@ -144,4 +145,31 @@ public:
 
     // Constructor for test cases
     DNAInstance(int n, int k, int lNeg, int lPoz, int maxErrors, bool allowNegative, double errorProb, int seed);
+
+    double calculateFitness(const std::string& solution) const {
+        // Calculate fitness based on how well the solution matches the spectrum
+        // Higher fitness means better match
+        double fitness = 0.0;
+        
+        // Convert solution to k-mers
+        std::vector<std::string> solutionKmers;
+        for (size_t i = 0; i <= solution.length() - k; ++i) {
+            solutionKmers.push_back(solution.substr(i, k));
+        }
+        
+        // Count matches with spectrum
+        int matches = 0;
+        for (const auto& kmer : solutionKmers) {
+            if (std::find(m_spectrum.begin(), m_spectrum.end(), kmer) != m_spectrum.end()) {
+                matches++;
+            }
+        }
+        
+        // Fitness is the ratio of matches to total k-mers
+        if (!solutionKmers.empty()) {
+            fitness = static_cast<double>(matches) / solutionKmers.size();
+        }
+        
+        return fitness;
+    }
 }; 

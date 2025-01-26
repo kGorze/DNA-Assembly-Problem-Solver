@@ -1,12 +1,14 @@
 //
 // Created by konrad_guest on 23/01/2025.
 //
-#include "tuning/parameter_tuning_manager.h"
+#include "../../include/tuning/parameter_tuning_manager.h"
+#include "../../include/tuning/racing.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <cstdlib>
 #include <set>
+#include <algorithm>
 
 void ParameterTuningManager::runRacingOnly(
     const std::vector<ParameterSet> &candidateParams,
@@ -67,4 +69,28 @@ void ParameterTuningManager::runRacingOnly(
     outFile.close();
 
     std::cout << "Tuning finished. Results saved to: " << m_outputFile << std::endl;
+}
+
+std::vector<TuningResult> ParameterTuningManager::runRacingOnly(
+    const std::vector<ParameterSet>& candidates,
+    const Racing::Configuration& config,
+    std::function<TuningResult(const ParameterSet&)> evaluateFunc) {
+    
+    Racing racing(config);
+    std::vector<TuningResult> results;
+    results.reserve(candidates.size());
+    
+    for (const auto& candidate : candidates) {
+        results.push_back(evaluateFunc(candidate));
+    }
+    
+    auto selectedIndices = racing.selectBest(results);
+    std::vector<TuningResult> selectedResults;
+    selectedResults.reserve(selectedIndices.size());
+    
+    for (size_t idx : selectedIndices) {
+        selectedResults.push_back(results[idx]);
+    }
+    
+    return selectedResults;
 }

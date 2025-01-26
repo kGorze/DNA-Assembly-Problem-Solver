@@ -200,6 +200,9 @@ public:
         return adaptiveParams;
     }
 
+    int getParentCount() const { return 2; }
+    double getTargetFitness() const { return targetFitness; }
+
 private:
     mutable std::shared_mutex configMutex;
     std::atomic<bool> isInitialized{false};
@@ -241,4 +244,6 @@ private:
     
     // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;
+
+    double targetFitness;
 };
