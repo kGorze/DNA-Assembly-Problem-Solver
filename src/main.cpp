@@ -51,6 +51,11 @@
 
 #include "../include/utils/logging.h"
 #include "../include/metaheuristics/representation.h"
+#include "../include/dna/error_introducers.h"
+
+// Create error introducers
+auto negativeErrorIntroducer = std::make_unique<NegativeErrorIntroducer>();
+auto positiveErrorIntroducer = std::make_unique<PositiveErrorIntroducer>();
 
 // Funkcja do wypisywania użycia programu:
 void printUsage() {
@@ -614,7 +619,7 @@ int main(int argc, char* argv[]) {
                 auto random = std::make_unique<Random>();
                 auto generator = std::make_unique<DNAGenerator>(std::move(random));
                 DNAInstanceBuilder builder(std::move(generator));
-                GeneticAlgorithm ga(std::move(builder.buildRepresentation()), config);
+                GeneticAlgorithm ga(std::move(builder.build()), config);
                 
                 // Run the algorithm
                 auto startTime = std::chrono::high_resolution_clock::now();
