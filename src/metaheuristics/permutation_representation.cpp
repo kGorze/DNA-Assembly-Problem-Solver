@@ -213,9 +213,30 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
 bool PermutationRepresentation::isValid(
     const std::shared_ptr<Individual>& individual,
     const DNAInstance& instance) const {
-    if (!individual) return false;
     
-    return validateGenes(individual->getGenes(), instance);
+    if (!individual) {
+        LOG_WARNING("Null individual in isValid check");
+        return false;
+    }
+
+    const auto& genes = individual->getGenes();
+    if (genes.empty()) {
+        LOG_WARNING("Empty genes in isValid check");
+        return false;
+    }
+
+    const auto& spectrum = instance.getSpectrum();
+    
+    // Only check for basic validity - indices within bounds
+    for (int gene : genes) {
+        if (gene < 0 || gene >= static_cast<int>(spectrum.size())) {
+            LOG_WARNING("Gene index out of bounds: " + std::to_string(gene));
+            return false;
+        }
+    }
+    
+    // All other checks (k-mer usage, adjacency) are handled by fitness function
+    return true;
 }
 
 std::string PermutationRepresentation::toString(

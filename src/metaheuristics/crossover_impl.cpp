@@ -13,55 +13,112 @@ std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const st
 std::vector<std::shared_ptr<Individual>> OrderCrossover::crossover(
     const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation)
-{
-    if (parents.size() < 2) {
-        LOG_ERROR("Not enough parents for crossover");
-        return {};
+    std::shared_ptr<IRepresentation> representation) {
+    
+    if (parents.size() < 2 || !representation) {
+        LOG_WARNING("Invalid input for crossover");
+        return parents;
     }
+
+    const auto& parent1 = parents[0];
+    const auto& parent2 = parents[1];
     
-    std::vector<std::shared_ptr<Individual>> offspring;
-    offspring.reserve(parents.size());
-    
-    for (size_t i = 0; i < parents.size() - 1; i += 2) {
-        const auto& parent1 = parents[i];
-        const auto& parent2 = parents[i + 1];
-        
-        if (!parent1 || !parent2) {
-            LOG_ERROR("Null parent in crossover");
-            continue;
-        }
-        
-        const auto& genes1 = parent1->getGenes();
-        const auto& genes2 = parent2->getGenes();
-        
-        if (genes1.empty() || genes2.empty()) {
-            LOG_ERROR("Empty parent in crossover");
-            continue;
-        }
-        
-        size_t size = std::min(genes1.size(), genes2.size());
-        
-        auto child1Genes = performOrderCrossover(genes1, genes2, size);
-        auto child2Genes = performOrderCrossover(genes2, genes1, size);
-        
-        auto child1 = std::make_shared<Individual>(child1Genes);
-        auto child2 = std::make_shared<Individual>(child2Genes);
-        
-        if (representation->isValid(child1, instance)) {
-            offspring.push_back(child1);
-        }
-        if (representation->isValid(child2, instance)) {
-            offspring.push_back(child2);
-        }
+    if (!parent1 || !parent2) {
+        LOG_WARNING("Null parents in crossover");
+        return parents;
     }
+
+    const auto& p1Genes = parent1->getGenes();
+    const auto& p2Genes = parent2->getGenes();
     
-    // Handle odd number of parents
-    if (parents.size() % 2 == 1) {
-        offspring.push_back(parents.back());
+    if (p1Genes.empty() || p2Genes.empty()) {
+        LOG_WARNING("Empty genes in crossover");
+        return parents;
     }
-    
-    return offspring;
+
+    try {
+        // Calculate allowed mismatches based on instance parameters
+        const int deltaK = instance.getDeltaK();
+        const int totalErrors = instance.getLNeg() + instance.getLPoz();
+        const int extraMismatches = (deltaK == 0 && totalErrors > 0) ? 
+            std::min(2, totalErrors / 10) : 0;
+        const int allowedMismatches = deltaK + extraMismatches;
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        
+        // Select crossover points
+        std::uniform_int_distribution<size_t> dis(0, p1Genes.size() - 1);
+        size_t point1 = dis(gen);
+        size_t point2 = dis(gen);
+        
+        if (point1 > point2) {
+            std::swap(point1, point2);
+        }
+        
+        // Create offspring
+        std::vector<int> offspring1Genes(p1Genes.size(), -1);
+        std::vector<int> offspring2Genes(p2Genes.size(), -1);
+        
+        // Copy selected segments
+        std::copy(p1Genes.begin() + point1, p1Genes.begin() + point2 + 1, 
+                 offspring1Genes.begin() + point1);
+        std::copy(p2Genes.begin() + point1, p2Genes.begin() + point2 + 1, 
+                 offspring2Genes.begin() + point1);
+        
+        // Fill remaining positions with relaxed validation
+        auto fillOffspring = [&](const std::vector<int>& sourceGenes, 
+                               std::vector<int>& targetGenes) {
+            std::vector<bool> used(instance.getSpectrum().size(), false);
+            
+            // Mark used genes in the crossover segment
+            for (size_t i = point1; i <= point2; i++) {
+                if (targetGenes[i] >= 0) {
+                    used[targetGenes[i]] = true;
+                }
+            }
+            
+            // Fill positions before crossover point
+            size_t j = 0;
+            for (size_t i = 0; i < point1; i++) {
+                while (j < sourceGenes.size() && used[sourceGenes[j]]) j++;
+                if (j < sourceGenes.size()) {
+                    targetGenes[i] = sourceGenes[j++];
+                    used[targetGenes[i]] = true;
+                }
+            }
+            
+            // Fill positions after crossover point
+            for (size_t i = point2 + 1; i < targetGenes.size(); i++) {
+                while (j < sourceGenes.size() && used[sourceGenes[j]]) j++;
+                if (j < sourceGenes.size()) {
+                    targetGenes[i] = sourceGenes[j++];
+                    used[targetGenes[i]] = true;
+                }
+            }
+        };
+        
+        // Create both offspring
+        fillOffspring(p2Genes, offspring1Genes);
+        fillOffspring(p1Genes, offspring2Genes);
+        
+        std::vector<std::shared_ptr<Individual>> offspring;
+        offspring.reserve(2);
+        
+        // Create and add offspring without strict validation
+        auto child1 = std::make_shared<Individual>(offspring1Genes);
+        auto child2 = std::make_shared<Individual>(offspring2Genes);
+        
+        // Always add offspring, let fitness function handle penalties
+        offspring.push_back(child1);
+        offspring.push_back(child2);
+        
+        return offspring;
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error in crossover: " + std::string(e.what()));
+        return parents;
+    }
 }
 
 // EdgeTable implementation

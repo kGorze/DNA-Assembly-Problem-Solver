@@ -36,7 +36,7 @@ AdaptiveCrossover::AdaptiveCrossover()
     , MIN_PROB(0.1)
 {
     crossovers.emplace_back(CrossoverPerformance(std::make_shared<OrderCrossover>()));
-    crossovers.emplace_back(CrossoverPerformance(std::make_shared<EdgeRecombination>()));
+    crossovers.emplace_back(CrossoverPerformance(std::make_shared<EdgeRecombination>()));   
     crossovers.emplace_back(CrossoverPerformance(std::make_shared<PMXCrossover>()));
     
     metrics.convergenceGeneration = -1;
@@ -210,77 +210,31 @@ std::shared_ptr<ICrossover> AdaptiveCrossover::selectCrossover() {
 std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
     const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation) 
-{
-    if (parents.empty()) {
-        LOG_ERROR("Empty parents in crossover");
-        return {};
+    std::shared_ptr<IRepresentation> representation) {
+    
+    if (parents.size() < 2 || !representation) {
+        LOG_WARNING("Invalid input for adaptive crossover");
+        return parents;
     }
-    
-    if (parents.size() < 2) {
-        LOG_ERROR("Not enough parents for crossover, need at least 2");
-        return {};
+
+    // Select crossover operator based on performance
+    auto crossoverOp = selectCrossover();
+    if (!crossoverOp) {
+        LOG_WARNING("No crossover operator selected");
+        return parents;
     }
+
+    // Perform crossover - always keep offspring regardless of validation
+    auto offspring = crossoverOp->crossover(parents, instance, representation);
     
-    auto selectedCrossover = selectCrossover();
-    if (!selectedCrossover) {
-        LOG_ERROR("Failed to select crossover operator");
-        return {};
-    }
-    
-    // Make defensive copies of parents to prevent modification
-    std::vector<std::shared_ptr<Individual>> parentsCopy;
-    parentsCopy.reserve(parents.size());
-    for (const auto& parent : parents) {
-        if (!parent) {
-            LOG_ERROR("Null parent in crossover");
-            continue;
-        }
-        parentsCopy.push_back(std::make_shared<Individual>(parent->getGenes()));
-    }
-    
-    if (parentsCopy.size() < 2) {
-        LOG_ERROR("Not enough valid parents after filtering");
-        return {};
-    }
-    
-    auto offspring = selectedCrossover->crossover(parentsCopy, instance, representation);
-    
-    // Validate offspring and fix start index position
-    for (auto it = offspring.begin(); it != offspring.end();) {
-        if (!(*it) || (*it)->getGenes().empty()) {
-            LOG_ERROR("Invalid offspring (null or empty genes)");
-            it = offspring.erase(it);
-            continue;
-        }
-        
-        if (!representation->isValid(*it, instance)) {
-            LOG_ERROR("Invalid offspring (failed representation validation)");
-            it = offspring.erase(it);
-            continue;
-        }
-        
-        auto& genes = (*it)->getGenes();
-        auto startIt = std::find(genes.begin(), genes.end(), instance.getStartIndex());
-        if (startIt != genes.end() && startIt != genes.begin() && genes.size() > 1) {
-            if (std::distance(genes.begin(), startIt) < static_cast<ptrdiff_t>(genes.size())) {
-                std::iter_swap(genes.begin(), startIt);
-            }
-        }
-        ++it;
-    }
-    
-    generationCount++;
-    
-    if (generationCount % ADAPTATION_INTERVAL == 0) {
-        adjustProbabilities();
-    }
-    
+    // If crossover produced no offspring (technical error), return parents
     if (offspring.empty()) {
-        LOG_WARNING("No valid offspring produced, returning copies of parents");
-        return parentsCopy;
+        LOG_WARNING("Crossover produced no offspring - technical error");
+        return parents;
     }
     
+    // Keep offspring regardless of validation status
+    // Let fitness function handle penalties for mismatches
     return offspring;
 }
 

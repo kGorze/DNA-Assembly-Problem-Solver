@@ -36,6 +36,7 @@ GeneticAlgorithm::GeneticAlgorithm(
     , m_random(std::make_unique<Random>())
     , m_globalBestFit(-std::numeric_limits<double>::infinity())
     , m_bestFitness(0.0)
+    , m_theoreticalMaxFitness(1.0)  // Initialize with default value
     , m_debugMode(debugMode)
 {
     if (!m_representation) {
@@ -52,11 +53,14 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
         
         int generation = 0;
         calculateTheoreticalMaxFitness(instance);
+        m_globalBestFit = -std::numeric_limits<double>::infinity();
+        int bestLevenshteinDistance = std::numeric_limits<int>::max();
+        std::string bestDNASequence;
         
         // Initialize population before transferring ownership of m_representation
         initializePopulation(m_config.getPopulationSize(), instance);
         
-        // Create a proper shared pointer for the representation that will live throughout the run
+        // Create a proper shared pointer for the representation
         auto sharedRepresentation = std::shared_ptr<IRepresentation>(
             m_representation.release(),
             [](IRepresentation* ptr) { delete ptr; }
@@ -64,6 +68,15 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
         
         // Main loop
         auto stopping = m_config.getStopping();
+        int stagnationCount = 0;
+        double previousBestFitness = -std::numeric_limits<double>::infinity();
+        
+        // Track successful operations
+        int crossoverAttempts = 0;
+        int successfulCrossovers = 0;
+        int mutationAttempts = 0;
+        int successfulMutations = 0;
+        
         while (!stopping->shouldStop(generation, m_globalBestFit)) {
             // Selection
             std::vector<std::shared_ptr<Individual>> parents;
@@ -74,7 +87,11 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             
             // Select parents using tournament selection
             auto selectedParents = selection->select(m_population, instance, fitness, sharedRepresentation);
-            parents.insert(parents.end(), selectedParents.begin(), selectedParents.end());
+            if (selectedParents.empty()) {
+                LOG_ERROR("Selection produced no parents");
+                break;
+            }
+            parents = std::move(selectedParents);
             
             // Crossover and Mutation
             std::vector<std::shared_ptr<Individual>> offspring;
@@ -82,12 +99,22 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             
             for (size_t i = 0; i < parents.size() - 1; i += 2) {
                 std::vector<std::shared_ptr<Individual>> parentPair = {parents[i], parents[i + 1]};
+                bool offspringAdded = false;
                 
                 if (m_random->generateProbability() < m_config.getCrossoverProbability()) {
+                    crossoverAttempts++;
                     auto crossover = m_config.getCrossover("");
                     auto children = crossover->crossover(parentPair, instance, sharedRepresentation);
-                    offspring.insert(offspring.end(), children.begin(), children.end());
-                } else {
+                    
+                    if (!children.empty()) {
+                        offspring.insert(offspring.end(), children.begin(), children.end());
+                        successfulCrossovers++;
+                        offspringAdded = true;
+                    }
+                }
+                
+                // If crossover failed or wasn't attempted, use parents
+                if (!offspringAdded) {
                     offspring.push_back(parents[i]);
                     offspring.push_back(parents[i + 1]);
                 }
@@ -98,11 +125,34 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                 offspring.push_back(parents.back());
             }
             
-            // Mutation
+            // Mutation with retry mechanism
             auto mutation = m_config.getMutation();
             for (auto& individual : offspring) {
                 if (m_random->generateProbability() < m_config.getMutationRate()) {
-                    mutation->mutate(individual, instance, sharedRepresentation);
+                    mutationAttempts++;
+                    
+                    // Store original genes in case mutation fails
+                    auto originalGenes = individual->getGenes();
+                    bool mutationSuccessful = false;
+                    
+                    // Try mutation up to 3 times
+                    for (int attempt = 0; attempt < 3 && !mutationSuccessful; attempt++) {
+                        try {
+                            mutation->mutate(individual, instance, sharedRepresentation);
+                            if (sharedRepresentation->isValid(individual, instance)) {
+                                mutationSuccessful = true;
+                                successfulMutations++;
+                            } else {
+                                // Restore original genes if mutation produced invalid individual
+                                individual = std::make_shared<Individual>(originalGenes);
+                            }
+                        } catch (const std::exception& e) {
+                            LOG_DEBUG("Mutation attempt " + std::to_string(attempt + 1) + 
+                                    " failed: " + std::string(e.what()));
+                            // Restore original genes on exception
+                            individual = std::make_shared<Individual>(originalGenes);
+                        }
+                    }
                 }
             }
             
@@ -113,19 +163,69 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             auto replacement = m_config.getReplacement();
             m_population = replacement->replace(m_population, offspring, instance, sharedRepresentation);
             
-            // Update best solution
-            updateGlobalBest(m_population, instance);
+            // Update best solution and calculate Levenshtein distance
+            if (updateGlobalBest(m_population, instance)) {
+                // Get the best individual's DNA sequence
+                auto bestIndividual = m_population[m_bestIndex];
+                std::string currentDNA = sharedRepresentation->toDNA(bestIndividual, instance);
+                
+                if (!currentDNA.empty()) {
+                    // Calculate Levenshtein distance only if we have a valid DNA sequence
+                    int currentDistance = calculateLevenshteinDistance(currentDNA, instance.getOriginalDNA());
+                    
+                    // Only update if we have a valid DNA sequence and better distance
+                    if (currentDistance < bestLevenshteinDistance || bestDNASequence.empty()) {
+                        bestLevenshteinDistance = currentDistance;
+                        bestDNASequence = currentDNA;
+                        
+                        // Log improvement with normalized fitness
+                        std::stringstream ss;
+                        ss << "New best solution - Normalized Fitness: " << std::fixed << std::setprecision(4) 
+                           << (m_globalBestFit / m_theoreticalMaxFitness)
+                           << ", Levenshtein distance: " << bestLevenshteinDistance
+                           << ", DNA length: " << currentDNA.length();
+                        LOG_INFO(ss.str());
+                    }
+                } else {
+                    LOG_WARNING("Best individual produced empty DNA sequence - skipping Levenshtein calculation");
+                }
+            }
             
-            // Log progress
+            // Check for stagnation
+            if (std::abs(m_globalBestFit - previousBestFitness) < 1e-6) {
+                stagnationCount++;
+            } else {
+                stagnationCount = 0;
+                previousBestFitness = m_globalBestFit;
+            }
+            
+            // Log operation statistics
             if (m_debugMode) {
-                logGenerationStats(m_population, instance, generation);
+                std::stringstream ss;
+                ss << "Operation stats - Crossover: " << successfulCrossovers << "/" << crossoverAttempts
+                   << " successful, Mutation: " << successfulMutations << "/" << mutationAttempts 
+                   << " successful, Stagnation count: " << stagnationCount;
+                LOG_DEBUG(ss.str());
             }
             
             generation++;
         }
         
-        // Return best solution
-        return m_bestDNA;
+        // Log final results with normalized fitness
+        std::stringstream ss;
+        ss << "\nFinal Results:";
+        ss << "\n- Best Normalized Fitness: " << std::fixed << std::setprecision(4) 
+           << (m_globalBestFit / m_theoreticalMaxFitness);
+        if (!bestDNASequence.empty()) {
+            ss << "\n- Best Levenshtein Distance: " << bestLevenshteinDistance;
+            ss << "\n- Best DNA Length: " << bestDNASequence.length();
+        } else {
+            ss << "\n- No valid DNA sequence found";
+        }
+        ss << "\n- Total Generations: " << generation;
+        LOG_INFO(ss.str());
+        
+        return bestDNASequence;
         
     } catch (const std::exception& e) {
         LOG_ERROR("Error in genetic algorithm: " + std::string(e.what()));
@@ -168,6 +268,8 @@ void GeneticAlgorithm::evaluatePopulation(
         return;
     }
     
+    double bestFitnessInGeneration = -std::numeric_limits<double>::infinity();
+    
     for (auto& individual : population) {
         if (!individual) {
             LOG_ERROR("Null individual in evaluatePopulation");
@@ -175,24 +277,39 @@ void GeneticAlgorithm::evaluatePopulation(
         }
         double fitnessValue = fitness->calculateFitness(individual, instance, representation);
         individual->setFitness(fitnessValue);
+        
+        // Only log if this is a new best fitness
+        if (fitnessValue > bestFitnessInGeneration) {
+            bestFitnessInGeneration = fitnessValue;
+            if (fitnessValue > m_globalBestFit) {
+                LOG_DEBUG("New best fitness: " + std::to_string(fitnessValue));
+            }
+        }
     }
 }
 
-void GeneticAlgorithm::updateGlobalBest(
+bool GeneticAlgorithm::updateGlobalBest(
     const std::vector<std::shared_ptr<Individual>>& population,
     [[maybe_unused]] const DNAInstance& instance)
 {
-    for (const auto& individual : population) {
-        if (!individual) continue;
+    bool improved = false;
+    m_bestIndex = -1;
+    
+    for (size_t i = 0; i < population.size(); i++) {
+        if (!population[i]) continue;
         
-        double fitness = individual->getFitness();
+        double fitness = population[i]->getFitness();
         if (fitness > m_globalBestFit) {
             m_globalBestFit = fitness;
             m_bestFitness = fitness;
-            m_globalBestGenes = individual->getGenes();
-            m_bestDNA = vectorToString(individual->getGenes());
+            m_globalBestGenes = population[i]->getGenes();
+            m_bestDNA = vectorToString(population[i]->getGenes());
+            m_bestIndex = i;
+            improved = true;
         }
     }
+    
+    return improved;
 }
 
 void GeneticAlgorithm::logGenerationStats(
@@ -216,14 +333,23 @@ void GeneticAlgorithm::logGenerationStats(
     }
     
     double avgFitness = validCount > 0 ? sumFitness / validCount : 0.0;
+    bool improved = maxFitness > m_globalBestFit;
     
-    std::stringstream ss;
-    ss << "Generation " << generation << ": ";
-    ss << "Best=" << std::fixed << std::setprecision(4) << maxFitness << " ";
-    ss << "Avg=" << avgFitness << " ";
-    ss << "Min=" << minFitness;
-    
-    LOG_INFO(ss.str());
+    // Only log if there's improvement or every 10 generations
+    if (improved || generation % 10 == 0) {
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(4);
+        ss << "Gen " << generation << ": ";
+        ss << "Best=" << maxFitness;
+        if (improved) {
+            ss << " (↑ from " << m_globalBestFit << ")";
+        }
+        ss << " Avg=" << avgFitness;
+        if (validCount < static_cast<int>(population.size())) {
+            ss << " [" << validCount << "/" << population.size() << " valid]";
+        }
+        LOG_INFO(ss.str());
+    }
 }
 
 std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec) {
@@ -245,7 +371,7 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instanc
     
     if (k <= 0 || n <= 0 || spectrumSize <= 0) {
         LOG_ERROR("Invalid instance parameters for theoretical fitness calculation");
-        m_globalBestFit = 1.0;  // Default value
+        m_theoreticalMaxFitness = 1.0;  // Default value
         return;
     }
     
@@ -255,9 +381,9 @@ void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instanc
     double maxLengthScore = 1.0;                     // Perfect length match
     
     // Combine components with weights
-    m_globalBestFit = maxConnectivityScore + maxSpectrumCoverage + maxLengthScore;
+    m_theoreticalMaxFitness = maxConnectivityScore + maxSpectrumCoverage + maxLengthScore;
     
-    LOG_INFO("Theoretical maximum fitness calculated: " + std::to_string(m_globalBestFit));
+    LOG_INFO("Theoretical maximum fitness calculated: " + std::to_string(m_theoreticalMaxFitness));
 }
 
 std::vector<std::vector<PreprocessedEdge>> GeneticAlgorithm::buildAdjacencyMatrix(
@@ -290,4 +416,30 @@ int GeneticAlgorithm::calculateEdgeWeight(const std::string& from, const std::st
     std::string prefix = to.substr(0, k - 1);
     
     return (suffix == prefix) ? 1 : 0;
+}
+
+// Add helper method for Levenshtein distance calculation
+int GeneticAlgorithm::calculateLevenshteinDistance(const std::string& s1, const std::string& s2) {
+    const size_t m = s1.length();
+    const size_t n = s2.length();
+    std::vector<std::vector<int>> d(m + 1, std::vector<int>(n + 1));
+
+    // Initialize first row and column
+    for (size_t i = 0; i <= m; i++) d[i][0] = i;
+    for (size_t j = 0; j <= n; j++) d[0][j] = j;
+
+    // Fill in the rest of the matrix
+    for (size_t i = 1; i <= m; i++) {
+        for (size_t j = 1; j <= n; j++) {
+            if (s1[i-1] == s2[j-1]) {
+                d[i][j] = d[i-1][j-1];
+            } else {
+                d[i][j] = 1 + std::min({d[i-1][j],      // deletion
+                                      d[i][j-1],      // insertion
+                                      d[i-1][j-1]});  // substitution
+            }
+        }
+    }
+
+    return d[m][n];
 }

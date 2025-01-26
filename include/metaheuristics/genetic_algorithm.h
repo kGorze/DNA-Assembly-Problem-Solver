@@ -44,7 +44,7 @@ private:
         const DNAInstance& instance,
         const std::vector<std::shared_ptr<Individual>>& population,
         const std::shared_ptr<IRepresentation>& representation);
-    void updateGlobalBest(
+    bool updateGlobalBest(
         const std::vector<std::shared_ptr<Individual>>& population,
         const DNAInstance& instance);
     void logGenerationStats(
@@ -58,6 +58,7 @@ private:
     std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(
         const DNAInstance& instance) const;
     int calculateEdgeWeight(const std::string& from, const std::string& to, int k) const;
+    int calculateLevenshteinDistance(const std::string& s1, const std::string& s2);
 
     std::vector<std::shared_ptr<Individual>> m_population;
     std::unique_ptr<IRepresentation> m_representation;
@@ -65,9 +66,11 @@ private:
     std::unique_ptr<Random> m_random;
     double m_globalBestFit;
     double m_bestFitness;
+    double m_theoreticalMaxFitness;
     std::vector<int> m_globalBestGenes;
     std::string m_bestDNA;
     bool m_debugMode;
     int m_processId{0};
+    int m_bestIndex;
     std::shared_ptr<IFitness> m_fitness{std::make_shared<OptimizedGraphBasedFitness>()};
 };
