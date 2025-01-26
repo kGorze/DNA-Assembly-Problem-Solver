@@ -15,42 +15,41 @@
 #include <algorithm>  // for std::transform
 
 // Project headers
-#include "dna/dna_instance.h"
-#include "interfaces/i_representation.h"
-#include "interfaces/i_selection.h"
-#include "interfaces/i_crossover.h"
-#include "interfaces/i_mutation.h"
-#include "interfaces/i_replacement.h"
-#include "interfaces/i_fitness.h"
-#include "interfaces/i_stopping.h"
-#include "interfaces/i_population_cache.h"
+#include "../include/dna/dna_instance.h"
+#include "../include/interfaces/i_representation.h"
+#include "../include/interfaces/i_selection.h"
+#include "../include/interfaces/i_crossover.h"
+#include "../include/interfaces/i_mutation.h"
+#include "../include/interfaces/i_replacement.h"
+#include "../include/interfaces/i_fitness.h"
+#include "../include/interfaces/i_stopping.h"
+#include "../include/interfaces/i_population_cache.h"
 
-#include "configuration/genetic_algorithm_configuration.h"
-#include "metaheuristics/population_cache_impl.h"
+#include "../include/configuration/genetic_algorithm_configuration.h"
+#include "../include/metaheuristics/population_cache_impl.h"
 
-#include "generator/dna_generator.h"
-#include "naive/naive_reconstruction.h"
-#include "benchmark/naive_benchmark.h"
-#include "utils/utility_functions.h"
+#include "../include/generator/dna_generator.h"
+#include "../include/naive/naive_reconstruction.h"
+#include "../include/benchmark/naive_benchmark.h"
+#include "../include/utils/utility_functions.h"
 
-#include "metaheuristics/crossover_impl.h"
-#include "metaheuristics/fitness_impl.h"
-#include "metaheuristics/genetic_algorithm_runner.h"
+#include "../include/metaheuristics/crossover_impl.h"
+#include "../include/metaheuristics/fitness_impl.h"
+#include "../include/metaheuristics/genetic_algorithm_runner.h"
 
-#include "benchmark/crossover_benchmark.h"
-#include "benchmark/adaptive_crossover_benchmark.h"
+#include "../include/benchmark/crossover_benchmark.h"
+#include "../include/benchmark/adaptive_crossover_benchmark.h"
 
-#include "metaheuristics/adaptive_crossover.h"
+#include "../include/metaheuristics/adaptive_crossover.h"
 
 // Tuning headers
-#include "tuning/parameter_tuning_manager.h"
-#include "tuning/parameters_parser.h"
-#include "tuning/tuning_structures.h"
-#include "tuning/racing.h"
-#include "tuning/meta_ea.h"
+#include "../include/tuning/parameter_tuning_manager.h"
+#include "../include/tuning/parameters_parser.h"
+#include "../include/tuning/tuning_structures.h"
+#include "../include/tuning/racing.h"
+#include "../include/tuning/meta_ea.h"
 
-#include "utils/logging.h"
-
+#include "../include/utils/logging.h"
 #include "../include/metaheuristics/representation.h"
 
 // Funkcja do wypisywania użycia programu:
@@ -124,7 +123,6 @@ double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
                                 [[maybe_unused]] bool debugMode) {
     // Create configuration
     GAConfig config;
-    config.setMaxGenerations(100);  // Default value instead of maxIterations
     config.setPopulationSize(100);
     config.setMutationRate(0.1);
     config.setCrossoverProbability(0.8);
@@ -146,7 +144,6 @@ double evaluateParameterSet(const DNAInstance& instance,
                           [[maybe_unused]] double (*fitnessFunc)(const DNAInstance&, const std::vector<int>&)) {
     // Create configuration
     GAConfig config;
-    config.setMaxGenerations(100);  // Default value
     config.setPopulationSize(params.getInt("populationSize"));
     config.setMutationRate(params.getDouble("mutationRate"));
     config.setCrossoverProbability(params.getDouble("crossoverProb"));

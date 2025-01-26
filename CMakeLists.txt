@@ -24,11 +24,19 @@ include_directories(
 set(SOURCES
     src/configuration/genetic_algorithm_configuration.cpp
     src/metaheuristics/mutation_impl.cpp
+    src/metaheuristics/mutation.cpp
     src/metaheuristics/selection.cpp
     src/metaheuristics/crossover_impl.cpp
+    src/metaheuristics/crossover.cpp
     src/metaheuristics/permutation_representation.cpp
     src/metaheuristics/genetic_algorithm.cpp
+    src/metaheuristics/genetic_algorithm_runner.cpp
     src/metaheuristics/adaptive_crossover.cpp
+    src/metaheuristics/fitness_impl.cpp
+    src/metaheuristics/fitness.cpp
+    src/metaheuristics/individual.cpp
+    src/metaheuristics/stopping_criteria.cpp
+    src/metaheuristics/path_analyzer.cpp
     src/dna/dna_instance.cpp
     src/dna/dna_instance_io.cpp
     src/dna/dna_instance_builder.cpp
@@ -36,6 +44,9 @@ set(SOURCES
     src/utils/logging.cpp
     src/utils/utility_functions.cpp
     src/utils/performance_profilling_framework.cpp
+    src/tuning/parameter_tuning_manager.cpp
+    src/tuning/parameter_parser.cpp
+    src/tuning/tuning_structures.cpp
 )
 
 # Create library
