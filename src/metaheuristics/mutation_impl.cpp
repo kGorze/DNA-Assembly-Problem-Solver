@@ -38,21 +38,43 @@ void PointMutation::mutate(
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dis(0.0, 1.0);
-        std::uniform_int_distribution<size_t> posDis(0, genes.size() - 1);
-
+        
         bool mutated = false;
         std::vector<int> mutatedGenes = genes;
-
-        // For each position, decide whether to mutate based on mutation rate
+        
+        // Calculate real spectrum size
+        const int realSpectrumSize = instance.getN() - instance.getK() + 1;
+        
+        // Higher chance to mutate error k-mers
         for (size_t i = 0; i < genes.size(); ++i) {
-            if (dis(gen) < m_mutationRate) {
-                size_t swapPos = posDis(gen);
-                while (swapPos == i) {
-                    swapPos = posDis(gen);
+            double mutationChance = m_mutationRate;
+            
+            // Increase mutation chance for error k-mers
+            if (genes[i] >= realSpectrumSize) {
+                mutationChance *= 2.0;  // Double the mutation rate for error k-mers
+            }
+            
+            if (dis(gen) < mutationChance) {
+                // Prefer swapping with real k-mers when possible
+                std::vector<size_t> validSwapPositions;
+                for (size_t j = 0; j < genes.size(); ++j) {
+                    if (j != i) {
+                        // Prioritize real k-mers as swap targets
+                        if (genes[j] < realSpectrumSize) {
+                            validSwapPositions.push_back(j);
+                            validSwapPositions.push_back(j);  // Add twice to increase probability
+                        } else {
+                            validSwapPositions.push_back(j);
+                        }
+                    }
                 }
                 
-                std::swap(mutatedGenes[i], mutatedGenes[swapPos]);
-                mutated = true;
+                if (!validSwapPositions.empty()) {
+                    std::uniform_int_distribution<size_t> posDis(0, validSwapPositions.size() - 1);
+                    size_t swapPos = validSwapPositions[posDis(gen)];
+                    std::swap(mutatedGenes[i], mutatedGenes[swapPos]);
+                    mutated = true;
+                }
             }
         }
 
