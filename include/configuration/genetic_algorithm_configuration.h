@@ -87,7 +87,7 @@ public:
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
-    void setMutationRate(double rate) { m_mutationRate = rate; }
+    void setMutationRate(double rate);  // Defined in cpp file
     void setCrossoverProbability(double probability) { m_crossoverProbability = probability; }
     void setTargetFitness(double fitness) { m_targetFitness = fitness; }
     void setTournamentSize(int size) { m_tournamentSize = size; }

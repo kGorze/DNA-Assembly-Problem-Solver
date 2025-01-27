@@ -17,4 +17,8 @@ public:
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
     ) = 0;
+
+    // Add replacement ratio control
+    virtual void setReplacementRatio(double ratio) = 0;
+    virtual double getReplacementRatio() const = 0;
 }; 

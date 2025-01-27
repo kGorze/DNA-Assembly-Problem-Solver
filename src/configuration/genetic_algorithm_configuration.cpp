@@ -235,12 +235,7 @@ std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string&) const
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const
 {
-    // Create combined mutation with both point and swap mutations
-    // Use higher rates for both mutation types to increase diversity
-    double pointRate = m_mutationRate * 0.8;  // 80% of mutation rate for point mutations
-    double swapRate = m_mutationRate * 0.8;   // 80% of mutation rate for swap mutations
-    // Higher probability of applying both mutations (0.4) and balanced individual probabilities
-    return std::make_shared<CombinedMutation>(pointRate, swapRate, 0.5, 0.4);
+    return std::make_shared<CombinedMutation>(m_mutationRate);
 }
 
 std::shared_ptr<IReplacement> GAConfig::getReplacement() const
@@ -289,5 +284,18 @@ bool GAConfig::validate() const {
     if (m_selectionMethod.empty()) return false;
     
     return true;
+}
+
+void GAConfig::setMutationRate(double rate) {
+    // Clamp mutation rate to valid range for CombinedMutation
+    static constexpr double MIN_MUTATION_RATE = 0.1;
+    static constexpr double MAX_MUTATION_RATE = 0.4;
+    
+    if (rate < MIN_MUTATION_RATE || rate > MAX_MUTATION_RATE) {
+        LOG_WARNING("Mutation rate " + std::to_string(rate) + 
+                   " outside valid range [" + std::to_string(MIN_MUTATION_RATE) + 
+                   ", " + std::to_string(MAX_MUTATION_RATE) + "] - clamping");
+    }
+    m_mutationRate = std::clamp(rate, MIN_MUTATION_RATE, MAX_MUTATION_RATE);
 }
 

@@ -16,4 +16,8 @@ public:
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation
     ) = 0;
+
+    // Add mutation rate control
+    virtual void setMutationRate(double rate) = 0;
+    virtual double getMutationRate() const = 0;
 }; 

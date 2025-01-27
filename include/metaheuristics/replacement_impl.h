@@ -37,7 +37,7 @@ inline double calculateSharingFactor(double distance, double sharingRadius) {
 
 class PartialReplacement : public IReplacement {
 public:
-    explicit PartialReplacement(double replacementRatio = 0.8, 
+    explicit PartialReplacement(double replacementRatio = 0.7, 
                               double sharingRadius = 0.2,
                               std::shared_ptr<IPopulationCache> cache = nullptr) 
         : m_replacementRatio(replacementRatio)
@@ -167,6 +167,15 @@ public:
             LOG_ERROR("Error during replacement: " + std::string(e.what()));
             return parents;
         }
+    }
+
+    // Implement replacement ratio control
+    void setReplacementRatio(double ratio) override {
+        m_replacementRatio = std::clamp(ratio, 0.7, 0.9);  // Keep ratio within reasonable bounds
+    }
+    
+    double getReplacementRatio() const override {
+        return m_replacementRatio;
     }
 
 private:
