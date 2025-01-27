@@ -163,37 +163,37 @@ void GuidedMutation::mutate(
         return;
     }
 
-    auto genes = individual->getGenes();
-    if (genes.size() < 4) {  // Need at least 4 genes for meaningful operations
+    auto originalGenes = individual->getGenes();  // Store original genes for rollback
+    if (originalGenes.size() < 4) {  // Need at least 4 genes for meaningful operations
         return;
     }
 
     auto& rng = Random::instance();
     bool mutationSuccessful = false;
-    std::vector<int> bestGenes = genes;
+    std::vector<int> bestGenes = originalGenes;  // Initialize with original genes
     double bestQuality = -1.0;
 
     // Try different mutation strategies
     for (int attempt = 0; attempt < m_maxAttempts && !mutationSuccessful; ++attempt) {
-        auto currentGenes = genes;
+        auto currentGenes = originalGenes;  // Start each attempt with original genes
         bool improved = false;
 
         // Choose mutation strategy based on probabilities
         double strategy = rng.generateProbability();
         
         if (strategy < 0.4) {  // 40% chance for segment reversal
-            size_t start = rng.getRandomInt(0, static_cast<int>(genes.size() - 4));
-            size_t length = rng.getRandomInt(3, static_cast<int>(std::min(genes.size() - start, size_t(8))));
+            size_t start = rng.getRandomInt(0, static_cast<int>(originalGenes.size() - 4));
+            size_t length = rng.getRandomInt(3, static_cast<int>(std::min(originalGenes.size() - start, size_t(8))));
             improved = tryReverseSegment(currentGenes, start, length, instance, representation);
         }
         else if (strategy < 0.7) {  // 30% chance for segment realignment
-            size_t start = rng.getRandomInt(0, static_cast<int>(genes.size() - 4));
-            size_t length = rng.getRandomInt(3, static_cast<int>(std::min(genes.size() - start, size_t(6))));
+            size_t start = rng.getRandomInt(0, static_cast<int>(originalGenes.size() - 4));
+            size_t length = rng.getRandomInt(3, static_cast<int>(std::min(originalGenes.size() - start, size_t(6))));
             improved = tryRealignSegment(currentGenes, start, length, instance, representation);
         }
         else {  // 30% chance for subpath merging
-            size_t pos1 = rng.getRandomInt(0, static_cast<int>(genes.size() - 3));
-            size_t pos2 = rng.getRandomInt(0, static_cast<int>(genes.size() - 3));
+            size_t pos1 = rng.getRandomInt(0, static_cast<int>(originalGenes.size() - 3));
+            size_t pos2 = rng.getRandomInt(0, static_cast<int>(originalGenes.size() - 3));
             if (pos1 > pos2) std::swap(pos1, pos2);
             improved = tryMergeSubpaths(currentGenes, pos1, pos2, instance, representation);
         }
@@ -220,10 +220,13 @@ void GuidedMutation::mutate(
         }
     }
 
-    if (mutationSuccessful) {
-        individual = std::make_shared<Individual>(bestGenes);
-        LOG_DEBUG("GuidedMutation: Successfully applied mutation");
+    // If no successful mutation was found, keep the original genes
+    if (!mutationSuccessful) {
+        LOG_DEBUG("GuidedMutation: No successful mutation found, keeping original genes");
+        bestGenes = originalGenes;
     }
+
+    individual = std::make_shared<Individual>(bestGenes);
 }
 
 bool GuidedMutation::tryReverseSegment(
@@ -316,6 +319,7 @@ bool GuidedMutation::tryMergeSubpaths(
     std::vector<int> original = genes;
     
     double bestQuality = -1.0;
+    std::vector<int> bestMerge = original;
     
     const auto& spectrum = instance.getSpectrum();
     int k = instance.getK();
@@ -340,12 +344,13 @@ bool GuidedMutation::tryMergeSubpaths(
             auto tempIndividual = std::make_shared<Individual>(merged);
             if (representation->isValid(tempIndividual, instance)) {
                 bestQuality = quality;
-                genes = merged;
+                bestMerge = merged;
             }
         }
     }
     
     if (bestQuality > -1.0) {
+        genes = bestMerge;
         return true;
     }
     
