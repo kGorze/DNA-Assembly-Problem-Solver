@@ -120,9 +120,11 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
     const auto& spectrum = instance.getSpectrum();
     
     if (spectrum.empty()) {
-        LOG_ERROR("Empty spectrum");
+        LOG_ERROR("Initialization failed: Empty spectrum");
         return false;
     }
+    
+    LOG_DEBUG("Initializing individual with spectrum size " + std::to_string(spectrum.size()));
     
     // Always use the full spectrum size
     size_t size = spectrum.size();
@@ -138,17 +140,19 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
     }
     
     // Validate indices
-    for (int index : indices) {
-        if (index < 0 || static_cast<size_t>(index) >= spectrum.size()) {
-            LOG_ERROR("Generated invalid index: " + std::to_string(index) + 
-                      ", spectrum size: " + std::to_string(spectrum.size()));
+    for (size_t i = 0; i < indices.size(); i++) {
+        if (indices[i] < 0 || static_cast<size_t>(indices[i]) >= spectrum.size()) {
+            LOG_ERROR("Generated invalid index at position " + std::to_string(i) + 
+                     ": " + std::to_string(indices[i]) + 
+                     " (spectrum size: " + std::to_string(spectrum.size()) + ")");
             return false;
         }
     }
     
     // Set the genes
     individual.setGenes(indices);
-    LOG_DEBUG("Initialized individual with " + std::to_string(indices.size()) + " genes");
+    LOG_DEBUG("Successfully initialized individual with " + std::to_string(indices.size()) + 
+              " genes (spectrum size: " + std::to_string(spectrum.size()) + ")");
     return true;
 }
 
@@ -186,135 +190,217 @@ std::string PermutationRepresentation::toString(
 std::string PermutationRepresentation::toDNA(
     const std::shared_ptr<Individual>& individual,
     const DNAInstance& instance) const {
-    if (!individual) return "";
-    
-    const auto& genes = individual->getGenes();
-    if (genes.empty()) return "";
-    
-    const auto& spectrum = instance.getSpectrum();
-    if (spectrum.empty()) return "";
-    
-    // Check if first gene is valid
-    if (genes[0] < 0 || static_cast<size_t>(genes[0]) >= spectrum.size()) {
-        LOG_ERROR("Invalid first gene index: " + std::to_string(genes[0]));
+    // Basic validation remains the same
+    if (instance.getK() <= 0) {
+        LOG_ERROR("toDNA failed: Invalid k-mer length " + std::to_string(instance.getK()));
         return "";
     }
+    if (instance.getDeltaK() < 0) {
+        LOG_ERROR("toDNA failed: Invalid deltaK " + std::to_string(instance.getDeltaK()));
+        return "";
+    }
+    if (!individual || individual->getGenes().empty()) {
+        LOG_ERROR("toDNA failed: Invalid individual");
+        return "";
+    }
+
+    const auto& genes = individual->getGenes();
+    const auto& spectrum = instance.getSpectrum();
+    if (spectrum.empty()) {
+        LOG_ERROR("toDNA failed: Empty spectrum");
+        return "";
+    }
+
+    LOG_DEBUG("Starting DNA assembly with " + std::to_string(genes.size()) + " genes");
     
-    const int k = instance.getK();
-    std::string dna = spectrum[genes[0]];  // Start with first k-mer
-    
-    // Track used k-mers to ensure we're using the spectrum correctly
-    std::vector<bool> used(spectrum.size(), false);
-    used[genes[0]] = true;
-    
-    // For each remaining gene
-    for (size_t i = 1; i < genes.size(); i++) {
-        // Validate gene index
-        if (genes[i] < 0 || static_cast<size_t>(genes[i]) >= spectrum.size()) {
-            LOG_ERROR("Invalid gene index at position " + std::to_string(i) + ": " + std::to_string(genes[i]));
-            continue;  // Skip invalid genes instead of returning empty string
+    // Initialize with first valid k-mer
+    size_t startIdx = 0;
+    while (startIdx < genes.size()) {
+        if (genes[startIdx] >= 0 && static_cast<size_t>(genes[startIdx]) < spectrum.size()) {
+            break;
         }
-        
-        // Skip if already used and repetitions not allowed
+        startIdx++;
+    }
+    if (startIdx >= genes.size()) {
+        LOG_ERROR("No valid starting k-mer found");
+        return "";
+    }
+
+    std::string dna = spectrum[genes[startIdx]];
+    const int k = instance.getK();
+    std::vector<bool> used(spectrum.size(), false);
+    used[genes[startIdx]] = true;
+
+    // Dynamic overlap threshold based on k-mer length
+    const int minOverlap = std::max(1, k / 4);  // More permissive minimum overlap
+    const int maxMismatchesPerOverlap = std::max(instance.getDeltaK(), k / 3);  // More tolerant of mismatches
+
+    // For each remaining gene
+    for (size_t i = startIdx + 1; i < genes.size(); i++) {
+        if (genes[i] < 0 || static_cast<size_t>(genes[i]) >= spectrum.size()) {
+            LOG_DEBUG("Skipping invalid gene at position " + std::to_string(i));
+            continue;
+        }
+
         if (!instance.isRepAllowed() && used[genes[i]]) {
             LOG_DEBUG("Skipping repeated k-mer at position " + std::to_string(i));
             continue;
         }
-        
+
         const std::string& current = spectrum[genes[i]];
-        
-        // Try different overlap lengths
         int bestOverlap = -1;
-        int minMismatches = k;  // Allow up to k mismatches (more lenient)
-        
-        // Try overlaps from k-1 down to 1 (more lenient minimum overlap)
-        for (int overlap = k - 1; overlap >= 1; overlap--) {
-            if (static_cast<int>(dna.length()) < overlap) continue;
-            
-            // Count mismatches in overlap region
+        int bestMismatches = k;
+        std::string bestExtension;
+
+        // Try overlaps from largest to smallest
+        for (int overlap = k - 1; overlap >= minOverlap; overlap--) {
+            if (dna.length() < static_cast<size_t>(overlap)) continue;
+
             int mismatches = 0;
             for (int j = 0; j < overlap; j++) {
                 if (dna[dna.length() - overlap + j] != current[j]) {
                     mismatches++;
                 }
             }
+
+            // Accept if mismatches are reasonable for this overlap length
+            int maxAllowedMismatches = std::min(maxMismatchesPerOverlap, 
+                                               static_cast<int>(overlap * 0.4));  // Allow up to 40% mismatches
             
-            // Accept overlaps with reasonable number of mismatches
-            // More lenient: accept if mismatches <= min(deltaK * 2, overlap/2)
-            int maxAllowedMismatches = std::min(instance.getDeltaK() * 2, overlap / 2);
-            if (mismatches <= maxAllowedMismatches && mismatches < minMismatches) {
-                minMismatches = mismatches;
+            if (mismatches <= maxAllowedMismatches && 
+                (bestOverlap == -1 || mismatches <= bestMismatches)) {
                 bestOverlap = overlap;
+                bestMismatches = mismatches;
+                bestExtension = current.substr(overlap);
                 
-                // If we found a good enough match, no need to check smaller overlaps
+                // If we found a very good match, use it immediately
                 if (mismatches <= instance.getDeltaK()) break;
             }
         }
-        
-        // If no good overlap found, try minimal overlap
-        if (bestOverlap <= 0) {
-            // Use minimal overlap of 1 base
-            bestOverlap = 1;
-            dna += current.substr(bestOverlap);
-        } else {
-            dna += current.substr(bestOverlap);
+
+        // If no good overlap found, try minimal overlap with relaxed criteria
+        if (bestOverlap == -1) {
+            LOG_DEBUG("Using minimal overlap for k-mer at position " + std::to_string(i));
+            bestExtension = current.substr(minOverlap);
+            bestOverlap = minOverlap;
         }
+
+        dna += bestExtension;
         used[genes[i]] = true;
+        
+        LOG_DEBUG("Added k-mer with overlap " + std::to_string(bestOverlap) + 
+                 ", mismatches " + std::to_string(bestMismatches) + 
+                 ", new length " + std::to_string(dna.length()));
     }
-    
-    // Verify final sequence length - more lenient minimum length
-    if (dna.length() < instance.getK() / 2) {  // Allow sequences at least half the k-mer length
-        LOG_DEBUG("Final sequence too short: " + std::to_string(dna.length()));
+
+    // More flexible minimum length requirement
+    size_t minLength = std::max(static_cast<size_t>(k), spectrum.size() / 4);
+    if (dna.length() < minLength) {
+        LOG_DEBUG("Assembled sequence too short: " + std::to_string(dna.length()) + 
+                 " < " + std::to_string(minLength));
         return "";
     }
-    
-    // More lenient coverage requirement - accept if we used at least 30% of k-mers
+
+    // Dynamic coverage requirement based on sequence length
     size_t usedCount = std::count(used.begin(), used.end(), true);
-    if (usedCount < spectrum.size() * 0.3) {  // Reduced from 70% to 30%
-        LOG_DEBUG("Low spectrum coverage: " + std::to_string(usedCount) + "/" + std::to_string(spectrum.size()));
-        return "";
+    double coveragePercent = (static_cast<double>(usedCount) / spectrum.size()) * 100;
+    
+    // Adjust minimum coverage based on sequence length
+    double minCoverage = 20.0;  // Base minimum coverage
+    if (dna.length() > spectrum.size() * k / 2) {
+        minCoverage = 15.0;  // Lower requirement for longer sequences
     }
     
+    LOG_DEBUG("Coverage: " + std::to_string(coveragePercent) + "% (minimum: " + 
+              std::to_string(minCoverage) + "%)");
+    
+    if (coveragePercent < minCoverage) {
+        LOG_DEBUG("Insufficient coverage");
+        return "";
+    }
+
+    LOG_DEBUG("Successfully assembled DNA sequence of length " + std::to_string(dna.length()) + 
+              " using " + std::to_string(usedCount) + " k-mers");
     return dna;
 }
 
 bool PermutationRepresentation::validateGenes(
     const std::vector<int>& genes,
     const DNAInstance& instance) const {
-    if (genes.empty()) return false;
+    // Validate DNAInstance parameters first
+    if (instance.getK() <= 0) {
+        LOG_ERROR("Invalid k-mer length: " + std::to_string(instance.getK()) + " (must be positive)");
+        return false;
+    }
+    if (instance.getDeltaK() < 0) {
+        LOG_ERROR("Invalid deltaK: " + std::to_string(instance.getDeltaK()) + " (must be non-negative)");
+        return false;
+    }
+    LOG_DEBUG("DNAInstance parameters: k=" + std::to_string(instance.getK()) + 
+              ", deltaK=" + std::to_string(instance.getDeltaK()) +
+              ", repetitions=" + std::string(instance.isRepAllowed() ? "allowed" : "not allowed"));
+
+    if (genes.empty()) {
+        LOG_DEBUG("Validation failed: Empty genes vector");
+        return false;
+    }
     
     const auto& spectrum = instance.getSpectrum();
+    LOG_DEBUG("Validating genes vector of size " + std::to_string(genes.size()) + 
+              " against spectrum size " + std::to_string(spectrum.size()));
     
     // First check: all genes must be within valid bounds
-    for (int gene : genes) {
-        if (gene < 0 || static_cast<size_t>(gene) >= spectrum.size()) {
-            LOG_DEBUG("Invalid gene value: " + std::to_string(gene) + 
-                     " (spectrum size: " + std::to_string(spectrum.size()) + ")");
+    for (size_t i = 0; i < genes.size(); i++) {
+        if (genes[i] < 0 || static_cast<size_t>(genes[i]) >= spectrum.size()) {
+            LOG_DEBUG("Validation failed: Invalid gene value at index " + std::to_string(i) + 
+                     ": " + std::to_string(genes[i]) + 
+                     " (valid range: [0, " + std::to_string(spectrum.size() - 1) + "])");
             return false;
         }
     }
     
     // Second check: genes size should be reasonable
-    // Allow sizes between 50% of spectrum size and full spectrum size
-    size_t minSize = std::max(instance.getK(), static_cast<int>(spectrum.size() / 2));
-    if (genes.size() < minSize || genes.size() > spectrum.size()) {
-        LOG_DEBUG("Invalid genes size: " + std::to_string(genes.size()) + 
-                 " (min: " + std::to_string(minSize) + 
-                 ", max: " + std::to_string(spectrum.size()) + ")");
+    // Allow sizes between 50% of spectrum size and 150% of spectrum size
+    size_t minSize = std::max(instance.getK(), static_cast<int>(spectrum.size() * 0.5));
+    size_t maxSize = static_cast<size_t>(spectrum.size() * 1.5);
+    LOG_DEBUG("Size validation: Current=" + std::to_string(genes.size()) + 
+              ", Min=" + std::to_string(minSize) + 
+              ", Max=" + std::to_string(maxSize));
+    
+    if (genes.size() < minSize || genes.size() > maxSize) {
+        LOG_DEBUG("Validation failed: Invalid genes size " + std::to_string(genes.size()) + 
+                 " (required range: [" + std::to_string(minSize) + ", " + 
+                 std::to_string(maxSize) + "])");
         return false;
     }
     
-    // Third check: if repetitions are not allowed, check for duplicates
+    // Third check: if repetitions are not allowed, be more lenient with duplicates
     if (!instance.isRepAllowed()) {
-        std::vector<bool> used(spectrum.size(), false);
-        for (int gene : genes) {
-            if (used[gene]) {
-                LOG_DEBUG("Duplicate gene found: " + std::to_string(gene));
+        LOG_DEBUG("Checking for duplicates (repetitions not allowed)");
+        // Count occurrences of each gene
+        std::vector<int> geneCount(spectrum.size(), 0);
+        for (size_t i = 0; i < genes.size(); i++) {
+            geneCount[genes[i]]++;
+            if (geneCount[genes[i]] > 2) {
+                LOG_DEBUG("Validation failed: Gene " + std::to_string(genes[i]) + 
+                         " appears more than twice (found at index " + std::to_string(i) + 
+                         ", count=" + std::to_string(geneCount[genes[i]]) + ")");
                 return false;
             }
-            used[gene] = true;
         }
+        
+        // Log distribution of gene occurrences
+        std::stringstream ss;
+        ss << "Gene occurrence distribution: ";
+        int singleCount = 0, doubleCount = 0;
+        for (size_t i = 0; i < geneCount.size(); i++) {
+            if (geneCount[i] == 1) singleCount++;
+            else if (geneCount[i] == 2) doubleCount++;
+        }
+        ss << singleCount << " single, " << doubleCount << " double occurrences";
+        LOG_DEBUG(ss.str());
     }
     
+    LOG_DEBUG("Gene validation successful");
     return true;
 } 
