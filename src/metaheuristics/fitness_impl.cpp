@@ -350,26 +350,87 @@ double OptimizedGraphBasedFitness::calculateFitness(
     
     // Try to get cached fitness first
     if (auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache())) {
-        return cache->getOrCalculateFitness(solution, instance);
+        double cachedFitness = cache->getOrCalculateFitness(solution, instance);
+        
+        // Check for stagnation and adapt parameters if needed
+        if (m_stagnationCount > 3) {  // If stagnated for more than 3 generations
+            // Increase exploration through mutation rate
+            if (auto mutationOp = m_config.getMutation()) {
+                mutationOp->setMutationRate(std::min(0.4, mutationOp->getMutationRate() * 1.5));
+            }
+            
+            // Increase replacement ratio for more population turnover
+            if (auto replacementOp = m_config.getReplacement()) {
+                replacementOp->setReplacementRatio(std::min(0.9, replacementOp->getReplacementRatio() * 1.2));
+            }
+            
+            // Consider random restart if stagnation persists
+            if (m_stagnationCount > 10) {
+                m_needsRestart = true;
+                m_stagnationCount = 0;  // Reset counter after triggering restart
+            }
+        } else if (m_stagnationCount == 0) {  // If not stagnating, gradually return to base values
+            if (auto mutationOp = m_config.getMutation()) {
+                mutationOp->setMutationRate(std::max(0.1, mutationOp->getMutationRate() * 0.9));
+            }
+            if (auto replacementOp = m_config.getReplacement()) {
+                replacementOp->setReplacementRatio(std::max(0.7, replacementOp->getReplacementRatio() * 0.95));
+            }
+        }
+        
+        return cachedFitness;
     }
     
-    // Calculate edge quality and length scores
+    // Calculate component scores
     double edgeQualityScore = calculateEdgeQuality(solution, instance);
     double lengthScore = calculateLength(solution, instance);
     
-    // Ensure minimum non-zero scores
-    edgeQualityScore = std::max(0.1, edgeQualityScore);
-    lengthScore = std::max(0.1, lengthScore);
+    // Calculate theoretical maximum scores
+    double maxEdgeQuality = 1.0;  // Perfect overlaps throughout
+    double maxLength = 1.0;       // Exact target length
     
-    // Weight the components - emphasize edge quality more
+    // Normalize scores relative to theoretical maximums
+    edgeQualityScore = std::min(1.0, edgeQualityScore / maxEdgeQuality);
+    lengthScore = std::min(1.0, lengthScore / maxLength);
+    
+    // Apply progressive scaling to reward incremental improvements
+    edgeQualityScore = std::pow(edgeQualityScore, 0.8);  // Less punishing for small improvements
+    lengthScore = std::pow(lengthScore, 0.9);            // Slightly less punishing for length
+    
+    // Weight the components with emphasis on edge quality
     double weightedScore = (0.7 * edgeQualityScore + 0.3 * lengthScore);
     
-    // Add bonuses for partial achievements
-    if (edgeQualityScore > 0.2) weightedScore *= 1.2;  // 20% bonus for decent edge quality
-    if (lengthScore > 0.2) weightedScore *= 1.1;  // 10% bonus for decent length
+    // Add bonuses for significant achievements
+    if (edgeQualityScore > 0.6) {  // Bonus for good edge quality
+        weightedScore *= 1.1;  // 10% bonus
+    }
+    if (edgeQualityScore > 0.8) {  // Extra bonus for excellent edge quality
+        weightedScore *= 1.1;  // Additional 10% bonus
+    }
+    if (lengthScore > 0.8) {  // Bonus for good length
+        weightedScore *= 1.05;  // 5% bonus
+    }
     
-    // Ensure minimum non-zero final score
-    return std::max(0.1, weightedScore);
+    // Calculate diversity contribution if we have a population
+    if (!m_currentPopulation.empty()) {
+        double diversityBonus = 0.0;
+        double minDistance = 1.0;
+        
+        // Find minimum distance to any other solution
+        for (const auto& other : m_currentPopulation) {
+            if (other && other.get() != solution.get()) {
+                double distance = calculateDistance(solution, other);
+                minDistance = std::min(minDistance, distance);
+            }
+        }
+        
+        // Add diversity bonus (up to 10% extra)
+        diversityBonus = minDistance * 0.1;
+        weightedScore *= (1.0 + diversityBonus);
+    }
+    
+    // Ensure score is properly bounded
+    return std::clamp(weightedScore, 0.0, 1.0);
 }
 
 double OptimizedGraphBasedFitness::calculateEdgeQuality(
@@ -388,21 +449,25 @@ double OptimizedGraphBasedFitness::calculateEdgeQuality(
         if (static_cast<size_t>(genes[i]) < adjacencyMatrix.size() && 
             static_cast<size_t>(genes[i + 1]) < adjacencyMatrix[genes[i]].size()) {
             const auto& edge = adjacencyMatrix[genes[i]][genes[i + 1]];
-            // More lenient edge quality check
-            if (edge.weight > 0) {  // Accept any non-zero weight
-                totalQuality += static_cast<double>(edge.weight) / instance.getK();
+            
+            // Progressive scoring for edge quality
+            if (edge.weight > 0) {
+                double normalizedWeight = static_cast<double>(edge.weight) / instance.getK();
+                // Apply progressive scaling to reward better overlaps more
+                double scaledWeight = std::pow(normalizedWeight, 0.8);
+                totalQuality += scaledWeight;
                 validEdges++;
-            } else if (std::abs(genes[i] - genes[i + 1]) <= instance.getDeltaK() + 3) {
-                // Give partial credit for close indices even without overlap
-                totalQuality += 0.3;  // Partial credit
+            } else if (std::abs(genes[i] - genes[i + 1]) <= instance.getDeltaK()) {
+                // Small partial credit for close indices
+                totalQuality += 0.2;
                 validEdges++;
             }
         }
     }
     
-    // Ensure minimum non-zero score
-    double score = validEdges > 0 ? totalQuality / validEdges : 0.0;
-    return std::max(0.1, score);
+    // Calculate final score with minimum threshold
+    double score = validEdges > 0 ? totalQuality / (genes.size() - 1) : 0.0;
+    return std::max(0.1, score);  // Ensure minimum non-zero score
 }
 
 double OptimizedGraphBasedFitness::calculateLength(

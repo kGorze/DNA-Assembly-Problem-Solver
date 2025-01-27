@@ -121,6 +121,11 @@ private:
     GAConfig m_config;  // Keep only the value version, not the reference
     std::vector<std::shared_ptr<Individual>> m_currentPopulation;
     
+    // Stagnation tracking
+    mutable int m_stagnationCount = 0;
+    mutable bool m_needsRestart = false;
+    mutable double m_lastBestFitness = 0.0;
+    
     double calculateDistance(const std::shared_ptr<Individual>& ind1, 
                            const std::shared_ptr<Individual>& ind2) const {
         const auto& genes1 = ind1->getGenes();
@@ -180,6 +185,20 @@ public:
     int calculateLevenshteinDistance(
         const std::string& s1,
         const std::string& s2) const;
+
+    // Add getter for restart flag
+    bool needsRestart() const { return m_needsRestart; }
+    void clearRestartFlag() { m_needsRestart = false; }
+    
+    // Add method to update stagnation count
+    void updateStagnation(double currentBestFitness) {
+        if (std::abs(currentBestFitness - m_lastBestFitness) < 0.001) {
+            m_stagnationCount++;
+        } else {
+            m_stagnationCount = 0;
+        }
+        m_lastBestFitness = currentBestFitness;
+    }
 
 protected:
     double calculateCoverage(const std::shared_ptr<Individual>& solution,
