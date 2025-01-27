@@ -74,19 +74,19 @@ OrderCrossover::crossover(
         int maxAttempts = 3;  // Try up to 3 times to create valid offspring
         while (offspring.size() < 2 && maxAttempts > 0) {
             // Create first offspring
-            std::vector<int> offspring1Genes(genes1.size());
-            std::vector<bool> used1(genes1.size(), false);
+            std::vector<int> offspring1Genes(std::min(genes1.size(), genes2.size()));
+            std::vector<bool> used1(instance.getSpectrum().size(), false);
             
-            // Copy segment from first parent
+            // Copy selected segment from parent1
             for (int i = start; i <= end; i++) {
                 offspring1Genes[i] = genes1[i];
                 used1[genes1[i]] = true;
             }
             
-            // Fill remaining positions from second parent
+            // Fill remaining positions with genes from parent2
             int j = 0;
             bool validOffspring1 = true;
-            for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+            for (int i = 0; i < static_cast<int>(offspring1Genes.size()); i++) {
                 if (i >= start && i <= end) continue;
                 
                 // Find next unused gene from parent2
@@ -99,10 +99,13 @@ OrderCrossover::crossover(
                     bool foundUnused = false;
                     for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
                         if (!used1[val]) {
-                            offspring1Genes[i] = val;
-                            used1[val] = true;
-                            foundUnused = true;
-                            break;
+                            // Validate index before using
+                            if (val < instance.getSpectrum().size()) {
+                                offspring1Genes[i] = static_cast<int>(val);
+                                used1[val] = true;
+                                foundUnused = true;
+                                break;
+                            }
                         }
                     }
                     if (!foundUnused) {
@@ -113,15 +116,27 @@ OrderCrossover::crossover(
             }
             
             if (validOffspring1) {
-                if (auto child = createOffspring(offspring1Genes, representation, instance)) {
-                    offspring.push_back(child);
+                // Validate all genes in offspring1
+                bool allGenesValid = true;
+                for (int gene : offspring1Genes) {
+                    if (gene < 0 || static_cast<size_t>(gene) >= instance.getSpectrum().size()) {
+                        allGenesValid = false;
+                        break;
+                    }
+                }
+                
+                if (allGenesValid) {
+                    if (auto child = createOffspring(offspring1Genes, representation, instance)) {
+                        offspring.push_back(child);
+                    }
                 }
             }
             
             // Create second offspring (reverse roles)
-            std::vector<int> offspring2Genes(genes1.size());
-            std::vector<bool> used2(genes1.size(), false);
+            std::vector<int> offspring2Genes(std::min(genes1.size(), genes2.size()));
+            std::vector<bool> used2(instance.getSpectrum().size(), false);
             
+            // Copy selected segment from parent2
             for (int i = start; i <= end; i++) {
                 offspring2Genes[i] = genes2[i];
                 used2[genes2[i]] = true;
@@ -129,7 +144,7 @@ OrderCrossover::crossover(
             
             j = 0;
             bool validOffspring2 = true;
-            for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+            for (int i = 0; i < static_cast<int>(offspring2Genes.size()); i++) {
                 if (i >= start && i <= end) continue;
                 
                 // Find next unused gene from parent1
@@ -142,10 +157,13 @@ OrderCrossover::crossover(
                     bool foundUnused = false;
                     for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
                         if (!used2[val]) {
-                            offspring2Genes[i] = val;
-                            used2[val] = true;
-                            foundUnused = true;
-                            break;
+                            // Validate index before using
+                            if (val < instance.getSpectrum().size()) {
+                                offspring2Genes[i] = static_cast<int>(val);
+                                used2[val] = true;
+                                foundUnused = true;
+                                break;
+                            }
                         }
                     }
                     if (!foundUnused) {
@@ -156,8 +174,19 @@ OrderCrossover::crossover(
             }
             
             if (validOffspring2) {
-                if (auto child = createOffspring(offspring2Genes, representation, instance)) {
-                    offspring.push_back(child);
+                // Validate all genes in offspring2
+                bool allGenesValid = true;
+                for (int gene : offspring2Genes) {
+                    if (gene < 0 || static_cast<size_t>(gene) >= instance.getSpectrum().size()) {
+                        allGenesValid = false;
+                        break;
+                    }
+                }
+                
+                if (allGenesValid) {
+                    if (auto child = createOffspring(offspring2Genes, representation, instance)) {
+                        offspring.push_back(child);
+                    }
                 }
             }
             

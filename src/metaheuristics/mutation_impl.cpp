@@ -52,7 +52,7 @@ void PointMutation::mutate(
             int newValue;
             do {
                 newValue = rng.getRandomInt(0, static_cast<int>(spectrumSize - 1));
-            } while (newValue == currentValue);
+            } while (newValue == currentValue || newValue < 0 || newValue >= static_cast<int>(spectrumSize));
             
             // Perform mutation
             mutatedGenes[pos] = newValue;
@@ -111,6 +111,8 @@ void SwapMutation::mutate(
     bool anyValidMutation = false;
     int consecutiveFailures = 0;
     
+    const size_t spectrumSize = instance.getSpectrum().size();
+    
     // Try multiple swaps with backtracking
     for (int i = 0; i < numSwaps && consecutiveFailures < 5; ++i) {
         // Store current state
@@ -124,6 +126,14 @@ void SwapMutation::mutate(
             do {
                 pos2 = rng.getRandomInt(0, static_cast<int>(mutatedGenes.size() - 1));
             } while (pos1 == pos2);
+            
+            // Validate indices before swap
+            if (pos1 < 0 || pos1 >= static_cast<int>(mutatedGenes.size()) ||
+                pos2 < 0 || pos2 >= static_cast<int>(mutatedGenes.size()) ||
+                mutatedGenes[pos1] < 0 || mutatedGenes[pos1] >= static_cast<int>(spectrumSize) ||
+                mutatedGenes[pos2] < 0 || mutatedGenes[pos2] >= static_cast<int>(spectrumSize)) {
+                continue;
+            }
             
             // Perform swap
             std::swap(mutatedGenes[pos1], mutatedGenes[pos2]);
@@ -168,10 +178,24 @@ void GuidedMutation::mutate(
         return;
     }
 
+    const size_t spectrumSize = instance.getSpectrum().size();
     auto& rng = Random::instance();
     bool mutationSuccessful = false;
     std::vector<int> bestGenes = originalGenes;  // Initialize with original genes
     double bestQuality = -1.0;
+
+    // Validate original genes first
+    bool hasInvalidGenes = false;
+    for (int gene : originalGenes) {
+        if (gene < 0 || gene >= static_cast<int>(spectrumSize)) {
+            hasInvalidGenes = true;
+            break;
+        }
+    }
+    if (hasInvalidGenes) {
+        LOG_WARNING("Original genes contain invalid values, skipping guided mutation");
+        return;
+    }
 
     // Try different mutation strategies
     for (int attempt = 0; attempt < m_maxAttempts && !mutationSuccessful; ++attempt) {
@@ -199,22 +223,33 @@ void GuidedMutation::mutate(
         }
 
         if (improved) {
-            auto tempIndividual = std::make_shared<Individual>(currentGenes);
-            if (representation->isValid(tempIndividual, instance)) {
-                // Calculate quality of the mutation
-                double quality = 0.0;
-                const auto& spectrum = instance.getSpectrum();
-                for (size_t i = 0; i < currentGenes.size() - 1; ++i) {
-                    quality += dna_utils::calculateEdgeWeight(
-                        spectrum[currentGenes[i]], 
-                        spectrum[currentGenes[i + 1]], 
-                        instance.getK());
+            // Validate all genes in the mutated sequence
+            bool validMutation = true;
+            for (int gene : currentGenes) {
+                if (gene < 0 || gene >= static_cast<int>(spectrumSize)) {
+                    validMutation = false;
+                    break;
                 }
+            }
 
-                if (quality > bestQuality) {
-                    bestQuality = quality;
-                    bestGenes = currentGenes;
-                    mutationSuccessful = true;
+            if (validMutation) {
+                auto tempIndividual = std::make_shared<Individual>(currentGenes);
+                if (representation->isValid(tempIndividual, instance)) {
+                    // Calculate quality of the mutation
+                    double quality = 0.0;
+                    const auto& spectrum = instance.getSpectrum();
+                    for (size_t i = 0; i < currentGenes.size() - 1; ++i) {
+                        quality += dna_utils::calculateEdgeWeight(
+                            spectrum[currentGenes[i]], 
+                            spectrum[currentGenes[i + 1]], 
+                            instance.getK());
+                    }
+
+                    if (quality > bestQuality) {
+                        bestQuality = quality;
+                        bestGenes = currentGenes;
+                        mutationSuccessful = true;
+                    }
                 }
             }
         }
@@ -223,10 +258,11 @@ void GuidedMutation::mutate(
     // If no successful mutation was found, keep the original genes
     if (!mutationSuccessful) {
         LOG_DEBUG("GuidedMutation: No successful mutation found, keeping original genes");
-        bestGenes = originalGenes;
+        return;
     }
 
-    individual = std::make_shared<Individual>(bestGenes);
+    individual->setGenes(bestGenes);
+    LOG_DEBUG("GuidedMutation: Successfully performed mutation");
 }
 
 bool GuidedMutation::tryReverseSegment(

@@ -348,6 +348,9 @@ std::vector<std::shared_ptr<Individual>> PMXCrossover::crossover(
         return parents;
     }
     
+    // Use the smaller parent size to avoid buffer overflows
+    size_t size = std::min(parent1Genes.size(), parent2Genes.size());
+    
     std::vector<std::shared_ptr<Individual>> offspring;
     offspring.reserve(2);
     
@@ -355,55 +358,124 @@ std::vector<std::shared_ptr<Individual>> PMXCrossover::crossover(
     while (offspring.empty() && maxAttempts > 0) {
         try {
             auto& rng = Random::instance();
-            int point1 = rng.getRandomInt(0, static_cast<int>(parent1Genes.size() - 1));
-            int point2 = rng.getRandomInt(0, static_cast<int>(parent1Genes.size() - 1));
+            int point1 = rng.getRandomInt(0, static_cast<int>(size - 1));
+            int point2 = rng.getRandomInt(0, static_cast<int>(size - 1));
             if (point1 > point2) std::swap(point1, point2);
             
-            // Create offspring genes
-            std::vector<int> child1Genes(parent1Genes.size());
-            std::vector<int> child2Genes(parent2Genes.size());
+            // Create offspring genes with proper size
+            std::vector<int> child1Genes(size, -1);  // Initialize with -1 to detect unset positions
+            std::vector<int> child2Genes(size, -1);
             
             // Copy the mapping section
             for (int i = point1; i <= point2; i++) {
-                child1Genes[i] = parent2Genes[i];
-                child2Genes[i] = parent1Genes[i];
+                if (i < static_cast<int>(parent2Genes.size())) {
+                    child1Genes[i] = parent2Genes[i];
+                }
+                if (i < static_cast<int>(parent1Genes.size())) {
+                    child2Genes[i] = parent1Genes[i];
+                }
             }
             
             // Create mapping between values in the mapping section
             std::unordered_map<int, int> mapping1, mapping2;
             for (int i = point1; i <= point2; i++) {
-                mapping1[parent1Genes[i]] = parent2Genes[i];
-                mapping2[parent2Genes[i]] = parent1Genes[i];
+                if (i < static_cast<int>(std::min(parent1Genes.size(), parent2Genes.size()))) {
+                    mapping1[parent1Genes[i]] = parent2Genes[i];
+                    mapping2[parent2Genes[i]] = parent1Genes[i];
+                }
             }
             
             // Fill remaining positions
-            for (int i = 0; i < static_cast<int>(parent1Genes.size()); i++) {
+            for (int i = 0; i < static_cast<int>(size); i++) {
                 if (i >= point1 && i <= point2) continue;
                 
                 // For child1
-                int value1 = parent1Genes[i];
-                while (mapping1.find(value1) != mapping1.end()) {
-                    value1 = mapping1[value1];
+                if (i < static_cast<int>(parent1Genes.size())) {
+                    int value1 = parent1Genes[i];
+                    while (mapping1.find(value1) != mapping1.end()) {
+                        value1 = mapping1[value1];
+                    }
+                    child1Genes[i] = value1;
                 }
-                child1Genes[i] = value1;
                 
                 // For child2
-                int value2 = parent2Genes[i];
-                while (mapping2.find(value2) != mapping2.end()) {
-                    value2 = mapping2[value2];
+                if (i < static_cast<int>(parent2Genes.size())) {
+                    int value2 = parent2Genes[i];
+                    while (mapping2.find(value2) != mapping2.end()) {
+                        value2 = mapping2[value2];
+                    }
+                    child2Genes[i] = value2;
                 }
-                child2Genes[i] = value2;
+            }
+            
+            // Fill any remaining -1 positions with unused valid indices
+            std::vector<bool> used1(instance.getSpectrum().size(), false);
+            std::vector<bool> used2(instance.getSpectrum().size(), false);
+            
+            // Mark used values
+            for (int gene : child1Genes) {
+                if (gene >= 0 && static_cast<size_t>(gene) < instance.getSpectrum().size()) {
+                    used1[gene] = true;
+                }
+            }
+            for (int gene : child2Genes) {
+                if (gene >= 0 && static_cast<size_t>(gene) < instance.getSpectrum().size()) {
+                    used2[gene] = true;
+                }
+            }
+            
+            // Fill remaining positions
+            for (size_t i = 0; i < size; i++) {
+                // Fill child1
+                if (child1Genes[i] == -1) {
+                    for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
+                        if (!used1[val]) {
+                            child1Genes[i] = static_cast<int>(val);
+                            used1[val] = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Fill child2
+                if (child2Genes[i] == -1) {
+                    for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
+                        if (!used2[val]) {
+                            child2Genes[i] = static_cast<int>(val);
+                            used2[val] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Validate final offspring
+            bool valid1 = true, valid2 = true;
+            for (int gene : child1Genes) {
+                if (gene < 0 || static_cast<size_t>(gene) >= instance.getSpectrum().size()) {
+                    valid1 = false;
+                    break;
+                }
+            }
+            for (int gene : child2Genes) {
+                if (gene < 0 || static_cast<size_t>(gene) >= instance.getSpectrum().size()) {
+                    valid2 = false;
+                    break;
+                }
             }
             
             // Create and validate offspring
-            auto offspring1 = std::make_shared<Individual>(child1Genes);
-            auto offspring2 = std::make_shared<Individual>(child2Genes);
-            
-            if (!offspring1->getGenes().empty() && representation->isValid(offspring1, instance)) {
-                offspring.push_back(offspring1);
+            if (valid1) {
+                auto offspring1 = std::make_shared<Individual>(child1Genes);
+                if (representation->isValid(offspring1, instance)) {
+                    offspring.push_back(offspring1);
+                }
             }
-            if (!offspring2->getGenes().empty() && representation->isValid(offspring2, instance)) {
-                offspring.push_back(offspring2);
+            if (valid2) {
+                auto offspring2 = std::make_shared<Individual>(child2Genes);
+                if (representation->isValid(offspring2, instance)) {
+                    offspring.push_back(offspring2);
+                }
             }
             
         } catch (const std::exception& e) {

@@ -2,6 +2,7 @@
 #include "generator/dna_generator.h"
 #include "utils/logging.h"
 #include <stdexcept>
+#include <random>
 
 DNAInstanceBuilder& DNAInstanceBuilder::setN(int value) {
     m_instance.setN(value);
@@ -55,10 +56,31 @@ DNAInstanceBuilder& DNAInstanceBuilder::setSpectrum(const std::vector<std::strin
 
 DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
     try {
+        // Validate parameters
+        if (m_instance.getN() <= 0) {
+            throw std::invalid_argument("DNA length (N) must be positive");
+        }
+        if (m_instance.getK() <= 0) {
+            throw std::invalid_argument("K must be positive");
+        }
+        if (m_instance.getDeltaK() < 0) {
+            throw std::invalid_argument("DeltaK cannot be negative");
+        }
+
+        // Set parameters and generate DNA
         m_generator->setParameters(m_instance.getN(), m_instance.getK(), m_instance.getDeltaK());
         std::string dna = m_generator->generateDNA(m_instance.getN(), m_instance.isRepAllowed());
+        
+        if (dna.empty()) {
+            throw std::runtime_error("Generated DNA is empty");
+        }
+        
         m_instance.setDNA(dna);
+        m_instance.setOriginalDNA(dna);
         m_instance.setTargetSequence(dna);
+        m_instance.setSize(dna.length());
+        
+        LOG_INFO("Successfully generated DNA of length " + std::to_string(dna.length()));
         return *this;
     } catch (const std::exception& e) {
         LOG_ERROR("Error building DNA: " + std::string(e.what()));
@@ -68,13 +90,52 @@ DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
 
 DNAInstanceBuilder& DNAInstanceBuilder::buildSpectrum() {
     try {
+        // Validate DNA exists and has valid length
+        const std::string& dna = m_instance.getDNA();
+        if (dna.empty()) {
+            LOG_ERROR("Cannot generate spectrum: DNA is empty");
+            throw std::runtime_error("Cannot generate spectrum: DNA is empty");
+        }
+        LOG_INFO("DNA length for spectrum generation: " + std::to_string(dna.length()));
+        
+        // Validate parameters
+        int k = m_instance.getK();
+        int deltaK = m_instance.getDeltaK();
+        if (k <= 0) {
+            LOG_ERROR("Invalid k value: " + std::to_string(k));
+            throw std::invalid_argument("K must be positive");
+        }
+        if (deltaK < 0) {
+            LOG_ERROR("Invalid deltaK value: " + std::to_string(deltaK));
+            throw std::invalid_argument("DeltaK cannot be negative");
+        }
+        if (k > static_cast<int>(dna.length())) {
+            LOG_ERROR("k value (" + std::to_string(k) + ") larger than DNA length (" + std::to_string(dna.length()) + ")");
+            throw std::invalid_argument("K cannot be larger than DNA length");
+        }
+        LOG_INFO("Using k=" + std::to_string(k) + ", deltaK=" + std::to_string(deltaK));
+        
+        // Create spectrum generator and generate spectrum
         SpectrumGenerator specGen;
-        auto spectrum = specGen.generateSpectrum(
-            m_instance.getDNA(), 
-            m_instance.getK(), 
-            m_instance.getDeltaK()
-        );
+        LOG_INFO("Generating spectrum...");
+        auto spectrum = specGen.generateSpectrum(dna, k, deltaK);
+        
+        if (spectrum.empty()) {
+            LOG_ERROR("Generated spectrum is empty");
+            throw std::runtime_error("Generated spectrum is empty");
+        }
+        
+        // Validate k-mers in spectrum
+        for (const auto& kmer : spectrum) {
+            if (kmer.length() < k - deltaK || kmer.length() > k + deltaK) {
+                LOG_ERROR("Invalid k-mer length in spectrum: " + std::to_string(kmer.length()));
+                throw std::runtime_error("Invalid k-mer length in spectrum");
+            }
+        }
+        
         m_instance.setSpectrum(spectrum);
+        LOG_INFO("Successfully generated spectrum with " + std::to_string(spectrum.size()) + " oligonucleotides");
+        LOG_INFO("First k-mer: " + spectrum.front() + ", Last k-mer: " + spectrum.back());
         return *this;
     } catch (const std::exception& e) {
         LOG_ERROR("Error building spectrum: " + std::string(e.what()));
