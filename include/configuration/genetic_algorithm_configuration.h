@@ -33,13 +33,25 @@ class IRepresentation;
 class IPopulationCache;
 
 /**
- * Adaptive crossover parameters structure
+ * Adaptive parameters structure
  */
-struct AdaptiveCrossoverParams {
-    double inertia{0.7};
-    int adaptationInterval{20};
-    int minTrials{5};
-    double minProb{0.1};
+struct AdaptiveParams {
+    bool useAdaptiveMutation = true;
+    double minMutationRate = 0.1;
+    double maxMutationRate = 0.4;
+    int stagnationGenerations = 5;  // Generations without improvement before adaptation
+    double improvementThreshold = 0.01; // Minimum improvement to reset stagnation counter
+};
+
+/**
+ * Diversity parameters structure
+ */
+struct DiversityParams {
+    bool useFitnessSharing = true;
+    bool useCrowding = false;
+    double sharingRadius = 0.2;  // Radius for fitness sharing
+    double sharingAlpha = 1.0;   // Shape parameter for sharing function
+    double diversityWeight = 0.3; // Weight for diversity score in fitness
 };
 
 class GAConfig {
@@ -67,9 +79,11 @@ public:
     bool isRepAllowed() const { return m_repAllowed; }
     double getProbablePositive() const { return m_probablePositive; }
     double getReplacementRatio() const { return m_replacementRatio; }
-    std::string getSelectionMethod() const { return m_selectionMethod; }
+    const std::string& getSelectionMethod() const { return m_selectionMethod; }
     int getNoImprovementGenerations() const { return m_noImprovementGenerations; }
     int getTimeLimitSeconds() const { return m_timeLimitSeconds; }
+    const AdaptiveParams& getAdaptiveParams() const { return m_adaptiveParams; }
+    const DiversityParams& getDiversityParams() const { return m_diversityParams; }
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
@@ -87,6 +101,8 @@ public:
     void setSelectionMethod(const std::string& method) { m_selectionMethod = method; }
     void setNoImprovementGenerations(int gens) { m_noImprovementGenerations = gens; }
     void setTimeLimitSeconds(int seconds) { m_timeLimitSeconds = seconds; }
+    void setAdaptiveParams(const AdaptiveParams& params) { m_adaptiveParams = params; }
+    void setDiversityParams(const DiversityParams& params) { m_diversityParams = params; }
 
     // Cache management
     void setCache(std::shared_ptr<IPopulationCache> cachePtr) {
@@ -110,30 +126,27 @@ public:
     void setParameters(const ParameterSet& ps);
     bool validate() const;
 
-    const AdaptiveCrossoverParams& getAdaptiveParams() const {
-        return adaptiveParams;
-    }
-
     int getParentCount() const { return 2; }
 
 private:
     int m_populationSize = 100;
-    double m_mutationRate = 0.1;
+    double m_mutationRate = 0.2;
     double m_crossoverProbability = 0.8;
     double m_targetFitness = 1.0;
-    int m_tournamentSize = 5;
+    int m_tournamentSize = 3;
     int m_k = 0;
     int m_deltaK = 0;
     int m_lNeg = 0;
     int m_lPoz = 0;
     bool m_repAllowed = false;
     double m_probablePositive = 0.0;
-    double m_replacementRatio = 0.5;
-    std::string m_selectionMethod = "tournament";
+    double m_replacementRatio = 0.7;
+    std::string m_selectionMethod = "rank";
     int m_noImprovementGenerations = 30;
     int m_timeLimitSeconds = 60;
     
-    AdaptiveCrossoverParams adaptiveParams;
+    AdaptiveParams m_adaptiveParams;
+    DiversityParams m_diversityParams;
     
     // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;

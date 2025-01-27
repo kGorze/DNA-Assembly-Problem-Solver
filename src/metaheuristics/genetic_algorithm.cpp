@@ -51,49 +51,52 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             return "";
         }
         
+        LOG_DEBUG("Initializing genetic algorithm run");
         int generation = 0;
         calculateTheoreticalMaxFitness(instance);
         m_globalBestFit = -std::numeric_limits<double>::infinity();
         int bestLevenshteinDistance = std::numeric_limits<int>::max();
         std::string bestDNASequence;
         
-        // Initialize population before transferring ownership of m_representation
+        LOG_DEBUG("Initializing population");
         initializePopulation(m_config.getPopulationSize(), instance);
         
-        // Create a proper shared pointer for the representation
         auto sharedRepresentation = std::shared_ptr<IRepresentation>(
             m_representation.release(),
             [](IRepresentation* ptr) { delete ptr; }
         );
         
-        // Main loop
         auto stopping = m_config.getStopping();
         int stagnationCount = 0;
         double previousBestFitness = -std::numeric_limits<double>::infinity();
         
-        // Track successful operations
         int crossoverAttempts = 0;
         int successfulCrossovers = 0;
         int mutationAttempts = 0;
         int successfulMutations = 0;
         
+        LOG_DEBUG("Starting main evolution loop");
         while (!stopping->shouldStop(generation, m_globalBestFit)) {
+            LOG_DEBUG("Generation " + std::to_string(generation) + " starting");
+            
             // Selection
+            LOG_DEBUG("Performing selection");
             std::vector<std::shared_ptr<Individual>> parents;
             parents.reserve(m_config.getPopulationSize());
             
             auto selection = m_config.getSelection();
             auto fitness = m_config.getFitness();
             
-            // Select parents using tournament selection
             auto selectedParents = selection->select(m_population, instance, fitness, sharedRepresentation);
             if (selectedParents.empty()) {
-                LOG_ERROR("Selection produced no parents");
+                LOG_ERROR("Selection produced no parents - terminating");
                 break;
             }
             parents = std::move(selectedParents);
+            LOG_DEBUG("Selected " + std::to_string(parents.size()) + " parents");
             
             // Crossover and Mutation
+            LOG_DEBUG("Performing crossover and mutation");
             std::vector<std::shared_ptr<Individual>> offspring;
             offspring.reserve(parents.size());
             
@@ -110,75 +113,70 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                         offspring.insert(offspring.end(), children.begin(), children.end());
                         successfulCrossovers++;
                         offspringAdded = true;
+                        LOG_DEBUG("Crossover successful - added " + std::to_string(children.size()) + " children");
+                    } else {
+                        LOG_DEBUG("Crossover failed to produce valid offspring");
                     }
                 }
                 
-                // If crossover failed or wasn't attempted, use parents
                 if (!offspringAdded) {
                     offspring.push_back(parents[i]);
                     offspring.push_back(parents[i + 1]);
+                    LOG_DEBUG("Using parents as offspring due to failed/skipped crossover");
                 }
             }
             
-            // Handle odd number of parents
             if (parents.size() % 2 == 1) {
                 offspring.push_back(parents.back());
             }
             
-            // Mutation with retry mechanism
+            LOG_DEBUG("Performing mutations");
             auto mutation = m_config.getMutation();
             for (auto& individual : offspring) {
                 if (m_random->generateProbability() < m_config.getMutationRate()) {
                     mutationAttempts++;
                     
-                    // Store original genes in case mutation fails
                     auto originalGenes = individual->getGenes();
                     bool mutationSuccessful = false;
                     
-                    // Try mutation up to 3 times
                     for (int attempt = 0; attempt < 3 && !mutationSuccessful; attempt++) {
                         try {
                             mutation->mutate(individual, instance, sharedRepresentation);
                             if (sharedRepresentation->isValid(individual, instance)) {
                                 mutationSuccessful = true;
                                 successfulMutations++;
+                                LOG_DEBUG("Mutation successful on attempt " + std::to_string(attempt + 1));
                             } else {
-                                // Restore original genes if mutation produced invalid individual
                                 individual = std::make_shared<Individual>(originalGenes);
+                                LOG_DEBUG("Mutation produced invalid individual - reverting");
                             }
                         } catch (const std::exception& e) {
                             LOG_DEBUG("Mutation attempt " + std::to_string(attempt + 1) + 
                                     " failed: " + std::string(e.what()));
-                            // Restore original genes on exception
                             individual = std::make_shared<Individual>(originalGenes);
                         }
                     }
                 }
             }
             
-            // Evaluate offspring
+            LOG_DEBUG("Evaluating offspring population");
             evaluatePopulation(instance, offspring, sharedRepresentation);
             
-            // Replacement
+            LOG_DEBUG("Performing replacement");
             auto replacement = m_config.getReplacement();
             m_population = replacement->replace(m_population, offspring, instance, sharedRepresentation);
             
-            // Update best solution and calculate Levenshtein distance
             if (updateGlobalBest(m_population, instance)) {
-                // Get the best individual's DNA sequence
                 auto bestIndividual = m_population[m_bestIndex];
                 std::string currentDNA = sharedRepresentation->toDNA(bestIndividual, instance);
                 
                 if (!currentDNA.empty()) {
-                    // Calculate Levenshtein distance only if we have a valid DNA sequence
                     int currentDistance = calculateLevenshteinDistance(currentDNA, instance.getOriginalDNA());
                     
-                    // Only update if we have a valid DNA sequence and better distance
                     if (currentDistance < bestLevenshteinDistance || bestDNASequence.empty()) {
                         bestLevenshteinDistance = currentDistance;
                         bestDNASequence = currentDNA;
                         
-                        // Log improvement with normalized fitness
                         std::stringstream ss;
                         ss << "New best solution - Normalized Fitness: " << std::fixed << std::setprecision(4) 
                            << (m_globalBestFit / m_theoreticalMaxFitness)
@@ -187,19 +185,19 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                         LOG_INFO(ss.str());
                     }
                 } else {
-                    LOG_WARNING("Best individual produced empty DNA sequence - skipping Levenshtein calculation");
+                    LOG_WARNING("Best individual produced empty DNA sequence");
                 }
             }
             
-            // Check for stagnation
             if (std::abs(m_globalBestFit - previousBestFitness) < 1e-6) {
                 stagnationCount++;
+                LOG_DEBUG("Stagnation count increased to " + std::to_string(stagnationCount));
             } else {
                 stagnationCount = 0;
                 previousBestFitness = m_globalBestFit;
+                LOG_DEBUG("Fitness improved - resetting stagnation count");
             }
             
-            // Log operation statistics
             if (m_debugMode) {
                 std::stringstream ss;
                 ss << "Operation stats - Crossover: " << successfulCrossovers << "/" << crossoverAttempts
@@ -209,9 +207,9 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             }
             
             generation++;
+            LOG_DEBUG("Generation " + std::to_string(generation) + " completed");
         }
         
-        // Log final results with normalized fitness
         std::stringstream ss;
         ss << "\nFinal Results:";
         ss << "\n- Best Normalized Fitness: " << std::fixed << std::setprecision(4) 
@@ -229,6 +227,9 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
         
     } catch (const std::exception& e) {
         LOG_ERROR("Error in genetic algorithm: " + std::string(e.what()));
+        return "";
+    } catch (...) {
+        LOG_ERROR("Unknown error in genetic algorithm");
         return "";
     }
 }

@@ -14,6 +14,8 @@ public:
     
     virtual void updatePopulation(const std::vector<std::shared_ptr<Individual>>& population) = 0;
     
+    virtual const std::vector<std::shared_ptr<Individual>>& getCurrentPopulation() const = 0;
+    
     virtual void clear() = 0;
     
     virtual void reserve(size_t size) = 0;

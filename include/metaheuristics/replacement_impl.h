@@ -14,6 +14,8 @@ public:
     explicit PartialReplacement(double replacementRatio, std::shared_ptr<IPopulationCache> cache = nullptr) 
         : m_replacementRatio(replacementRatio)
         , m_fitnessCache(cache)
+        , m_stagnationCounter(0)
+        , m_lastBestFitness(0.0)
     {
         if (m_replacementRatio < 0.0 || m_replacementRatio > 1.0) {
             LOG_WARNING("Invalid replacement ratio " + std::to_string(m_replacementRatio) + " - clamping to valid range");
@@ -47,39 +49,72 @@ public:
             std::vector<std::shared_ptr<Individual>> newPopulation;
             newPopulation.reserve(parents.size());
 
-            // Keep the best from the original population
-            size_t keepFromPopulation = parents.size() - numToReplace;
+            // Sort populations by fitness
             auto sortedPopulation = parents;
+            auto sortedOffspring = offspring;
+            
             std::sort(sortedPopulation.begin(), sortedPopulation.end(),
                 [](const auto& a, const auto& b) {
                     return a && b && a->getFitness() > b->getFitness();
                 });
-
-            for (size_t i = 0; i < keepFromPopulation && i < sortedPopulation.size(); ++i) {
-                if (sortedPopulation[i] && sortedPopulation[i]->isValid()) {
-                    newPopulation.push_back(std::make_shared<Individual>(*sortedPopulation[i]));
-                }
-            }
-
-            // Add the best offspring
-            auto sortedOffspring = offspring;
+                
             std::sort(sortedOffspring.begin(), sortedOffspring.end(),
                 [](const auto& a, const auto& b) {
                     return a && b && a->getFitness() > b->getFitness();
                 });
 
-            for (size_t i = 0; i < numToReplace && i < sortedOffspring.size(); ++i) {
-                if (sortedOffspring[i] && sortedOffspring[i]->isValid()) {
-                    newPopulation.push_back(std::make_shared<Individual>(*sortedOffspring[i]));
+            // Check for stagnation
+            if (!sortedPopulation.empty() && sortedPopulation[0]) {
+                double currentBestFitness = sortedPopulation[0]->getFitness();
+                if (std::abs(currentBestFitness - m_lastBestFitness) < 1e-6) {
+                    m_stagnationCounter++;
+                } else {
+                    m_stagnationCounter = 0;
+                }
+                m_lastBestFitness = currentBestFitness;
+            }
+
+            // If stagnating, increase diversity by accepting more offspring
+            if (m_stagnationCounter > 5) {
+                numToReplace = static_cast<size_t>(parents.size() * 0.8); // Replace 80% of population
+                LOG_INFO("Stagnation detected - increasing replacement ratio to 0.8");
+                m_stagnationCounter = 0;
+            }
+
+            // Always keep the best individual from parents
+            if (!sortedPopulation.empty() && sortedPopulation[0]) {
+                newPopulation.push_back(std::make_shared<Individual>(*sortedPopulation[0]));
+            }
+
+            // Add offspring, including some that might be partially valid
+            size_t offspringAdded = 0;
+            for (const auto& individual : sortedOffspring) {
+                if (offspringAdded >= numToReplace) break;
+                if (individual) {
+                    newPopulation.push_back(std::make_shared<Individual>(*individual));
+                    offspringAdded++;
                 }
             }
 
-            // If we don't have enough individuals, fill with the remaining best from population
-            while (newPopulation.size() < parents.size() && keepFromPopulation < sortedPopulation.size()) {
-                if (sortedPopulation[keepFromPopulation] && sortedPopulation[keepFromPopulation]->isValid()) {
-                    newPopulation.push_back(std::make_shared<Individual>(*sortedPopulation[keepFromPopulation]));
+            // Fill remaining slots with diverse individuals from parents
+            while (newPopulation.size() < parents.size() && !sortedPopulation.empty()) {
+                // Take every third individual to maintain diversity
+                for (size_t i = 1; i < sortedPopulation.size() && newPopulation.size() < parents.size(); i += 3) {
+                    if (sortedPopulation[i]) {
+                        newPopulation.push_back(std::make_shared<Individual>(*sortedPopulation[i]));
+                    }
                 }
-                ++keepFromPopulation;
+                // If we still need more individuals, take the remaining best ones
+                if (newPopulation.size() < parents.size()) {
+                    for (size_t i = 1; i < sortedPopulation.size() && newPopulation.size() < parents.size(); i++) {
+                        if (sortedPopulation[i] && std::find_if(newPopulation.begin(), newPopulation.end(),
+                            [&](const auto& ind) {
+                                return ind && ind->getGenes() == sortedPopulation[i]->getGenes();
+                            }) == newPopulation.end()) {
+                            newPopulation.push_back(std::make_shared<Individual>(*sortedPopulation[i]));
+                        }
+                    }
+                }
             }
 
             LOG_INFO("Partial replacement complete. Population size: " + std::to_string(newPopulation.size()));
@@ -94,6 +129,8 @@ private:
     double m_replacementRatio;
     std::shared_ptr<IPopulationCache> m_fitnessCache;
     mutable std::mutex m_mutex;
+    int m_stagnationCounter;
+    double m_lastBestFitness;
 };
 
 class ElitistReplacement : public IReplacement {

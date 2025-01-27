@@ -126,10 +126,10 @@ double runGeneticAlgorithmWithFitness(const DNAInstance& instance,
                                 [[maybe_unused]] bool debugMode) {
     // Create configuration
     GAConfig config;
-    config.setPopulationSize(100);
-    config.setMutationRate(0.1);
-    config.setCrossoverProbability(0.8);
-    config.setTournamentSize(5);
+    config.setPopulationSize(200);
+    config.setMutationRate(0.5);
+    config.setCrossoverProbability(1.0);
+    config.setTournamentSize(1);
     
     // Create representation
     auto representation = std::make_unique<PermutationRepresentation>();

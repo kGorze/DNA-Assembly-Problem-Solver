@@ -3,6 +3,8 @@
 //
 #include "../../include/configuration/genetic_algorithm_configuration.h"
 #include "../../include/metaheuristics/stopping_criteria_impl.h"
+#include "../../include/metaheuristics/concrete_fitness.h"
+#include "../../include/metaheuristics/population_cache_impl.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -37,28 +39,36 @@ static std::shared_mutex configMutex;
 void GAConfig::resetToDefaults()
 {
     m_populationSize = 100;
-    m_mutationRate = 0.1;
+    m_mutationRate = 0.2;
     m_crossoverProbability = 0.8;
     m_targetFitness = 1.0;
-    m_tournamentSize = 5;
-    m_replacementRatio = 0.5;
-    m_selectionMethod = "tournament";
-    m_k = 8;
-    m_deltaK = 2;
-    m_lNeg = 25;
-    m_lPoz = 25;
-    m_repAllowed = false;
+    m_tournamentSize = 3;  // Changed from 1 to 3 for better selection pressure
+    m_replacementRatio = 0.7;
+    m_selectionMethod = "rank";
+    m_noImprovementGenerations = 30;
+    m_timeLimitSeconds = 60;
+    
+    // Instance-specific parameters with defaults
+    m_k = 7;
+    m_deltaK = 0;
+    m_lNeg = 10;
+    m_lPoz = 10;
+    m_repAllowed = true;
     m_probablePositive = 0;
     
-    // Initialize adaptive crossover parameters
-    adaptiveParams.inertia = 0.7;
-    adaptiveParams.adaptationInterval = 20;
-    adaptiveParams.minTrials = 5;
-    adaptiveParams.minProb = 0.1;
+    // Reset adaptive parameters
+    m_adaptiveParams.useAdaptiveMutation = true;
+    m_adaptiveParams.minMutationRate = 0.1;
+    m_adaptiveParams.maxMutationRate = 0.4;
+    m_adaptiveParams.stagnationGenerations = 5;
+    m_adaptiveParams.improvementThreshold = 0.01;
     
-    // Set stopping criteria parameters
-    m_noImprovementGenerations = 30;  // Default to 30 generations without improvement
-    m_timeLimitSeconds = 60;          // Default to 60 seconds time limit
+    // Reset diversity parameters
+    m_diversityParams.useFitnessSharing = true;
+    m_diversityParams.useCrowding = false;
+    m_diversityParams.sharingRadius = 0.2;
+    m_diversityParams.sharingAlpha = 1.0;
+    m_diversityParams.diversityWeight = 0.3;
 }
 
 bool GAConfig::loadFromFile(const std::string& filename) {
@@ -68,44 +78,113 @@ bool GAConfig::loadFromFile(const std::string& filename) {
         return false;
     }
 
+    // Start with default values
+    resetToDefaults();
+    
     std::string line;
     while (std::getline(file, line)) {
         if (line.empty() || line[0] == '#') continue;
-
+        
         std::istringstream iss(line);
-        std::string key;
-        std::string value;
-
+        std::string key, value;
         if (std::getline(iss, key, '=') && std::getline(iss, value)) {
-            // Trim whitespace from key and value
+            // Trim whitespace
             key.erase(0, key.find_first_not_of(" \t"));
             key.erase(key.find_last_not_of(" \t") + 1);
             value.erase(0, value.find_first_not_of(" \t"));
             value.erase(value.find_last_not_of(" \t") + 1);
             
             try {
-                if (key == "populationSize") m_populationSize = std::stoi(value);
-                else if (key == "mutationRate") m_mutationRate = std::stod(value);
-                else if (key == "crossoverProbability") m_crossoverProbability = std::stod(value);
-                else if (key == "targetFitness") m_targetFitness = std::stod(value);
-                else if (key == "tournamentSize") m_tournamentSize = std::stoi(value);
-                else if (key == "replacementRatio") m_replacementRatio = std::stod(value);
-                else if (key == "selectionMethod") m_selectionMethod = value;
-                else if (key == "k") m_k = std::stoi(value);
-                else if (key == "deltaK") m_deltaK = std::stoi(value);
-                else if (key == "lNeg") m_lNeg = std::stoi(value);
-                else if (key == "lPoz") m_lPoz = std::stoi(value);
-                else if (key == "repAllowed") m_repAllowed = (value == "true" || value == "1");
-                else if (key == "probablePositive") m_probablePositive = std::stod(value);
-                else if (key == "noImprovementGenerations") m_noImprovementGenerations = std::stoi(value);
-                else if (key == "timeLimitSeconds") m_timeLimitSeconds = std::stoi(value);
-                // Adaptive crossover parameters
-                else if (key == "adaptiveInertia") adaptiveParams.inertia = std::stod(value);
-                else if (key == "adaptationInterval") adaptiveParams.adaptationInterval = std::stoi(value);
-                else if (key == "minTrials") adaptiveParams.minTrials = std::stoi(value);
-                else if (key == "minProb") adaptiveParams.minProb = std::stod(value);
-                else {
-                    LOG_WARNING("Unknown configuration key: " + key);
+                // Algorithm parameters
+                if (key == "populationSize") {
+                    m_populationSize = std::stoi(value);
+                    LOG_DEBUG("Setting population size to: " + std::to_string(m_populationSize));
+                }
+                else if (key == "mutationRate") {
+                    m_mutationRate = std::stod(value);
+                    LOG_DEBUG("Setting mutation rate to: " + std::to_string(m_mutationRate));
+                }
+                else if (key == "crossoverProbability") {
+                    m_crossoverProbability = std::stod(value);
+                    LOG_DEBUG("Setting crossover probability to: " + std::to_string(m_crossoverProbability));
+                }
+                else if (key == "targetFitness") {
+                    m_targetFitness = std::stod(value);
+                }
+                else if (key == "tournamentSize") {
+                    m_tournamentSize = std::stoi(value);
+                    LOG_DEBUG("Setting tournament size to: " + std::to_string(m_tournamentSize));
+                }
+                else if (key == "replacementRatio") {
+                    m_replacementRatio = std::stod(value);
+                    LOG_DEBUG("Setting replacement ratio to: " + std::to_string(m_replacementRatio));
+                }
+                else if (key == "selectionMethod") {
+                    m_selectionMethod = value;
+                }
+                else if (key == "noImprovementGenerations") {
+                    m_noImprovementGenerations = std::stoi(value);
+                    LOG_DEBUG("Setting no improvement generations to: " + std::to_string(m_noImprovementGenerations));
+                }
+                else if (key == "timeLimitSeconds") {
+                    m_timeLimitSeconds = std::stoi(value);
+                }
+                // Instance-specific parameters
+                else if (key == "k") {
+                    m_k = std::stoi(value);
+                    LOG_DEBUG("Setting k to: " + std::to_string(m_k));
+                }
+                else if (key == "deltaK") {
+                    m_deltaK = std::stoi(value);
+                    LOG_DEBUG("Setting deltaK to: " + std::to_string(m_deltaK));
+                }
+                else if (key == "lNeg") {
+                    m_lNeg = std::stoi(value);
+                    LOG_DEBUG("Setting lNeg to: " + std::to_string(m_lNeg));
+                }
+                else if (key == "lPoz") {
+                    m_lPoz = std::stoi(value);
+                    LOG_DEBUG("Setting lPoz to: " + std::to_string(m_lPoz));
+                }
+                else if (key == "repAllowed") {
+                    m_repAllowed = (value == "true" || value == "1");
+                    LOG_DEBUG("Setting repAllowed to: " + std::to_string(m_repAllowed));
+                }
+                else if (key == "probablePositive") {
+                    m_probablePositive = std::stoi(value);
+                    LOG_DEBUG("Setting probablePositive to: " + std::to_string(m_probablePositive));
+                }
+                // Adaptive parameters
+                else if (key == "useAdaptiveMutation") {
+                    m_adaptiveParams.useAdaptiveMutation = (value == "true");
+                }
+                else if (key == "minMutationRate") {
+                    m_adaptiveParams.minMutationRate = std::stod(value);
+                }
+                else if (key == "maxMutationRate") {
+                    m_adaptiveParams.maxMutationRate = std::stod(value);
+                }
+                else if (key == "stagnationGenerations") {
+                    m_adaptiveParams.stagnationGenerations = std::stoi(value);
+                }
+                else if (key == "improvementThreshold") {
+                    m_adaptiveParams.improvementThreshold = std::stod(value);
+                }
+                // Diversity parameters
+                else if (key == "useFitnessSharing") {
+                    m_diversityParams.useFitnessSharing = (value == "true");
+                }
+                else if (key == "useCrowding") {
+                    m_diversityParams.useCrowding = (value == "true");
+                }
+                else if (key == "sharingRadius") {
+                    m_diversityParams.sharingRadius = std::stod(value);
+                }
+                else if (key == "sharingAlpha") {
+                    m_diversityParams.sharingAlpha = std::stod(value);
+                }
+                else if (key == "diversityWeight") {
+                    m_diversityParams.diversityWeight = std::stod(value);
                 }
             } catch (const std::exception& e) {
                 LOG_ERROR("Error parsing value for key " + key + ": " + e.what());
@@ -113,7 +192,24 @@ bool GAConfig::loadFromFile(const std::string& filename) {
             }
         }
     }
-
+    
+    LOG_INFO("Configuration loaded successfully from: " + filename);
+    LOG_DEBUG("Final configuration values:");
+    LOG_DEBUG("  Algorithm parameters:");
+    LOG_DEBUG("    Population size: " + std::to_string(m_populationSize));
+    LOG_DEBUG("    Mutation rate: " + std::to_string(m_mutationRate));
+    LOG_DEBUG("    Crossover probability: " + std::to_string(m_crossoverProbability));
+    LOG_DEBUG("    Tournament size: " + std::to_string(m_tournamentSize));
+    LOG_DEBUG("    Replacement ratio: " + std::to_string(m_replacementRatio));
+    LOG_DEBUG("    No improvement generations: " + std::to_string(m_noImprovementGenerations));
+    LOG_DEBUG("  Instance parameters:");
+    LOG_DEBUG("    k: " + std::to_string(m_k));
+    LOG_DEBUG("    deltaK: " + std::to_string(m_deltaK));
+    LOG_DEBUG("    lNeg: " + std::to_string(m_lNeg));
+    LOG_DEBUG("    lPoz: " + std::to_string(m_lPoz));
+    LOG_DEBUG("    repAllowed: " + std::to_string(m_repAllowed));
+    LOG_DEBUG("    probablePositive: " + std::to_string(m_probablePositive));
+    
     return true;
 }
 
@@ -139,7 +235,12 @@ std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string&) const
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const
 {
-    return std::make_shared<PointMutation>(m_mutationRate);
+    // Create combined mutation with both point and swap mutations
+    // Use higher rates for both mutation types to increase diversity
+    double pointRate = m_mutationRate * 0.8;  // 80% of mutation rate for point mutations
+    double swapRate = m_mutationRate * 0.8;   // 80% of mutation rate for swap mutations
+    // Higher probability of applying both mutations (0.4) and balanced individual probabilities
+    return std::make_shared<CombinedMutation>(pointRate, swapRate, 0.5, 0.4);
 }
 
 std::shared_ptr<IReplacement> GAConfig::getReplacement() const
@@ -147,15 +248,22 @@ std::shared_ptr<IReplacement> GAConfig::getReplacement() const
     return std::make_shared<PartialReplacement>(m_replacementRatio, m_cache);
 }
 
-std::shared_ptr<IFitness> GAConfig::getFitness() const
-{
-    // Always return optimized graph-based fitness
-    return std::make_shared<OptimizedGraphBasedFitness>();
+std::shared_ptr<IFitness> GAConfig::getFitness() const {
+    if (!m_cache) {
+        throw std::runtime_error("Cache not set in GAConfig");
+    }
+    
+    auto populationCache = std::dynamic_pointer_cast<PopulationCache>(m_cache);
+    if (!populationCache) {
+        throw std::runtime_error("Invalid cache type in GAConfig");
+    }
+    
+    return std::make_shared<ConcreteOptimizedFitness>(*this, populationCache->getCurrentPopulation());
 }
 
 std::shared_ptr<IStopping> GAConfig::getStopping() const
 {
-    return std::make_shared<NoImprovementStopping>(50);  // Default to 50 generations without improvement
+    return std::make_shared<NoImprovementStopping>(m_noImprovementGenerations);
 }
 
 void GAConfig::setParameters(const ParameterSet& ps) {

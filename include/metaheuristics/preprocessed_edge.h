@@ -2,11 +2,12 @@
 #define PREPROCESSED_EDGE_H
 
 struct PreprocessedEdge {
-    int to;
     int weight;
-    bool exists;
-    PreprocessedEdge(int t = 0, int w = 0, bool e = false) 
-        : to(t), weight(w), exists(e) {}
+    int overlap;
+    bool valid;
+    
+    PreprocessedEdge(int w = 0, int o = 0, bool v = false) 
+        : weight(w), overlap(o), valid(v) {}
 };
 
 #endif // PREPROCESSED_EDGE_H 

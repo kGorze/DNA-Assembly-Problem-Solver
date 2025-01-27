@@ -23,7 +23,7 @@ PathAnalysisResult PathAnalyzer::analyzePath(
         uniqueNodes.insert(current);
         
         const auto& edge = adjacencyMatrix[current][next];
-        if (edge.exists) {
+        if (edge.valid) {
             if (edge.weight == 1) {
                 result.edgesWeight1++;
             } else {

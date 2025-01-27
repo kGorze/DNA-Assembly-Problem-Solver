@@ -47,8 +47,8 @@ namespace {
         std::shared_ptr<IRepresentation> representation,
         const DNAInstance& instance) {
         
-        auto offspring = std::make_shared<Individual>(std::move(genes));
-        return representation->isValid(offspring, instance) ? offspring : nullptr;
+        // Always create and return offspring, let fitness function handle validation
+        return std::make_shared<Individual>(std::move(genes));
     }
 }
 

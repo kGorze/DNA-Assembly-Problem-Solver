@@ -12,24 +12,46 @@
 
 class NoImprovementStopping : public IStopping {
 public:
-    NoImprovementStopping(int maxGenerationsWithoutImprovement = 50)
+    NoImprovementStopping(int maxGenerationsWithoutImprovement = 100)
         : m_maxGenerationsWithoutImprovement(maxGenerationsWithoutImprovement)
         , m_generationsWithoutImprovement(0)
-        , m_bestFitnessSoFar(-1e9) {}
+        , m_bestFitnessSoFar(-1e9)
+        , m_minGenerations(50)
+        , m_significantImprovementThreshold(0.01)
+        , m_smallImprovementThreshold(0.001)
+        , m_stagnationCounter(0) {}
 
     bool shouldStop([[maybe_unused]] int currentGeneration, double bestFitness) const override {
-        if (bestFitness > m_bestFitnessSoFar) {
+        if (currentGeneration < m_minGenerations) {
+            return false;
+        }
+
+        double improvement = bestFitness - m_bestFitnessSoFar;
+        
+        if (improvement > m_significantImprovementThreshold) {
             m_bestFitnessSoFar = bestFitness;
             m_generationsWithoutImprovement = 0;
+            m_stagnationCounter = 0;
+            return false;
+        } else if (improvement > m_smallImprovementThreshold) {
+            m_bestFitnessSoFar = bestFitness;
+            m_generationsWithoutImprovement = std::max(0, m_generationsWithoutImprovement - 5);
+            m_stagnationCounter = std::max(0, m_stagnationCounter - 1);
+            return false;
         } else {
             m_generationsWithoutImprovement++;
+            if (m_generationsWithoutImprovement % 10 == 0) {
+                m_stagnationCounter++;
+            }
         }
-        return m_generationsWithoutImprovement >= m_maxGenerationsWithoutImprovement;
+
+        return m_stagnationCounter >= 5 && m_generationsWithoutImprovement >= m_maxGenerationsWithoutImprovement;
     }
 
     void reset() override {
         m_bestFitnessSoFar = -1e9;
         m_generationsWithoutImprovement = 0;
+        m_stagnationCounter = 0;
         LOG_INFO("NoImprovementStopping criteria reset");
     }
 
@@ -37,6 +59,10 @@ private:
     const int m_maxGenerationsWithoutImprovement;
     mutable int m_generationsWithoutImprovement;
     mutable double m_bestFitnessSoFar;
+    const int m_minGenerations;
+    const double m_significantImprovementThreshold;
+    const double m_smallImprovementThreshold;
+    mutable int m_stagnationCounter;
 };
 
 class MaxGenerationsStopping : public IStopping {

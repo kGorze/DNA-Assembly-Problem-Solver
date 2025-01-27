@@ -11,13 +11,6 @@
 
 // =========== PointMutation ===========
 
-PointMutation::PointMutation(double mutationRate) {
-    if (mutationRate < 0.0 || mutationRate > 1.0) {
-        throw std::invalid_argument("Mutation rate must be between 0 and 1");
-    }
-    m_mutationRate = mutationRate;
-}
-
 void PointMutation::mutate(
     std::shared_ptr<Individual>& individual,
     const DNAInstance& instance,

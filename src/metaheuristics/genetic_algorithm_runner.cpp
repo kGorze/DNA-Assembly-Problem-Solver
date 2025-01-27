@@ -28,51 +28,35 @@ namespace {
 void updateConfigWithInstanceParams(const DNAInstance& instance, GAConfig& config)
 {
     LOG_INFO("Updating configuration with instance parameters");
-    
-    try {
-        // Store current algorithm parameters that we want to preserve from config.cfg
-        LOG_DEBUG("Preserving algorithm parameters from config file");
-        const int popSize = config.getPopulationSize();
-        const double mutRate = config.getMutationRate();
-        const double crossProb = config.getCrossoverProbability();
-        const double replRatio = config.getReplacementRatio();
-        
-        LOG_DEBUG("Current algorithm parameters:");
-        LOG_DEBUG("  Population size: " + safeToString(popSize));
-        LOG_DEBUG("  Mutation rate: " + safeToString(mutRate));
-        LOG_DEBUG("  Crossover probability: " + safeToString(crossProb));
-        LOG_DEBUG("  Replacement ratio: " + safeToString(replRatio));
-        
-        // Update all instance-specific parameters from the instance
-        LOG_DEBUG("Updating instance-specific parameters");
+    LOG_DEBUG("Updating instance-specific parameters");
+
+    // Only update instance parameters if they haven't been set in the config file
+    // (i.e., they still have their default values)
+    if (config.getK() == 7) {  // Default value
         config.setK(instance.getK());
-        config.setDeltaK(instance.getDeltaK());
-        config.setLNeg(instance.getLNeg());
-        config.setLPoz(instance.getLPoz());
-        config.setRepAllowed(instance.isRepAllowed());
-        config.setProbablePositive(instance.getProbablePositive());
-        
-        // Restore algorithm parameters from config.cfg
-        LOG_DEBUG("Restoring algorithm parameters");
-        config.setPopulationSize(popSize);
-        config.setMutationRate(mutRate);
-        config.setCrossoverProbability(crossProb);
-        config.setReplacementRatio(replRatio);
-        
-        LOG_INFO("Configuration updated successfully");
-        LOG_DEBUG("Final configuration parameters:");
-        LOG_DEBUG("  k=" + safeToString(config.getK()) +
-                  ", deltaK=" + safeToString(config.getDeltaK()) +
-                  ", lNeg=" + safeToString(config.getLNeg()) +
-                  ", lPoz=" + safeToString(config.getLPoz()));
-        LOG_DEBUG("  populationSize=" + safeToString(config.getPopulationSize()) +
-                  ", mutationRate=" + safeToString(config.getMutationRate()) +
-                  ", crossoverProbability=" + safeToString(config.getCrossoverProbability()) +
-                  ", replacementRatio=" + safeToString(config.getReplacementRatio()));
-    } catch (const std::exception& e) {
-        LOG_ERROR("Failed to update configuration parameters: " + std::string(e.what()));
-        throw;
     }
+    if (config.getDeltaK() == 0) {  // Default value
+        config.setDeltaK(instance.getDeltaK());
+    }
+    if (config.getLNeg() == 10) {  // Default value
+        config.setLNeg(instance.getLNeg());
+    }
+    if (config.getLPoz() == 10) {  // Default value
+        config.setLPoz(instance.getLPoz());
+    }
+    if (config.isRepAllowed() == true) {  // Default value
+        config.setRepAllowed(instance.isRepAllowed());
+    }
+    if (config.getProbablePositive() == 0) {  // Default value
+        config.setProbablePositive(instance.getProbablePositive());
+    }
+
+    LOG_INFO("Configuration updated successfully");
+    LOG_DEBUG("Final configuration parameters:");
+    LOG_DEBUG("  k=" + std::to_string(config.getK()) + 
+              ", deltaK=" + std::to_string(config.getDeltaK()) + 
+              ", lNeg=" + std::to_string(config.getLNeg()) + 
+              ", lPoz=" + std::to_string(config.getLPoz()));
 }
 
 void runGeneticAlgorithm(
@@ -89,30 +73,56 @@ void runGeneticAlgorithm(
         // Load configuration
         GAConfig config;
         if (!configFile.empty()) {
+            LOG_INFO("Loading configuration from file: " + configFile);
             if (!config.loadFromFile(configFile)) {
                 throw std::runtime_error("Failed to load configuration from file: " + configFile);
             }
+            LOG_DEBUG("Configuration loaded successfully");
+            LOG_DEBUG("Loaded parameters:");
+            LOG_DEBUG("  populationSize=" + safeToString(config.getPopulationSize()) +
+                     ", mutationRate=" + safeToString(config.getMutationRate()) +
+                     ", crossoverProbability=" + safeToString(config.getCrossoverProbability()) +
+                     ", replacementRatio=" + safeToString(config.getReplacementRatio()));
         }
         
-        // Update configuration with instance parameters
+        // Update only instance-specific parameters
         updateConfigWithInstanceParams(instance, config);
         
-        // Create representation
+        LOG_DEBUG("Creating representation...");
         auto representation = std::make_unique<PermutationRepresentation>();
+        if (!representation) {
+            throw std::runtime_error("Failed to create representation");
+        }
         
-        // Create and run genetic algorithm
+        LOG_DEBUG("Initializing cache...");
+        auto cache = std::make_shared<PopulationCache>();
+        if (!cache) {
+            throw std::runtime_error("Failed to create cache");
+        }
+        cache->reserve(config.getPopulationSize() * 2);  // Reserve space for population and offspring
+        config.setCache(cache);
+        
+        LOG_DEBUG("Creating genetic algorithm...");
         GeneticAlgorithm ga(std::move(representation), config, debugMode);
         ga.setProcessId(processId);
         
-        // Run the algorithm
+        LOG_DEBUG("Starting genetic algorithm run...");
         std::string result = ga.run(instance);
+        
+        if (result.empty()) {
+            LOG_WARNING("Genetic algorithm returned empty result");
+        } else {
+            LOG_INFO("Genetic algorithm completed with result length: " + std::to_string(result.length()));
+        }
         
         // Save result if output file is specified
         if (!outputFile.empty()) {
+            LOG_DEBUG("Saving result to file: " + outputFile);
             std::ofstream out(outputFile);
             if (out.is_open()) {
                 out << result;
                 out.close();
+                LOG_INFO("Result saved successfully");
             } else {
                 LOG_ERROR("Failed to open output file: " + outputFile);
             }
@@ -120,6 +130,9 @@ void runGeneticAlgorithm(
         
     } catch (const std::exception& e) {
         LOG_ERROR("Error in genetic algorithm runner: " + std::string(e.what()));
+        throw;
+    } catch (...) {
+        LOG_ERROR("Unknown error in genetic algorithm runner");
         throw;
     }
     
