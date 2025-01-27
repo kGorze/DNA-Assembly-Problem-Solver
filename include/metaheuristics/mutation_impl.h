@@ -114,76 +114,76 @@ public:
     }
 };
 
-class CombinedMutation : public IMutation {
+class GuidedMutation : public IMutation {
 private:
-    std::shared_ptr<PointMutation> m_pointMutation;
-    std::shared_ptr<SwapMutation> m_swapMutation;
-    double m_swapProbability;
-    double m_bothProbability;
+    double m_mutationRate;
+    int m_minMutations;
+    int m_maxAttempts;
 
 public:
-    CombinedMutation(double pointRate, double swapRate, double swapProbability = 0.5, double bothProbability = 0.4) 
-        : m_pointMutation(std::make_shared<PointMutation>(pointRate, 2))
-        , m_swapMutation(std::make_shared<SwapMutation>(swapRate, 2))
-        , m_swapProbability(swapProbability)
-        , m_bothProbability(bothProbability) {
-        if (swapProbability < 0.0 || swapProbability > 1.0) {
-            throw std::invalid_argument("Swap probability must be between 0 and 1");
-        }
-        if (bothProbability < 0.0 || bothProbability > 1.0) {
-            throw std::invalid_argument("Both probability must be between 0 and 1");
+    explicit GuidedMutation(double mutationRate = 0.1, int minMutations = 1, int maxAttempts = 5)
+        : m_mutationRate(mutationRate), m_minMutations(minMutations), m_maxAttempts(maxAttempts) {
+        if (mutationRate < 0.0 || mutationRate > 1.0) {
+            throw std::invalid_argument("Mutation rate must be between 0 and 1");
         }
     }
 
     void mutate(
         std::shared_ptr<Individual>& individual,
         const DNAInstance& instance,
-        std::shared_ptr<IRepresentation> representation) override {
-        
-        if (!individual || !representation) {
-            LOG_WARNING("Null individual or representation in combined mutation");
-            return;
-        }
+        std::shared_ptr<IRepresentation> representation) override;
 
-        // Create a copy for mutation
-        auto mutated = std::make_shared<Individual>(individual->getGenes());
-        bool mutationSuccessful = false;
-        
-        // Try up to 3 times to get a valid mutation
-        for (int attempt = 0; attempt < 3 && !mutationSuccessful; attempt++) {
-            auto currentMutated = std::make_shared<Individual>(individual->getGenes());
-            
-            auto& rng = Random::instance();
-            double rand = rng.generateProbability();
-            
-            // With bothProbability chance, apply both mutations
-            if (rand < m_bothProbability) {
-                m_swapMutation->mutate(currentMutated, instance, representation);
-                m_pointMutation->mutate(currentMutated, instance, representation);
-            }
-            // Otherwise choose one based on swapProbability
-            else {
-                if (rng.generateProbability() < m_swapProbability) {
-                    m_swapMutation->mutate(currentMutated, instance, representation);
-                } else {
-                    m_pointMutation->mutate(currentMutated, instance, representation);
-                }
-            }
-            
-            // Check if mutation was successful and different from original
-            if (representation->isValid(currentMutated, instance) && 
-                currentMutated->getGenes() != individual->getGenes()) {
-                mutated = currentMutated;
-                mutationSuccessful = true;
-                LOG_DEBUG("CombinedMutation: Successfully applied mutation on attempt " + std::to_string(attempt + 1));
-            }
+protected:
+    // Helper methods for guided mutation
+    bool tryReverseSegment(std::vector<int>& genes, size_t start, size_t length,
+                          const DNAInstance& instance, std::shared_ptr<IRepresentation> representation);
+    bool tryRealignSegment(std::vector<int>& genes, size_t start, size_t length,
+                          const DNAInstance& instance, std::shared_ptr<IRepresentation> representation);
+    bool tryMergeSubpaths(std::vector<int>& genes, size_t pos1, size_t pos2,
+                         const DNAInstance& instance, std::shared_ptr<IRepresentation> representation);
+};
+
+class CombinedMutation : public IMutation {
+private:
+    std::shared_ptr<PointMutation> m_pointMutation;
+    std::shared_ptr<SwapMutation> m_swapMutation;
+    std::shared_ptr<GuidedMutation> m_guidedMutation;
+    double m_swapProbability;
+    double m_guidedProbability;
+    double m_adaptiveMutationRate;
+    int m_stagnationCounter;
+    double m_lastBestFitness;
+
+public:
+    CombinedMutation(double pointRate = 0.1, double swapRate = 0.1, 
+                     double swapProbability = 0.3, double guidedProbability = 0.4)
+        : m_pointMutation(std::make_shared<PointMutation>(pointRate, 1))
+        , m_swapMutation(std::make_shared<SwapMutation>(swapRate, 1))
+        , m_guidedMutation(std::make_shared<GuidedMutation>(0.1, 1))
+        , m_swapProbability(swapProbability)
+        , m_guidedProbability(guidedProbability)
+        , m_adaptiveMutationRate(pointRate)
+        , m_stagnationCounter(0)
+        , m_lastBestFitness(0.0) {
+        if (swapProbability < 0.0 || swapProbability > 1.0) {
+            throw std::invalid_argument("Swap probability must be between 0 and 1");
         }
-        
-        // Update individual if mutation was successful
-        if (mutationSuccessful) {
-            individual = mutated;
-        } else {
-            LOG_DEBUG("CombinedMutation: Failed to find valid mutation after 3 attempts");
+        if (guidedProbability < 0.0 || guidedProbability > 1.0) {
+            throw std::invalid_argument("Guided probability must be between 0 and 1");
         }
     }
+
+    void mutate(
+        std::shared_ptr<Individual>& individual,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
+
+    // Update mutation rate based on fitness improvement
+    void updateMutationRate(double currentBestFitness);
+
+private:
+    static constexpr double MIN_MUTATION_RATE = 0.05;
+    static constexpr double MAX_MUTATION_RATE = 0.2;
+    static constexpr int STAGNATION_THRESHOLD = 5;
+    static constexpr double IMPROVEMENT_THRESHOLD = 0.01;
 }; 
