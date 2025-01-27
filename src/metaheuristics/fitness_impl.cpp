@@ -1,5 +1,6 @@
 #include "../../include/metaheuristics/fitness_impl.h"
 #include "../../include/utils/logging.h"
+#include "../../include/metaheuristics/dna_utils.h"
 #include <algorithm>
 #include <numeric>
 #include <cmath>

@@ -6,6 +6,7 @@
 #include "individual.h"
 #include "../utils/logging.h"
 #include "utils/random.h"
+#include "metaheuristics/dna_utils.h"
 #include <vector>
 #include <memory>
 #include <random>
@@ -18,10 +19,6 @@
 #include <queue>
 
 namespace {
-    // Helper functions for DNA overlap calculations
-    int calculateEdgeWeight(const std::string& from, const std::string& to, int k);
-    int calculatePartialOverlapWeight(const std::string& from, const std::string& to, int k);
-    
     // Validate parents and get their genes
     [[maybe_unused]]
     std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(

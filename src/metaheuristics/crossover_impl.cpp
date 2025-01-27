@@ -1,6 +1,7 @@
 #include "../../include/metaheuristics/crossover_impl.h"
 #include "../../include/utils/logging.h"
 #include "../../include/metaheuristics/individual.h"
+#include "../../include/metaheuristics/dna_utils.h"
 #include <algorithm>
 #include <random>
 #include <unordered_set>
@@ -118,7 +119,7 @@ EdgeRecombination::EdgeTable::EdgeTable(const std::vector<std::shared_ptr<Indivi
             if (current >= 0 && static_cast<size_t>(current) < spectrum.size() &&
                 prev >= 0 && static_cast<size_t>(prev) < spectrum.size()) {
                 // Calculate overlap quality for prev -> current
-                int overlapQuality = calculateEdgeWeight(spectrum[prev], spectrum[current], k);
+                int overlapQuality = dna_utils::calculateEdgeWeight(spectrum[prev], spectrum[current], k);
                 if (overlapQuality > 0) {
                     edges[current].push_back({prev, overlapQuality});
                 }
@@ -127,7 +128,7 @@ EdgeRecombination::EdgeTable::EdgeTable(const std::vector<std::shared_ptr<Indivi
             if (current >= 0 && static_cast<size_t>(current) < spectrum.size() &&
                 next >= 0 && static_cast<size_t>(next) < spectrum.size()) {
                 // Calculate overlap quality for current -> next
-                int overlapQuality = calculateEdgeWeight(spectrum[current], spectrum[next], k);
+                int overlapQuality = dna_utils::calculateEdgeWeight(spectrum[current], spectrum[next], k);
                 if (overlapQuality > 0) {
                     edges[current].push_back({next, overlapQuality});
                 }
@@ -232,7 +233,7 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                 std::vector<std::pair<int, int>> candidates; // {gene, overlap_quality}
                 for (int gene : parent1) {
                     if (used.find(gene) == used.end()) {
-                        int quality = calculatePartialOverlapWeight(
+                        int quality = dna_utils::calculatePartialOverlapWeight(
                             instance.getSpectrum()[current],
                             instance.getSpectrum()[gene],
                             instance.getK());
@@ -241,7 +242,7 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                 }
                 for (int gene : parent2) {
                     if (used.find(gene) == used.end()) {
-                        int quality = calculatePartialOverlapWeight(
+                        int quality = dna_utils::calculatePartialOverlapWeight(
                             instance.getSpectrum()[current],
                             instance.getSpectrum()[gene],
                             instance.getK());
@@ -537,7 +538,7 @@ double DNAAlignmentCrossover::calculateSegmentQuality(
         if (genes[i] >= 0 && static_cast<size_t>(genes[i]) < spectrum.size() &&
             genes[i+1] >= 0 && static_cast<size_t>(genes[i+1]) < spectrum.size()) {
             
-            int overlapQuality = calculateEdgeWeight(
+            int overlapQuality = dna_utils::calculateEdgeWeight(
                 spectrum[genes[i]], spectrum[genes[i+1]], k);
             
             if (overlapQuality > 0) {
@@ -658,73 +659,4 @@ std::vector<std::shared_ptr<Individual>> DNAAlignmentCrossover::crossover(
         LOG_ERROR("Error in DNA alignment crossover: " + std::string(e.what()));
         return parents;
     }
-}
-
-// Helper functions for DNA overlap calculations
-int calculateEdgeWeight(const std::string& from, const std::string& to, int k) {
-    if (from.empty() || to.empty()) return 0;
-    
-    // Handle variable length k-mers
-    int minLength = std::min(from.length(), to.length());
-    int maxOverlap = std::min(minLength - 1, k - 1);
-    
-    if (maxOverlap <= 0) return 0;
-    
-    std::string suffix = from.substr(from.length() - maxOverlap);
-    std::string prefix = to.substr(0, maxOverlap);
-    
-    // Count matches and calculate quality score
-    int matches = 0;
-    for (int i = 0; i < maxOverlap; i++) {
-        if (suffix[i] == prefix[i]) matches++;
-    }
-    
-    // Return weighted score based on match quality
-    if (matches == maxOverlap) {
-        return k;  // Perfect match gets full score
-    } else if (matches >= maxOverlap - 1) {
-        return k - 1;  // One mismatch gets high score
-    } else if (matches >= maxOverlap - 2) {
-        return k - 2;  // Two mismatches gets medium score
-    } else if (matches >= maxOverlap / 2) {
-        return k - 3;  // Partial match gets low score
-    }
-    return 0;  // Poor match gets no score
-}
-
-int calculatePartialOverlapWeight(const std::string& from, const std::string& to, int k) {
-    if (from.empty() || to.empty()) return 0;
-    
-    // Handle variable length k-mers
-    int minLength = std::min(from.length(), to.length());
-    int maxOverlap = std::min(minLength - 1, k - 1);
-    
-    if (maxOverlap <= 0) return 0;
-    
-    std::string suffix = from.substr(from.length() - maxOverlap);
-    std::string prefix = to.substr(0, maxOverlap);
-    
-    // Count matches and calculate quality score
-    int matches = 0;
-    int mismatches = 0;
-    for (int i = 0; i < maxOverlap; i++) {
-        if (suffix[i] == prefix[i]) {
-            matches++;
-        } else {
-            mismatches++;
-        }
-    }
-    
-    // Calculate overlap quality score
-    double matchRatio = static_cast<double>(matches) / maxOverlap;
-    if (matchRatio >= 0.9) {
-        return maxOverlap;  // Excellent overlap
-    } else if (matchRatio >= 0.8) {
-        return static_cast<int>(maxOverlap * 0.8);  // Good overlap
-    } else if (matchRatio >= 0.7) {
-        return static_cast<int>(maxOverlap * 0.6);  // Acceptable overlap
-    } else if (matchRatio >= 0.5) {
-        return static_cast<int>(maxOverlap * 0.4);  // Poor but potentially useful overlap
-    }
-    return 0;  // Too many mismatches
 } 
