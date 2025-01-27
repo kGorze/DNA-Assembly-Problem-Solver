@@ -1,7 +1,13 @@
 #pragma once
 
 #include "../interfaces/i_fitness.h"
-#include "../interfaces/i_representation.h"
+#include "../interfaces/i_population_cache.h"
+#include "../generator/dna_generator.h"
+#include "../utils/utility_functions.h"
+#include "../metaheuristics/path_analyzer.h"
+#include "../metaheuristics/preprocessed_edge.h"
+#include "../metaheuristics/individual.h"
+#include "../utils/logging.h"
 #include "../dna/dna_instance.h"
 #include <vector>
 #include <memory>
@@ -9,6 +15,23 @@
 #include "individual.h"
 #include "../configuration/genetic_algorithm_configuration.h"
 #include <cmath>
+
+// Helper structs for detailed fitness metrics
+struct ConnectivityMetrics {
+    double overlapQuality;
+    double connectionCount;
+    
+    ConnectivityMetrics(double quality = 0.0, double count = 0.0) 
+        : overlapQuality(quality), connectionCount(count) {}
+};
+
+struct CoverageMetrics {
+    double exactMatches;
+    double partialMatches;
+    
+    CoverageMetrics(double exact = 0.0, double partial = 0.0)
+        : exactMatches(exact), partialMatches(partial) {}
+};
 
 class SimpleFitness : public IFitness {
 public:
@@ -36,6 +59,15 @@ public:
     int calculateLevenshteinDistance(
         const std::string& s1,
         const std::string& s2) const;
+
+    // New detailed fitness calculation functions
+    ConnectivityMetrics calculateDetailedConnectivity(
+        const std::shared_ptr<Individual>& solution,
+        const DNAInstance& instance) const;
+        
+    CoverageMetrics calculateDetailedCoverage(
+        const std::vector<char>& dna,
+        const DNAInstance& instance) const;
 
 protected:
     virtual double calculateCoverage(const std::shared_ptr<Individual>& solution,
@@ -86,7 +118,7 @@ private:
 
 class OptimizedGraphBasedFitness : public SimpleFitness {
 private:
-    GAConfig m_config;  // Changed from reference to value
+    GAConfig m_config;  // Keep only the value version, not the reference
     std::vector<std::shared_ptr<Individual>> m_currentPopulation;
     
     double calculateDistance(const std::shared_ptr<Individual>& ind1, 
@@ -158,4 +190,9 @@ protected:
 
     std::vector<std::vector<PreprocessedEdge>> buildAdjacencyMatrix(
         const DNAInstance& instance) const;
+
+    int calculateEdgeWeight(
+        const std::string& from,
+        const std::string& to,
+        int k) const;
 }; 

@@ -60,10 +60,12 @@ AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config)
     m_orderCrossover = std::make_shared<OrderCrossover>();
     m_edgeRecombination = std::make_shared<EdgeRecombination>();
     m_pmxCrossover = std::make_shared<PMXCrossover>();
+    m_dnaAlignmentCrossover = std::make_shared<DNAAlignmentCrossover>();
     
     crossovers.emplace_back(CrossoverPerformance(m_orderCrossover));
     crossovers.emplace_back(CrossoverPerformance(m_edgeRecombination));
     crossovers.emplace_back(CrossoverPerformance(m_pmxCrossover));
+    crossovers.emplace_back(CrossoverPerformance(m_dnaAlignmentCrossover));
     
     // Initialize metrics
     metrics.convergenceGeneration = -1;
@@ -114,73 +116,95 @@ void AdaptiveCrossover::updatePerformance(bool improved) {
     current.usageCount++;
     current.recentUsageCount++;
     
-    bool significantImprovement = improved || 
-        ((previousBestFitness - bestSeenFitness) > EPSILON);
+    // Calculate improvement magnitude
+    double improvementMagnitude = previousBestFitness - bestSeenFitness;
+    bool significantImprovement = improved || (improvementMagnitude > EPSILON);
     
     if (significantImprovement) {
         current.successCount++;
         current.recentSuccessCount++;
         
-        if (previousBestFitness - bestSeenFitness > EPSILON) {
+        // Scale success rate by improvement magnitude
+        double improvementFactor = 1.0;
+        if (improvementMagnitude > EPSILON) {
+            improvementFactor = 1.0 + std::min(1.0, improvementMagnitude);
             bestSeenFitness = previousBestFitness;
+        }
+        
+        // Update recent success rate with improvement scaling
+        if (current.recentUsageCount > 0) {
+            current.recentSuccessRate = (static_cast<double>(current.recentSuccessCount) / 
+                                       current.recentUsageCount) * improvementFactor;
+        }
+    } else {
+        // Penalize lack of improvement
+        if (current.recentUsageCount > 0) {
+            current.recentSuccessRate = (static_cast<double>(current.recentSuccessCount) / 
+                                       current.recentUsageCount) * 0.9;  // 10% penalty
         }
     }
     
-    if (current.recentUsageCount > 0) {
-        current.recentSuccessRate = static_cast<double>(current.recentSuccessCount) / 
-                                    current.recentUsageCount;
+    // Update overall success rate with inertia
+    if (current.usageCount > 0) {
+        double historicalRate = static_cast<double>(current.successCount) / current.usageCount;
+        current.successRate = (INERTIA * current.successRate) + 
+                            ((1.0 - INERTIA) * current.recentSuccessRate);
+        
+        // Blend with historical rate to prevent over-specialization
+        current.successRate = (0.8 * current.successRate) + (0.2 * historicalRate);
+    }
+    
+    // Periodically adjust probabilities
+    if (++generationCount % ADAPTATION_INTERVAL == 0) {
+        adjustProbabilities();
     }
 }
 
 void AdaptiveCrossover::adjustProbabilities() {
-    bool hasEnoughData = true;
-    for (const auto& c : crossovers) {
-        if (c.recentUsageCount < MIN_TRIALS) {
-            hasEnoughData = false;
-            break;
-        }
-    }
-
-    if (!hasEnoughData) {
-        for (auto& c : crossovers) {
-            c.successRate = 1.0 / crossovers.size();
-        }
-    }
-    else {
-        double avgSuccessRate = 0.0;
-        for (const auto& c : crossovers) {
-            avgSuccessRate += c.recentSuccessRate;
-        }
-        avgSuccessRate /= crossovers.size();
-
-        for (auto& c : crossovers) {
-            double newRate = (c.recentSuccessRate / (avgSuccessRate + EPSILON));
-            c.successRate = INERTIA * c.successRate + (1.0 - INERTIA) * newRate;
-        }
-    }
-
+    // Calculate total success rate
     double totalRate = 0.0;
+    int activeOperators = 0;
+    
+    for (auto& c : crossovers) {
+        if (c.recentUsageCount >= MIN_TRIALS) {
+            totalRate += c.successRate;
+            activeOperators++;
+        }
+    }
+    
+    if (totalRate < EPSILON || activeOperators == 0) {
+        // Reset probabilities if no operator is performing well
+        double evenRate = 1.0 / crossovers.size();
+        for (auto& c : crossovers) {
+            c.successRate = evenRate;
+        }
+        return;
+    }
+    
+    // Adjust probabilities based on success rates
+    for (auto& c : crossovers) {
+        if (c.recentUsageCount >= MIN_TRIALS) {
+            // Scale probability by success rate
+            c.successRate = (c.successRate / totalRate) * 0.9;  // Reserve 10% for exploration
+        } else {
+            // Give unexplored operators a chance
+            c.successRate = 0.1 / (crossovers.size() - activeOperators);
+        }
+        
+        // Ensure minimum probability
+        c.successRate = std::max(MIN_PROB, c.successRate);
+    }
+    
+    // Normalize probabilities
+    totalRate = 0.0;
     for (auto& c : crossovers) {
         totalRate += c.successRate;
     }
-    if (totalRate < 1e-9) {
-        totalRate = 1.0;
-    }
-
+    
     for (auto& c : crossovers) {
         c.successRate /= totalRate;
-        c.successRate = std::max(MIN_PROB, c.successRate);
-    }
-
-    double sumRates = 0.0;
-    for (auto& c : crossovers) {
-        sumRates += c.successRate;
-    }
-    if (sumRates < 1e-9) {
-        sumRates = 1.0;
-    }
-    for (auto& c : crossovers) {
-        c.successRate /= sumRates;
+        
+        // Reset recent statistics
         c.recentUsageCount = 0;
         c.recentSuccessCount = 0;
         c.recentSuccessRate = 0.0;
@@ -254,3 +278,4 @@ void AdaptiveCrossover::updateFeedback(double currentBestFitness) {
           / generationCount;
     }
 }
+

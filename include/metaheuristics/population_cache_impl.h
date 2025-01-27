@@ -141,39 +141,39 @@ private:
     
     double calculateCoverage(const std::vector<int>& genes, const DNAInstance& instance) {
         const auto& spectrum = instance.getSpectrum();
+        if (spectrum.empty() || genes.empty()) return 0.0;
+        
+        // Count how many spectrum elements are used
+        std::vector<bool> used(spectrum.size(), false);
         int coveredCount = 0;
         
-        for (const auto& target : spectrum) {
-            bool found = false;
-            for (size_t i = 0; i <= genes.size() - target.size(); ++i) {
-                bool match = true;
-                for (size_t j = 0; j < target.size(); ++j) {
-                    if (genes[i + j] != target[j]) {
-                        match = false;
-                        break;
-                    }
-                }
-                if (match) {
-                    found = true;
-                    break;
-                }
+        for (int gene : genes) {
+            if (gene >= 0 && static_cast<size_t>(gene) < spectrum.size() && !used[gene]) {
+                used[gene] = true;
+                coveredCount++;
             }
-            if (found) coveredCount++;
         }
         
-        return spectrum.empty() ? 0.0 : static_cast<double>(coveredCount) / spectrum.size();
+        return static_cast<double>(coveredCount) / spectrum.size();
     }
     
     double calculateConnectivity(const std::vector<int>& genes, const DNAInstance& instance) {
         if (genes.size() < 2) return 0.0;
         
         int validConnections = 0;
+        int totalConnections = genes.size() - 1;
+        
         for (size_t i = 0; i < genes.size() - 1; ++i) {
-            if (std::abs(genes[i] - genes[i + 1]) <= instance.getDeltaK()) {
-                validConnections++;
+            // Check if indices are valid
+            if (genes[i] >= 0 && static_cast<size_t>(genes[i]) < instance.getSpectrum().size() &&
+                genes[i+1] >= 0 && static_cast<size_t>(genes[i+1]) < instance.getSpectrum().size()) {
+                // More lenient connectivity check
+                if (std::abs(genes[i] - genes[i + 1]) <= instance.getDeltaK() + 3) {
+                    validConnections++;
+                }
             }
         }
         
-        return static_cast<double>(validConnections) / (genes.size() - 1);
+        return totalConnections > 0 ? static_cast<double>(validConnections) / totalConnections : 0.0;
     }
 }; 

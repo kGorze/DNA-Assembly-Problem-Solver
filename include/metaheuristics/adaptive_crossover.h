@@ -69,6 +69,7 @@ private:
     std::shared_ptr<ICrossover> m_orderCrossover;
     std::shared_ptr<ICrossover> m_edgeRecombination;
     std::shared_ptr<ICrossover> m_pmxCrossover;
+    std::shared_ptr<ICrossover> m_dnaAlignmentCrossover;
     
     void updatePerformance(bool improved);
     void adjustProbabilities();

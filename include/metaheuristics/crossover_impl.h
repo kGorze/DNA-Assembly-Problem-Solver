@@ -18,6 +18,10 @@
 #include <queue>
 
 namespace {
+    // Helper functions for DNA overlap calculations
+    int calculateEdgeWeight(const std::string& from, const std::string& to, int k);
+    int calculatePartialOverlapWeight(const std::string& from, const std::string& to, int k);
+    
     // Validate parents and get their genes
     [[maybe_unused]]
     std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(
@@ -44,8 +48,8 @@ namespace {
     [[maybe_unused]]
     std::shared_ptr<Individual> createOffspring(
         std::vector<int> genes,
-        std::shared_ptr<IRepresentation> representation,
-        const DNAInstance& instance) {
+        [[maybe_unused]] std::shared_ptr<IRepresentation> representation,
+        [[maybe_unused]] const DNAInstance& instance) {
         
         // Always create and return offspring, let fitness function handle validation
         return std::make_shared<Individual>(std::move(genes));
@@ -62,13 +66,23 @@ public:
 
 class EdgeRecombination : public ICrossover {
 public:
+    struct EdgeInfo {
+        int node;
+        int overlapQuality;
+        
+        EdgeInfo(int n, int q) : node(n), overlapQuality(q) {}
+        bool operator==(const EdgeInfo& other) const {
+            return node == other.node;
+        }
+    };
+
     class EdgeTable {
     private:
-        std::unordered_map<int, std::vector<int>> edges;
+        std::unordered_map<int, std::vector<EdgeInfo>> edges;
 
     public:
-        EdgeTable(const std::vector<std::shared_ptr<Individual>>& parents);
-        std::vector<int> getNeighbors(int node) const;
+        EdgeTable(const std::vector<std::shared_ptr<Individual>>& parents, const DNAInstance& instance);
+        std::vector<EdgeInfo> getNeighbors(int node) const;  // Changed return type to EdgeInfo
         void removeNode(int node);
         bool hasNode(int node) const;
     };
@@ -80,6 +94,42 @@ public:
 };
 
 class PMXCrossover : public ICrossover {
+public:
+    std::vector<std::shared_ptr<Individual>> crossover(
+        const std::vector<std::shared_ptr<Individual>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
+};
+
+class DNAAlignmentCrossover : public ICrossover {
+private:
+    struct AlignmentSegment {
+        std::vector<int> genes;
+        double quality;
+        
+        AlignmentSegment(std::vector<int> g, double q) : genes(std::move(g)), quality(q) {}
+        
+        bool operator<(const AlignmentSegment& other) const {
+            return quality > other.quality;  // Sort by descending quality
+        }
+    };
+    
+    std::vector<AlignmentSegment> findAlignmentSegments(
+        const std::vector<int>& genes,
+        const DNAInstance& instance,
+        int minLength = 3) const;
+        
+    double calculateSegmentQuality(
+        const std::vector<int>& genes,
+        size_t start,
+        size_t length,
+        const DNAInstance& instance) const;
+        
+    std::vector<int> mergeSegments(
+        const std::vector<AlignmentSegment>& segments1,
+        const std::vector<AlignmentSegment>& segments2,
+        size_t targetLength) const;
+
 public:
     std::vector<std::shared_ptr<Individual>> crossover(
         const std::vector<std::shared_ptr<Individual>>& parents,

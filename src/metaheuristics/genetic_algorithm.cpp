@@ -300,6 +300,7 @@ bool GeneticAlgorithm::updateGlobalBest(
         if (!population[i]) continue;
         
         double fitness = population[i]->getFitness();
+        // Don't normalize fitness for comparison
         if (fitness > m_globalBestFit) {
             m_globalBestFit = fitness;
             m_bestFitness = fitness;
@@ -341,7 +342,7 @@ void GeneticAlgorithm::logGenerationStats(
         std::stringstream ss;
         ss << std::fixed << std::setprecision(4);
         ss << "Gen " << generation << ": ";
-        ss << "Best=" << maxFitness;
+        ss << "Best=" << maxFitness;  // Show raw fitness
         if (improved) {
             ss << " (↑ from " << m_globalBestFit << ")";
         }
@@ -367,22 +368,20 @@ std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec) {
 void GeneticAlgorithm::calculateTheoreticalMaxFitness(const DNAInstance& instance) {
     // Calculate theoretical maximum fitness based on instance parameters
     int k = instance.getK();
-    int n = instance.getN();
     int spectrumSize = instance.getSpectrum().size();
     
-    if (k <= 0 || n <= 0 || spectrumSize <= 0) {
+    if (k <= 0 || spectrumSize <= 0) {
         LOG_ERROR("Invalid instance parameters for theoretical fitness calculation");
         m_theoreticalMaxFitness = 1.0;  // Default value
         return;
     }
     
-    // Maximum possible score components
-    double maxConnectivityScore = spectrumSize - 1;  // All k-mers perfectly connected
-    double maxSpectrumCoverage = spectrumSize;       // All k-mers used
-    double maxLengthScore = 1.0;                     // Perfect length match
+    // More realistic maximum scores
+    double maxConnectivityScore = 0.5;  // Perfect connectivity gets 0.5
+    double maxSpectrumCoverage = 0.5;   // Perfect coverage gets 0.5
     
-    // Combine components with weights
-    m_theoreticalMaxFitness = maxConnectivityScore + maxSpectrumCoverage + maxLengthScore;
+    // Combine components
+    m_theoreticalMaxFitness = maxConnectivityScore + maxSpectrumCoverage;
     
     LOG_INFO("Theoretical maximum fitness calculated: " + std::to_string(m_theoreticalMaxFitness));
 }

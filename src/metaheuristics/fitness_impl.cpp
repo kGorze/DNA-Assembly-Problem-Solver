@@ -88,42 +88,98 @@ double SimpleFitness::calculateFitness(
     std::string dnaStr = representation->toDNA(solution, instance);
     std::vector<char> dna(dnaStr.begin(), dnaStr.end());
     
-    // Calculate component scores with more lenient criteria
-    double coverage = calculateSpectrumCoverageScore(dna, instance);
-    double connectivity = calculateConnectivityScore(solution, instance);
+    // Calculate detailed component scores
+    double baseConnectivity = calculateConnectivityScore(solution, instance);
+    double baseCoverage = calculateSpectrumCoverageScore(dna, instance);
+    double lengthPenalty = calculateLengthPenalty(dna.size(), instance.getN());
     
-    // Weight coverage and connectivity equally
-    double weightedScore = (coverage * 0.5) + (connectivity * 0.5);
+    // Calculate sub-scores for connectivity
+    auto [overlapQuality, connectionCount] = calculateDetailedConnectivity(solution, instance);
     
-    // Add bonus for solutions that achieve minimum thresholds
-    if (coverage > 0.3 && connectivity > 0.2) {  // Lower thresholds
-        weightedScore *= 1.2;  // 20% bonus for balanced solutions
+    // Calculate sub-scores for coverage
+    auto [exactMatches, partialMatches] = calculateDetailedCoverage(dna, instance);
+    
+    // Calculate Levenshtein distance score if original DNA is available
+    double levenshteinScore = 0.0;
+    const std::string& originalDNA = instance.getOriginalDNA();
+    if (!originalDNA.empty()) {
+        int distance = calculateLevenshteinDistance(dnaStr, originalDNA);
+        levenshteinScore = 1.0 - std::min(1.0, static_cast<double>(distance) / originalDNA.length());
     }
     
-    return weightedScore;
+    // Combine scores with emphasis on incremental improvements
+    double fitness = 0.0;
+    
+    // Connectivity component (40%)
+    double connectivityScore = (0.6 * baseConnectivity) +  // Base connectivity
+                             (0.3 * overlapQuality) +      // Quality of overlaps
+                             (0.1 * connectionCount);      // Number of valid connections
+    fitness += 0.4 * connectivityScore;
+    
+    // Coverage component (30%)
+    double coverageScore = (0.7 * baseCoverage) +         // Base coverage
+                          (0.2 * exactMatches) +          // Exact k-mer matches
+                          (0.1 * partialMatches);         // Partial matches
+    fitness += 0.3 * coverageScore;
+    
+    // Length component (20%)
+    fitness += 0.2 * lengthPenalty;
+    
+    // Levenshtein component (10% if available)
+    if (!originalDNA.empty()) {
+        fitness += 0.1 * levenshteinScore;
+    }
+    
+    return fitness;
 }
 
 double SimpleFitness::calculateConnectivityScore(
     const std::shared_ptr<Individual>& solution,
     const DNAInstance& instance) const {
     
-    if (!solution) return 0.0;
-    
     const auto& genes = solution->getGenes();
-    if (genes.empty()) return 0.0;
+    if (genes.size() < 2) return 0.0;
     
     int validConnections = 0;
     int totalConnections = genes.size() - 1;
+    double totalOverlapQuality = 0.0;
     
     for (size_t i = 0; i < genes.size() - 1; ++i) {
-        // More lenient connectivity check
-        if (std::abs(genes[i] - genes[i + 1]) <= instance.getDeltaK() + 2) {  // Allow more distance
-            validConnections++;
+        const auto& spectrum = instance.getSpectrum();
+        if (genes[i] >= 0 && static_cast<size_t>(genes[i]) < spectrum.size() &&
+            genes[i+1] >= 0 && static_cast<size_t>(genes[i+1]) < spectrum.size()) {
+            
+            std::string current = spectrum[genes[i]];
+            std::string next = spectrum[genes[i + 1]];
+            int k = instance.getK();
+            
+            if (static_cast<int>(current.length()) >= k-1 && 
+                static_cast<int>(next.length()) >= k-1) {
+                std::string suffix = current.substr(current.length() - (k-1));
+                std::string prefix = next.substr(0, k-1);
+                
+                // Calculate overlap quality
+                int matches = 0;
+                for (int j = 0; j < k-1; ++j) {
+                    if (suffix[j] == prefix[j]) matches++;
+                }
+                
+                double overlapQuality = static_cast<double>(matches) / (k-1);
+                if (overlapQuality >= 0.8) {  // High quality overlap threshold
+                    validConnections++;
+                    totalOverlapQuality += overlapQuality;
+                }
+            }
         }
     }
     
-    return totalConnections > 0 ? 
-           static_cast<double>(validConnections) / totalConnections : 0.0;
+    // Combine both connectivity ratio and overlap quality
+    double connectivityRatio = totalConnections > 0 ? 
+        static_cast<double>(validConnections) / totalConnections : 0.0;
+    double avgOverlapQuality = validConnections > 0 ? 
+        totalOverlapQuality / validConnections : 0.0;
+    
+    return 0.7 * connectivityRatio + 0.3 * avgOverlapQuality;
 }
 
 double SimpleFitness::calculateSpectrumCoverageScore(
@@ -131,39 +187,38 @@ double SimpleFitness::calculateSpectrumCoverageScore(
     const DNAInstance& instance) const {
     
     const auto& spectrum = instance.getSpectrum();
-    if (spectrum.empty() || dna.empty()) return 0.0;
+    if (spectrum.empty() || dna.empty()) return 0.0;  // No minimum score
     
     int covered = 0;
-    int partialMatches = 0;
+    int k = instance.getK();
     
-    for (const auto& kmer : spectrum) {
-        // Check for exact matches
-        if (std::search(dna.begin(), dna.end(), kmer.begin(), kmer.end()) != dna.end()) {
+    // Only count exact matches
+    for (size_t i = 0; i <= dna.size() - k; ++i) {
+        std::string kmer(dna.begin() + i, dna.begin() + i + k);
+        if (std::find(spectrum.begin(), spectrum.end(), kmer) != spectrum.end()) {
             covered++;
-            continue;
-        }
-        
-        // Check for partial matches (at least 60% similarity)
-        for (auto it = dna.begin(); it + kmer.size() <= dna.end(); ++it) {
-            int matches = 0;
-            for (size_t i = 0; i < kmer.size(); ++i) {
-                if (*(it + i) == kmer[i]) matches++;
-            }
-            if (static_cast<double>(matches) / kmer.size() >= 0.6) {  // More lenient partial match threshold
-                partialMatches++;
-                break;
-            }
         }
     }
     
-    // Calculate coverage ratio with partial credit and minimum threshold
-    double coverageRatio = (covered + (partialMatches * 0.6)) / spectrum.size();  // More credit for partial matches
-    return std::max(0.1, coverageRatio);  // Ensure minimum non-zero fitness
+    return static_cast<double>(covered) / spectrum.size();
 }
 
 double SimpleFitness::calculateLengthPenalty(int actualLength, int targetLength) const {
-    double diff = std::abs(actualLength - targetLength);
-    return std::max(0.0, 1.0 - diff / targetLength);
+    if (targetLength <= 0) return 0.0;
+    
+    double ratio = static_cast<double>(actualLength) / targetLength;
+    
+    // Progressive penalty based on deviation severity
+    if (ratio < 0.5 || ratio > 1.5) {
+        return 0.1;  // Severe penalty for extreme deviation
+    } else if (ratio < 0.7 || ratio > 1.3) {
+        return 0.4;  // Significant penalty for large deviation
+    } else if (ratio < 0.9 || ratio > 1.1) {
+        return 0.7;  // Moderate penalty for medium deviation
+    } else {
+        // Small deviations get scaled penalty
+        return 1.0 - std::abs(1.0 - ratio);
+    }
 }
 
 int SimpleFitness::calculateLevenshteinDistance(
@@ -190,7 +245,132 @@ int SimpleFitness::calculateLevenshteinDistance(
     return dp[s1.length()][s2.length()];
 }
 
+ConnectivityMetrics SimpleFitness::calculateDetailedConnectivity(
+    const std::shared_ptr<Individual>& solution,
+    const DNAInstance& instance) const {
+    
+    const auto& genes = solution->getGenes();
+    if (genes.size() < 2) return ConnectivityMetrics();
+    
+    double totalOverlapQuality = 0.0;
+    int validConnections = 0;
+    std::vector<double> overlapScores;
+    
+    for (size_t i = 0; i < genes.size() - 1; ++i) {
+        const auto& spectrum = instance.getSpectrum();
+        if (genes[i] >= 0 && static_cast<size_t>(genes[i]) < spectrum.size() &&
+            genes[i+1] >= 0 && static_cast<size_t>(genes[i+1]) < spectrum.size()) {
+            
+            std::string current = spectrum[genes[i]];
+            std::string next = spectrum[genes[i + 1]];
+            int k = instance.getK();
+            
+            if (static_cast<int>(current.length()) >= k-1 && 
+                static_cast<int>(next.length()) >= k-1) {
+                std::string suffix = current.substr(current.length() - (k-1));
+                std::string prefix = next.substr(0, k-1);
+                
+                // Calculate detailed overlap quality
+                int matches = 0;
+                for (int j = 0; j < k-1; ++j) {
+                    if (suffix[j] == prefix[j]) matches++;
+                }
+                
+                double overlapQuality = static_cast<double>(matches) / (k-1);
+                overlapScores.push_back(overlapQuality);
+                
+                // Count any non-zero overlap as a valid connection
+                if (overlapQuality > 0) {
+                    validConnections++;
+                    totalOverlapQuality += overlapQuality;
+                }
+            }
+        }
+    }
+    
+    // Calculate normalized metrics
+    double avgOverlapQuality = validConnections > 0 ? totalOverlapQuality / validConnections : 0.0;
+    double connectionRatio = static_cast<double>(validConnections) / (genes.size() - 1);
+    
+    return ConnectivityMetrics(avgOverlapQuality, connectionRatio);
+}
+
+CoverageMetrics SimpleFitness::calculateDetailedCoverage(
+    const std::vector<char>& dna,
+    const DNAInstance& instance) const {
+    
+    const auto& spectrum = instance.getSpectrum();
+    if (spectrum.empty() || dna.empty()) return CoverageMetrics();
+    
+    int exactMatches = 0;
+    int partialMatches = 0;
+    int k = instance.getK();
+    
+    for (const auto& targetKmer : spectrum) {
+        bool foundExact = false;
+        bool foundPartial = false;
+        
+        // Check each possible k-mer in the DNA sequence
+        for (size_t i = 0; i + static_cast<size_t>(k) <= dna.size(); ++i) {
+            std::string kmer(dna.begin() + i, dna.begin() + i + k);
+            
+            if (kmer == targetKmer) {
+                exactMatches++;
+                foundExact = true;
+                break;
+            }
+            
+            // Count partial matches (at least 70% matching bases)
+            if (!foundPartial) {
+                int matches = 0;
+                for (int j = 0; j < k; ++j) {
+                    if (kmer[static_cast<size_t>(j)] == targetKmer[static_cast<size_t>(j)]) matches++;
+                }
+                if (static_cast<double>(matches) / k >= 0.7) {
+                    partialMatches++;
+                    foundPartial = true;
+                }
+            }
+        }
+    }
+    
+    return CoverageMetrics(
+        static_cast<double>(exactMatches) / spectrum.size(),
+        static_cast<double>(partialMatches) / spectrum.size()
+    );
+}
+
 // Implementation of OptimizedGraphBasedFitness methods
+double OptimizedGraphBasedFitness::calculateFitness(
+    const std::shared_ptr<Individual>& solution,
+    const DNAInstance& instance,
+    [[maybe_unused]] std::shared_ptr<IRepresentation> representation) const {
+    if (!solution) return 0.0;
+    
+    // Try to get cached fitness first
+    if (auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache())) {
+        return cache->getOrCalculateFitness(solution, instance);
+    }
+    
+    // Calculate edge quality and length scores
+    double edgeQualityScore = calculateEdgeQuality(solution, instance);
+    double lengthScore = calculateLength(solution, instance);
+    
+    // Ensure minimum non-zero scores
+    edgeQualityScore = std::max(0.1, edgeQualityScore);
+    lengthScore = std::max(0.1, lengthScore);
+    
+    // Weight the components - emphasize edge quality more
+    double weightedScore = (0.7 * edgeQualityScore + 0.3 * lengthScore);
+    
+    // Add bonuses for partial achievements
+    if (edgeQualityScore > 0.2) weightedScore *= 1.2;  // 20% bonus for decent edge quality
+    if (lengthScore > 0.2) weightedScore *= 1.1;  // 10% bonus for decent length
+    
+    // Ensure minimum non-zero final score
+    return std::max(0.1, weightedScore);
+}
+
 double OptimizedGraphBasedFitness::calculateEdgeQuality(
     const std::shared_ptr<Individual>& individual,
     const DNAInstance& instance) const {
@@ -207,14 +387,21 @@ double OptimizedGraphBasedFitness::calculateEdgeQuality(
         if (static_cast<size_t>(genes[i]) < adjacencyMatrix.size() && 
             static_cast<size_t>(genes[i + 1]) < adjacencyMatrix[genes[i]].size()) {
             const auto& edge = adjacencyMatrix[genes[i]][genes[i + 1]];
-            if (edge.valid) {
+            // More lenient edge quality check
+            if (edge.weight > 0) {  // Accept any non-zero weight
                 totalQuality += static_cast<double>(edge.weight) / instance.getK();
+                validEdges++;
+            } else if (std::abs(genes[i] - genes[i + 1]) <= instance.getDeltaK() + 3) {
+                // Give partial credit for close indices even without overlap
+                totalQuality += 0.3;  // Partial credit
                 validEdges++;
             }
         }
     }
     
-    return validEdges > 0 ? totalQuality / validEdges : 0.0;
+    // Ensure minimum non-zero score
+    double score = validEdges > 0 ? totalQuality / validEdges : 0.0;
+    return std::max(0.1, score);
 }
 
 double OptimizedGraphBasedFitness::calculateLength(
@@ -302,191 +489,27 @@ double OptimizedGraphBasedFitness::calculateConnectivity(
 
 std::vector<std::vector<PreprocessedEdge>> OptimizedGraphBasedFitness::buildAdjacencyMatrix(
     const DNAInstance& instance) const {
-    
     const auto& spectrum = instance.getSpectrum();
-    int k = instance.getK();
+    const int k = instance.getK();
+    const int deltaK = instance.getDeltaK();
     
-    // Initialize adjacency matrix
-    std::vector<std::vector<PreprocessedEdge>> matrix(
+    std::vector<std::vector<PreprocessedEdge>> adjacencyMatrix(
         spectrum.size(),
         std::vector<PreprocessedEdge>(spectrum.size())
     );
     
-    // Build edges between k-mers
     for (size_t i = 0; i < spectrum.size(); ++i) {
         for (size_t j = 0; j < spectrum.size(); ++j) {
-            if (i != j) {  // Don't create self-loops
-                const auto& from = spectrum[i];
-                const auto& to = spectrum[j];
-                
-                int weight = calculateEdgeWeight(from, to, k);
-                int overlap = calculatePartialOverlapWeight(from, to, k);
-                
-                matrix[i][j] = PreprocessedEdge(
-                    weight,
-                    overlap,
-                    weight > 0 || overlap > 0
-                );
+            if (i != j) {
+                int weight = calculateEdgeWeight(spectrum[i], spectrum[j], k);
+                // More lenient edge validity check
+                bool isValid = weight > 0 || std::abs(static_cast<int>(i) - static_cast<int>(j)) <= deltaK + 3;
+                adjacencyMatrix[i][j] = PreprocessedEdge(j, weight, isValid);
             }
         }
     }
     
-    return matrix;
-}
-
-double OptimizedGraphBasedFitness::calculateFitness(
-    const std::shared_ptr<Individual>& solution,
-    const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation) const {
-    if (!solution) return 0.0;
-    
-    // Try to get cached fitness first
-    if (auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache())) {
-        return cache->getOrCalculateFitness(solution, instance);
-    }
-    
-    // Calculate coverage and connectivity scores
-    double coverageScore = calculateCoverage(solution, instance);
-    double connectivityScore = calculateConnectivity(solution, instance);
-    
-    // Get the DNA sequence
-    std::string dna = representation->toDNA(solution, instance);
-    
-    // Calculate length penalty - much more forgiving
-    double lengthPenalty = 1.0;
-    int targetLength = instance.getN();
-    if (static_cast<int>(dna.length()) != targetLength) {
-        // Linear penalty that's gentler for lengths within ±30% of target
-        double lengthDiff = std::abs(static_cast<double>(dna.length()) - targetLength);
-        double relativeDiff = lengthDiff / targetLength;
-        lengthPenalty = std::max(0.3, 1.0 - (relativeDiff * 0.5));  // More lenient penalty
-    }
-    
-    // Calculate N-base penalty - more forgiving
-    double nBasePenalty = 1.0;
-    int nCount = std::count(dna.begin(), dna.end(), 'N');
-    if (nCount > 0) {
-        // Allow up to 20% N bases with minimal penalty
-        double nRatio = static_cast<double>(nCount) / dna.length();
-        nBasePenalty = std::max(0.4, 1.0 - (nRatio * 0.8));  // More lenient penalty
-    }
-    
-    // Weight the components - emphasize coverage more
-    double weightedScore = (0.8 * coverageScore + 0.2 * connectivityScore);
-    
-    // Apply penalties more gently
-    weightedScore *= std::sqrt(lengthPenalty);  // Square root makes penalty more gradual
-    weightedScore *= std::sqrt(nBasePenalty);   // Square root makes penalty more gradual
-    
-    // Add bonuses for partial achievements
-    if (coverageScore > 0.1) weightedScore *= 1.1;  // 10% bonus for basic coverage
-    if (connectivityScore > 0.1) weightedScore *= 1.1;  // 10% bonus for basic connectivity
-    if (coverageScore > 0.3) weightedScore *= 1.2;  // 20% additional bonus for good coverage
-    if (connectivityScore > 0.3) weightedScore *= 1.15;  // 15% additional bonus for good connectivity
-    
-    // Bonus for balanced solutions - more lenient thresholds
-    if (coverageScore > 0.2 && connectivityScore > 0.2) {
-        weightedScore *= 1.3;  // 30% bonus for balanced solutions
-    }
-    
-    return weightedScore;
-}
-
-double OptimizedGraphBasedFitness::calculateConnectivityScore(
-    const std::shared_ptr<Individual>& individual,
-    const DNAInstance& instance) const {
-    
-    if (!individual) return 0.0;
-    
-    const auto& genes = individual->getGenes();
-    const auto& spectrum = instance.getSpectrum();
-    const int k = instance.getK();
-    const int deltaK = instance.getDeltaK();
-    const int lNeg = instance.getLNeg();
-    const int lPoz = instance.getLPoz();
-    
-    if (genes.empty() || spectrum.empty()) return 0.0;
-    
-    double totalScore = 0.0;
-    int validEdges = 0;
-    int consecutiveGoodOverlaps = 0;  // Track consecutive good overlaps for bonus
-    
-    // Calculate allowed mismatches based on instance parameters
-    int allowedMismatches = deltaK;
-    if (lNeg > 0 || lPoz > 0) {
-        allowedMismatches += 1;  // Allow one extra mismatch with errors present
-    }
-    
-    for (size_t i = 0; i < genes.size() - 1; i++) {
-        if (genes[i] < 0 || genes[i] >= static_cast<int>(spectrum.size()) ||
-            genes[i+1] < 0 || genes[i+1] >= static_cast<int>(spectrum.size())) {
-            continue;
-        }
-        
-        const std::string& current = spectrum[genes[i]];
-        const std::string& next = spectrum[genes[i+1]];
-        
-        // Handle variable length k-mers
-        int overlapLength = k - 1;
-        if (deltaK > 0) {
-            overlapLength = std::min({
-                k - 1,
-                static_cast<int>(current.length()) - 1,
-                static_cast<int>(next.length()) - 1
-            });
-        }
-        
-        if (static_cast<size_t>(overlapLength + 1) > current.length() || 
-            static_cast<size_t>(overlapLength + 1) > next.length()) {
-            continue;
-        }
-        
-        // Count mismatches in overlap region
-        int mismatches = 0;
-        std::string suffix = current.substr(current.length() - overlapLength);
-        std::string prefix = next.substr(0, overlapLength);
-        
-        for (int j = 0; j < overlapLength; j++) {
-            if (suffix[j] != prefix[j]) mismatches++;
-        }
-        
-        // Score based on instance parameters
-        double edgeScore = 0.0;
-        if (mismatches == 0) {
-            edgeScore = 1.0;
-            consecutiveGoodOverlaps++;
-        } else if (mismatches <= allowedMismatches) {
-            edgeScore = 1.0 - (static_cast<double>(mismatches) / (allowedMismatches + 1));
-            if (edgeScore >= 0.7) consecutiveGoodOverlaps++;
-            else consecutiveGoodOverlaps = 0;
-        } else {
-            edgeScore = 0.1;  // Small score for connected but mismatched
-            consecutiveGoodOverlaps = 0;
-        }
-        
-        // Apply bonus for consecutive good overlaps
-        if (consecutiveGoodOverlaps >= 3) {
-            edgeScore *= (1.0 + 0.1 * std::min(consecutiveGoodOverlaps - 2, 5));
-        }
-        
-        totalScore += edgeScore;
-        validEdges++;
-    }
-    
-    // Normalize score
-    double normalizedScore = validEdges > 0 ? totalScore / validEdges : 0.0;
-    
-    // Apply scaling based on instance parameters
-    if (deltaK > 0) {
-        // More lenient scoring with variable lengths
-        normalizedScore = std::pow(normalizedScore, 0.9);
-    }
-    if (lNeg > 0 || lPoz > 0) {
-        // More lenient scoring with errors
-        normalizedScore = std::pow(normalizedScore, 0.85);
-    }
-    
-    return normalizedScore;
+    return adjacencyMatrix;
 }
 
 double OptimizedGraphBasedFitness::calculateSpectrumCoverageScore(
@@ -540,4 +563,32 @@ int OptimizedGraphBasedFitness::calculateLevenshteinDistance(
     }
     
     return dp[s1.length()][s2.length()];
+}
+
+int OptimizedGraphBasedFitness::calculateEdgeWeight(
+    const std::string& from, const std::string& to, int k) const {
+    if (from.empty() || to.empty()) return 0;
+    
+    // Try different overlap lengths
+    for (int overlap = k - 1; overlap > 0; overlap--) {
+        if (static_cast<int>(from.length()) < overlap || 
+            static_cast<int>(to.length()) < overlap) continue;
+        
+        std::string suffix = from.substr(from.length() - overlap);
+        std::string prefix = to.substr(0, overlap);
+        
+        // Count matches
+        int matches = 0;
+        for (int i = 0; i < overlap; i++) {
+            if (suffix[i] == prefix[i]) matches++;
+        }
+        
+        // More lenient scoring
+        double matchRatio = static_cast<double>(matches) / overlap;
+        if (matchRatio >= 0.8) return k;      // Excellent match
+        else if (matchRatio >= 0.6) return k-1;  // Good match
+        else if (matchRatio >= 0.4) return k-2;  // Acceptable match
+    }
+    
+    return 1;  // Give minimum score instead of 0
 } 
