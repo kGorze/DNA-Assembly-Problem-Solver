@@ -38,7 +38,7 @@ inline double calculateSharingFactor(double distance, double sharingRadius) {
 class PartialReplacement : public IReplacement {
 public:
     explicit PartialReplacement(double replacementRatio = 0.7, 
-                              double sharingRadius = 0.2,
+                              double sharingRadius = 0.5,
                               std::shared_ptr<IPopulationCache> cache = nullptr) 
         : m_replacementRatio(replacementRatio)
         , m_sharingRadius(sharingRadius)
@@ -124,8 +124,8 @@ public:
 
             // If stagnating, increase diversity by accepting more offspring
             if (m_stagnationCounter > 5) {
-                numToReplace = static_cast<size_t>(parents.size() * 0.9); // Replace 90% of population
-                LOG_INFO("Stagnation detected - increasing replacement ratio to 0.9");
+                numToReplace = static_cast<size_t>(parents.size() * 0.8); // Reduced from 0.9
+                LOG_INFO("Stagnation detected - increasing replacement ratio to 0.8");
                 m_stagnationCounter = 0;
             }
 
@@ -158,7 +158,7 @@ public:
                 // Replace the most similar parent if offspring is better
                 if (!parentUsed[mostSimilarIdx] && 
                     sharedFitnessOffspring[offspring.get()] > 
-                    sharedFitnessParents[parents[mostSimilarIdx].get()]) {
+                    sharedFitnessParents[parents[mostSimilarIdx].get()] * 1.05) {  // Require 5% improvement
                     newPopulation.push_back(std::make_shared<Individual>(*offspring));
                     parentUsed[mostSimilarIdx] = true;
                 } else {

@@ -259,70 +259,163 @@ void AdaptiveCrossover::logDiversityMetrics(
     std::shared_ptr<IRepresentation> representation,
     RunMetrics& metrics) {
     
-    LOG_DEBUG("Attempting to log diversity metrics at generation " + std::to_string(generationCount));
-    
     if (population.empty()) {
         LOG_WARNING("Empty population, skipping diversity metrics");
         return;
     }
     
-    // Calculate average Hamming distance
-    double avgDistance = calculateAverageDistance(population);
+    // Calculate average Hamming distance with tolerance for small differences
+    double totalDistance = 0.0;
+    int comparisons = 0;
     
-    // Calculate unique solutions ratio
-    std::unordered_set<std::string> uniqueGenes;
-    std::unordered_set<std::string> uniqueDNA;
-    
-    for (const auto& individual : population) {
-        if (!individual) {
-            LOG_DEBUG("Skipping null individual");
-            continue;
-        }
-        
-        // Use representation's validation
-        if (!representation->isValid(individual, *m_config.getInstance())) {
-            //LOG_DEBUG("Skipping individual with invalid genes");
-            continue;
-        }
-        
-        // Add to unique genes set
-        uniqueGenes.insert(representation->toString(individual, *m_config.getInstance()));
-        
-        // Convert to DNA if possible
-        if (representation) {
-            try {
-                std::string dna = representation->toDNA(individual, *m_config.getInstance());
-                if (!dna.empty()) {
-                    uniqueDNA.insert(dna);
+    for (size_t i = 0; i < population.size(); ++i) {
+        for (size_t j = i + 1; j < population.size(); ++j) {
+            if (!population[i] || !population[j]) continue;
+            
+            const auto& genes1 = population[i]->getGenes();
+            const auto& genes2 = population[j]->getGenes();
+            
+            if (genes1.size() != genes2.size()) continue;
+            
+            int differences = 0;
+            for (size_t k = 0; k < genes1.size(); ++k) {
+                if (genes1[k] != genes2[k]) {  // Exact comparison, no tolerance
+                    differences++;
                 }
-            } catch (const std::exception& e) {
-                LOG_ERROR("Error converting individual to DNA: " + std::string(e.what()));
-                continue;
             }
+            
+            double distance = static_cast<double>(differences) / genes1.size();
+            totalDistance += distance;
+            comparisons++;
         }
     }
     
-    double uniqueSolutionsRatio = population.empty() ? 0.0 : 
-                                 static_cast<double>(uniqueGenes.size()) / population.size();
-    double uniqueDNASequencesRatio = population.empty() ? 0.0 : 
-                                    static_cast<double>(uniqueDNA.size()) / population.size();
+    double avgDistance = comparisons > 0 ? totalDistance / comparisons : 1.0;
     
-    // Log all metrics with detailed information
+    // Calculate unique solutions using clustering
+    std::vector<std::vector<int>> clusters;  // Each cluster contains indices of similar individuals
+    std::vector<bool> assigned(population.size(), false);
+    
+    for (size_t i = 0; i < population.size(); ++i) {
+        if (!population[i] || assigned[i]) continue;
+        
+        // Start new cluster
+        std::vector<int> cluster;
+        cluster.push_back(i);
+        assigned[i] = true;
+        
+        // Find similar individuals
+        for (size_t j = i + 1; j < population.size(); ++j) {
+            if (!population[j] || assigned[j]) continue;
+            
+            const auto& genes1 = population[i]->getGenes();
+            const auto& genes2 = population[j]->getGenes();
+            
+            if (genes1.size() != genes2.size()) continue;
+            
+            // Calculate similarity
+            int differences = 0;
+            int matchingPositions = 0;
+            for (size_t k = 0; k < genes1.size(); ++k) {
+                // Count exact matches and adjacent positions
+                if (genes1[k] == genes2[k]) {
+                    matchingPositions++;
+                } else if (k > 0 && genes1[k] == genes2[k-1] || 
+                          k < genes1.size()-1 && genes1[k] == genes2[k+1]) {
+                    matchingPositions++; // Count adjacent matches with half weight
+                } else {
+                    differences++;
+                }
+            }
+            
+            // More lenient similarity threshold - if 40% of positions match (including adjacency)
+            if (static_cast<double>(matchingPositions) / genes1.size() > 0.4) {
+                cluster.push_back(j);
+                assigned[j] = true;
+            }
+        }
+        clusters.push_back(cluster);
+    }
+    
+    double uniqueSolutionsRatio = population.empty() ? 0.0 : 
+                                 static_cast<double>(clusters.size()) / population.size();
+    
+    // Calculate unique DNA sequences using similar clustering but with different threshold
+    std::vector<std::vector<int>> dnaClusters;
+    std::fill(assigned.begin(), assigned.end(), false);
+    
+    for (size_t i = 0; i < population.size(); ++i) {
+        if (!population[i] || assigned[i] || 
+            !representation->isValid(population[i], *m_config.getInstance())) continue;
+        
+        std::vector<int> cluster;
+        cluster.push_back(i);
+        assigned[i] = true;
+        
+        std::string dna1 = representation->toDNA(population[i], *m_config.getInstance());
+        if (dna1.empty()) continue;
+        
+        for (size_t j = i + 1; j < population.size(); ++j) {
+            if (!population[j] || assigned[j] || 
+                !representation->isValid(population[j], *m_config.getInstance())) continue;
+                
+            std::string dna2 = representation->toDNA(population[j], *m_config.getInstance());
+            if (dna2.empty() || dna1.length() != dna2.length()) continue;
+            
+            // Calculate DNA similarity with local region matching
+            int matchingRegions = 0;
+            const int regionSize = 5; // Look at regions of 5 bases
+            
+            for (size_t k = 0; k + regionSize <= dna1.length(); k += regionSize) {
+                bool regionMatches = false;
+                // Look for this region anywhere within ±10 positions in the other sequence
+                for (int offset = -10; offset <= 10; ++offset) {
+                    if (k + offset < 0 || k + offset + regionSize > dna2.length()) continue;
+                    
+                    bool allMatch = true;
+                    for (int r = 0; r < regionSize; ++r) {
+                        if (dna1[k + r] != dna2[k + offset + r]) {
+                            allMatch = false;
+                            break;
+                        }
+                    }
+                    if (allMatch) {
+                        regionMatches = true;
+                        break;
+                    }
+                }
+                if (regionMatches) matchingRegions++;
+            }
+            
+            // If 30% of regions match (allowing for shifted positions)
+            double regionSimilarity = static_cast<double>(matchingRegions) / 
+                                    ((dna1.length() / regionSize) + 1);
+            if (regionSimilarity > 0.3) {
+                cluster.push_back(j);
+                assigned[j] = true;
+            }
+        }
+        dnaClusters.push_back(cluster);
+    }
+    
+    double uniqueDNASequencesRatio = population.empty() ? 0.0 : 
+                                    static_cast<double>(dnaClusters.size()) / population.size();
+    
+    // Log metrics
     std::stringstream ss;
     ss << std::fixed << std::setprecision(4);
     ss << "Generation " << generationCount << " Diversity Metrics:";
     ss << "\n  Average Hamming Distance: " << avgDistance;
-    ss << "\n  Unique Solutions Ratio: " << uniqueSolutionsRatio << " (" << uniqueGenes.size() << "/" << population.size() << ")";
-    ss << "\n  Unique DNA Sequences Ratio: " << uniqueDNASequencesRatio << " (" << uniqueDNA.size() << "/" << population.size() << ")";
+    ss << "\n  Unique Solutions Ratio: " << uniqueSolutionsRatio << " (" << clusters.size() << "/" << population.size() << ")";
+    ss << "\n  Unique DNA Sequences Ratio: " << uniqueDNASequencesRatio << " (" << dnaClusters.size() << "/" << population.size() << ")";
+    ss << "\n  Average Cluster Size: " << (population.size() / std::max(1UL, clusters.size()));
     
     LOG_INFO(ss.str());
     
-    // Store metrics for later use
+    // Store metrics
     m_lastDiversityMeasure = avgDistance;
     DiversityMetrics diversityMetrics = {avgDistance, uniqueSolutionsRatio, uniqueDNASequencesRatio};
     metrics.diversityHistory.push_back(diversityMetrics);
-    
-    LOG_DEBUG("Successfully logged diversity metrics for generation " + std::to_string(generationCount));
 }
 
 double AdaptiveCrossover::calculateAverageDistance(

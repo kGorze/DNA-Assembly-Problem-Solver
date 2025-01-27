@@ -8,9 +8,14 @@
 #include <unordered_set>
 #include <limits>
 #include <unordered_map>
+#include <climits>
+#include <sstream>
+#include <deque>
 
-// Forward declaration of helper function
+// Forward declaration of helper functions
 std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const std::vector<int>& parent2, size_t size);
+bool validateGeneSequence(const std::vector<int>& genes, const DNAInstance& instance);
+int calculateKmerOverlapQuality(const std::vector<int>& genes, const DNAInstance& instance, size_t start, size_t length);
 
 namespace {
 
@@ -77,12 +82,20 @@ std::vector<std::shared_ptr<Individual>> OrderCrossover::crossover(
         auto& rng = Random::instance();
         const size_t size = std::min(genes1.size(), genes2.size());
         
+        if (size <= 1) {
+            LOG_ERROR("Cannot generate random points: size must be greater than 1");
+            return parents;
+        }
+        int point1 = rng.getRandomInt(0, static_cast<int>(size - 1));
+        int point2 = rng.getRandomInt(0, static_cast<int>(size - 1));
+        if (point1 < 0 || point2 < 0 || point1 >= static_cast<int>(size) || point2 >= static_cast<int>(size)) {
+            LOG_ERROR("Generated random points out of bounds: " + std::to_string(point1) + ", " + std::to_string(point2));
+            return parents;
+        }
+        if (point1 > point2) std::swap(point1, point2);
+        
         int maxAttempts = 3;
         while (offspring.size() < 2 && maxAttempts > 0) {
-            int start = rng.getRandomInt(0, static_cast<int>(size - 1));
-            int end = rng.getRandomInt(0, static_cast<int>(size - 1));
-            if (start > end) std::swap(start, end);
-            
             // Create offspring with duplicate detection and repair
             auto offspring1Genes = performOrderCrossover(genes1, genes2, size);
             if (!offspring1Genes.empty()) {
@@ -131,158 +144,235 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombinationCrossover::crossover(
     
     if (parents.size() < 2 || !parents[0] || !parents[1]) {
         LOG_WARNING("EdgeRecombination: Invalid parents");
-        return {};
+        return parents;
     }
     
     const auto& parent1Genes = parents[0]->getGenes();
     const auto& parent2Genes = parents[1]->getGenes();
     const size_t spectrumSize = instance.getSpectrum().size();
+    const auto& spectrum = instance.getSpectrum();
+    const int k = instance.getK();
     
     // Validate gene lengths and values
-    if (parent1Genes.empty() || parent2Genes.empty()) {
-        LOG_WARNING("EdgeRecombination: Empty parent genes");
-        return {};
-    }
-    
-    // Enforce same length equal to spectrum size
-    if (parent1Genes.size() != spectrumSize || parent2Genes.size() != spectrumSize) {
-        LOG_WARNING("EdgeRecombination: Parents must have length equal to spectrum size (" + 
-                   std::to_string(spectrumSize) + ")");
-        return {};
-    }
-    
-    // Validate gene values in parents
-    for (const auto& genes : {parent1Genes, parent2Genes}) {
-        for (int gene : genes) {
-            if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
-                LOG_WARNING("EdgeRecombination: Invalid gene value in parent");
-                return {};
-            }
-        }
+    if (parent1Genes.empty() || parent2Genes.empty() || 
+        parent1Genes.size() != spectrumSize || parent2Genes.size() != spectrumSize) {
+        LOG_WARNING("EdgeRecombination: Invalid parent genes size");
+        return parents;
     }
     
     std::vector<std::shared_ptr<Individual>> offspring;
     offspring.reserve(2);
     
-    int maxAttempts = 3;
-    while (offspring.empty() && maxAttempts > 0) {
-        try {
-            EdgeTable edgeTable(parents, instance);
-            auto& rng = Random::instance();
-            
-            // Try to create two offspring
-            for (int k = 0; k < 2 && offspring.size() < 2; k++) {
-                std::vector<int> childGenes;
-                childGenes.reserve(spectrumSize);
-                
-                // Start with a random gene from first parent
-                int startPos = rng.getRandomInt(0, static_cast<int>(spectrumSize - 1));
-                if (startPos < 0 || static_cast<size_t>(startPos) >= parent1Genes.size()) {
-                    LOG_ERROR("EdgeRecombination: Invalid start position generated");
-                    continue;
-                }
-                
-                int current = parent1Genes[startPos];
-                if (current < 0 || static_cast<size_t>(current) >= spectrumSize) {
-                    LOG_ERROR("EdgeRecombination: Invalid start gene selected");
-                    continue;
-                }
-                
-                childGenes.push_back(current);
-                std::unordered_set<int> usedGenes{current};
-                
-                // Build the rest of the path prioritizing high-quality overlaps
-                bool validPath = true;
-                while (childGenes.size() < spectrumSize && validPath) {
-                    const auto neighbors = edgeTable.getNeighbors(current);
-                    bool foundNext = false;
+    try {
+        // Build edge table with overlap weights and local structure
+        std::unordered_map<int, std::vector<std::pair<int, double>>> edgeTable;
+        for (size_t i = 0; i < spectrumSize; i++) {
+            edgeTable[i] = std::vector<std::pair<int, double>>();
+        }
+        
+        // Add edges from both parents with overlap weights and position-based bonuses
+        auto addEdges = [&](const std::vector<int>& genes, const char* parentName) {
+            for (size_t i = 0; i < genes.size(); i++) {
+                int current = genes[i];
+                // Look at neighbors within a window of 5 positions
+                for (int offset = -5; offset <= 5; offset++) {
+                    if (offset == 0) continue;
+                    size_t j = (i + genes.size() + offset) % genes.size();
+                    int neighbor = genes[j];
                     
-                    // First try: Find unused neighbor with best overlap quality
-                    for (const auto& neighbor : neighbors) {
-                        if (neighbor.node < 0 || static_cast<size_t>(neighbor.node) >= spectrumSize) {
-                            LOG_ERROR("EdgeRecombination: Invalid neighbor node");
-                            validPath = false;
+                    // Calculate base overlap quality
+                    double overlapScore = dna_utils::calculateEdgeWeight(
+                        spectrum[current], spectrum[neighbor], k);
+                    
+                    // Add position-based bonuses
+                    if (std::abs(offset) == 1) {
+                        overlapScore *= 2.0;  // Double weight for adjacent positions
+                    } else if (std::abs(offset) <= 3) {
+                        overlapScore *= 1.5;  // 50% bonus for near positions
+                    }
+                    
+                    if (overlapScore > 0) {
+                        edgeTable[current].push_back({neighbor, overlapScore});
+                    }
+                }
+            }
+        };
+        
+        addEdges(parent1Genes, "Parent1");
+        addEdges(parent2Genes, "Parent2");
+        
+        // Create two offspring
+        for (int childIdx = 0; childIdx < 2; childIdx++) {
+            std::vector<int> childGenes;
+            childGenes.reserve(spectrumSize);
+            std::vector<bool> used(spectrumSize, false);
+            
+            // Start with a gene that has good overlaps from the respective parent
+            const auto& startGenes = (childIdx == 0) ? parent1Genes : parent2Genes;
+            int currentGene = startGenes[0];
+            
+            // Track the last few genes for local structure preservation
+            std::deque<int> recentGenes;
+            const size_t MEMORY_SIZE = 5;
+            
+            childGenes.push_back(currentGene);
+            used[currentGene] = true;
+            recentGenes.push_back(currentGene);
+            
+            while (childGenes.size() < spectrumSize) {
+                int nextGene = -1;
+                double bestQuality = -1;
+                
+                // Get candidates with their qualities
+                std::vector<std::pair<int, double>> candidates;
+                
+                // First try: look at neighbors with direct overlaps
+                if (!edgeTable[currentGene].empty()) {
+                    for (const auto& [neighbor, quality] : edgeTable[currentGene]) {
+                        if (!used[neighbor]) {
+                            double adjustedQuality = quality;
+                            
+                            // Check overlap with recent genes
+                            if (!recentGenes.empty()) {
+                                for (size_t i = 0; i < recentGenes.size(); i++) {
+                                    int recentGene = recentGenes[i];
+                                    double recentOverlap = dna_utils::calculateEdgeWeight(
+                                        spectrum[neighbor], spectrum[recentGene], k);
+                                    adjustedQuality += recentOverlap * (1.0 - i * 0.2);  // Decay factor
+                                }
+                            }
+                            
+                            candidates.push_back({neighbor, adjustedQuality});
+                        }
+                    }
+                }
+                
+                // Sort candidates by quality
+                std::sort(candidates.begin(), candidates.end(),
+                         [](const auto& a, const auto& b) { return a.second > b.second; });
+                
+                // Try top candidates
+                const int MAX_CANDIDATES = 5;
+                for (size_t i = 0; i < std::min(candidates.size(), size_t(MAX_CANDIDATES)); i++) {
+                    int candidate = candidates[i].first;
+                    // Verify k-mer overlap quality
+                    if (!childGenes.empty()) {
+                        int overlap = dna_utils::calculateEdgeWeight(
+                            spectrum[currentGene], spectrum[candidate], k);
+                        if (overlap > 0) {
+                            nextGene = candidate;
+                            bestQuality = candidates[i].second;
                             break;
                         }
-                        
-                        if (usedGenes.find(neighbor.node) == usedGenes.end()) {
-                            childGenes.push_back(neighbor.node);
-                            usedGenes.insert(neighbor.node);
-                            current = neighbor.node;
-                            foundNext = true;
+                    } else {
+                        nextGene = candidate;
+                        bestQuality = candidates[i].second;
+                        break;
+                    }
+                }
+                
+                // If no good candidate found, try to repair
+                if (nextGene == -1) {
+                    // Look for any unused gene with acceptable overlap
+                    for (size_t i = 0; i < spectrumSize; i++) {
+                        if (!used[i]) {
+                            int overlap = dna_utils::calculateEdgeWeight(
+                                spectrum[currentGene], spectrum[i], k);
+                            if (overlap > bestQuality) {
+                                bestQuality = overlap;
+                                nextGene = i;
+                            }
+                        }
+                    }
+                }
+                
+                // If still no gene found, take first unused
+                if (nextGene == -1) {
+                    for (size_t i = 0; i < spectrumSize; i++) {
+                        if (!used[i]) {
+                            nextGene = i;
                             break;
                         }
                     }
+                }
+                
+                childGenes.push_back(nextGene);
+                used[nextGene] = true;
+                currentGene = nextGene;
+                
+                // Update recent genes
+                recentGenes.push_back(nextGene);
+                if (recentGenes.size() > MEMORY_SIZE) {
+                    recentGenes.pop_front();
+                }
+            }
+            
+            // Attempt local repair of poor overlaps
+            bool improved;
+            int repairAttempts = 0;
+            const int MAX_REPAIR_ATTEMPTS = 5;
+            
+            do {
+                improved = false;
+                for (size_t i = 0; i < childGenes.size() - 1; i++) {
+                    int curr = childGenes[i];
+                    int next = childGenes[i + 1];
+                    int overlap = dna_utils::calculateEdgeWeight(spectrum[curr], spectrum[next], k);
                     
-                    if (!foundNext && validPath) {
-                        // Second try: Use any unused gene from parents
-                        std::vector<int> unusedGenes;
-                        for (int gene : parent1Genes) {
-                            if (gene >= 0 && static_cast<size_t>(gene) < spectrumSize && 
-                                usedGenes.find(gene) == usedGenes.end()) {
-                                unusedGenes.push_back(gene);
-                            }
-                        }
+                    if (overlap == 0) {  // Poor overlap found
+                        // Try to find a better gene to insert between them
+                        int bestInsert = -1;
+                        int bestCombinedOverlap = -1;
                         
-                        if (!unusedGenes.empty()) {
-                            int idx = rng.getRandomInt(0, static_cast<int>(unusedGenes.size() - 1));
-                            if (idx >= 0 && idx < static_cast<int>(unusedGenes.size())) {
-                                int nextGene = unusedGenes[idx];
-                                if (nextGene >= 0 && static_cast<size_t>(nextGene) < spectrumSize) {
-                                    childGenes.push_back(nextGene);
-                                    usedGenes.insert(nextGene);
-                                    current = nextGene;
-                                    foundNext = true;
+                        for (size_t j = 0; j < spectrumSize; j++) {
+                            if (j != curr && j != next) {
+                                int overlapPrev = dna_utils::calculateEdgeWeight(spectrum[curr], spectrum[j], k);
+                                int overlapNext = dna_utils::calculateEdgeWeight(spectrum[j], spectrum[next], k);
+                                int combinedOverlap = overlapPrev + overlapNext;
+                                
+                                if (combinedOverlap > bestCombinedOverlap) {
+                                    bestCombinedOverlap = combinedOverlap;
+                                    bestInsert = j;
                                 }
                             }
                         }
                         
-                        if (!foundNext) {
-                            validPath = false;
+                        if (bestInsert != -1 && bestCombinedOverlap > 0) {
+                            // Insert the new gene and remove it from its old position
+                            auto oldPos = std::find(childGenes.begin(), childGenes.end(), bestInsert);
+                            if (oldPos != childGenes.end()) {
+                                childGenes.erase(oldPos);
+                            }
+                            childGenes.insert(childGenes.begin() + i + 1, bestInsert);
+                            improved = true;
                         }
                     }
                 }
-                
-                // Validate final child genes
-                bool validChild = true;
-                if (validPath && childGenes.size() == spectrumSize) {
-                    for (int gene : childGenes) {
-                        if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
-                            validChild = false;
-                            break;
-                        }
-                    }
-                    
-                    if (validChild) {
-                        auto child = std::make_shared<Individual>(childGenes);
-                        if (representation->isValid(child, instance)) {
-                            offspring.push_back(child);
-                            LOG_DEBUG("EdgeRecombination: Created valid offspring");
-                        }
-                    }
+                repairAttempts++;
+            } while (improved && repairAttempts < MAX_REPAIR_ATTEMPTS);
+            
+            // Create and validate offspring
+            auto child = std::make_shared<Individual>(childGenes);
+            if (validateGeneSequence(childGenes, instance) && representation->isValid(child, instance)) {
+                offspring.push_back(child);
+                LOG_DEBUG("EdgeRecombination: Created valid offspring");
+            } else {
+                LOG_WARNING("EdgeRecombination: Child validation failed");
+                // Try to use the better parent as fallback
+                if (parents[childIdx] && representation->isValid(parents[childIdx], instance)) {
+                    offspring.push_back(parents[childIdx]);
+                    LOG_DEBUG("EdgeRecombination: Using parent as fallback");
                 }
             }
-            maxAttempts--;
-            
-        } catch (const std::exception& e) {
-            LOG_WARNING("EdgeRecombination: Exception during crossover: " + std::string(e.what()));
-            maxAttempts--;
         }
+        
+    } catch (const std::exception& e) {
+        LOG_WARNING("EdgeRecombination: Exception during crossover: " + std::string(e.what()));
     }
     
     if (offspring.empty()) {
-        LOG_WARNING("EdgeRecombination: Failed to create valid offspring, validating parents before return");
-        std::vector<std::shared_ptr<Individual>> validatedParents;
-        for (const auto& parent : parents) {
-            if (parent && representation->isValid(parent, instance)) {
-                validatedParents.push_back(parent);
-            }
-        }
-        if (!validatedParents.empty()) {
-            return validatedParents;
-        }
-        LOG_ERROR("EdgeRecombination: No valid parents to return as fallback");
-        return {};
+        LOG_WARNING("EdgeRecombination: Failed to create valid offspring");
+        return parents;
     }
     
     return offspring;
@@ -684,40 +774,6 @@ std::vector<std::shared_ptr<Individual>> DNAAlignmentCrossover::crossover(
     }
 }
 
-// Validate parents and get their genes
-std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(
-    const std::vector<std::shared_ptr<Individual>>& parents) {
-    
-    if (parents.size() < 2 || !parents[0] || !parents[1]) {
-        LOG_ERROR("Invalid parents: size=" + std::to_string(parents.size()) + 
-                 ", p1=" + (parents[0] ? "valid" : "null") + 
-                 ", p2=" + (parents[1] ? "valid" : "null"));
-        return {};
-    }
-
-    const auto& parent1 = parents[0];
-    const auto& parent2 = parents[1];
-
-    const auto& genes1 = parent1->getGenes();
-    const auto& genes2 = parent2->getGenes();
-
-    LOG_DEBUG("Validating genes - p1 size: " + std::to_string(genes1.size()) + 
-              ", p2 size: " + std::to_string(genes2.size()));
-
-    if (genes1.empty() || genes2.empty()) {
-        LOG_ERROR("Empty genes in parents");
-        return {};
-    }
-
-    if (genes1.size() != genes2.size()) {
-        LOG_ERROR("Parents have different lengths: " + std::to_string(genes1.size()) + 
-                 " vs " + std::to_string(genes2.size()));
-        return {};
-    }
-    
-    return {genes1, genes2};
-}
-
 std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const std::vector<int>& parent2, size_t size) {
     // Use the shared Random instance instead of creating a new one
     auto& rng = Random::instance();
@@ -731,13 +787,11 @@ std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const st
     // Select two random crossover points with proper bounds checking
     int point1 = rng.getRandomInt(0, static_cast<int>(size - 1));
     int point2 = rng.getRandomInt(0, static_cast<int>(size - 1));
-    if (point1 > point2) std::swap(point1, point2);
-    
-    // Validate crossover points
-    if (point1 < 0 || point2 < 0 || static_cast<size_t>(point1) >= size || static_cast<size_t>(point2) >= size) {
-        LOG_ERROR("OrderCrossover: Invalid crossover points generated");
+    if (point1 < 0 || point2 < 0 || point1 >= static_cast<int>(size) || point2 >= static_cast<int>(size)) {
+        LOG_ERROR("Generated random points out of bounds: " + std::to_string(point1) + ", " + std::to_string(point2));
         return {};
     }
+    if (point1 > point2) std::swap(point1, point2);
     
     // Create child with same size as parents
     std::vector<int> child(size);
@@ -806,4 +860,72 @@ std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const st
     }
     
     return child;
+}
+
+bool validateGeneSequence(const std::vector<int>& genes, const DNAInstance& instance) {
+    if (genes.empty()) {
+        LOG_ERROR("Empty gene sequence");
+        return false;
+    }
+
+    // Check for size match with spectrum
+    if (genes.size() != instance.getSpectrum().size()) {
+        LOG_ERROR("Gene sequence size mismatch: " + std::to_string(genes.size()) + 
+                 " vs expected " + std::to_string(instance.getSpectrum().size()));
+        return false;
+    }
+
+    // Check for valid gene indices and duplicates
+    std::vector<bool> used(instance.getSpectrum().size(), false);
+    for (int gene : genes) {
+        if (gene < 0 || static_cast<size_t>(gene) >= instance.getSpectrum().size()) {
+            LOG_ERROR("Invalid gene index: " + std::to_string(gene));
+            return false;
+        }
+        if (used[gene]) {
+            LOG_ERROR("Duplicate gene found: " + std::to_string(gene));
+            return false;
+        }
+        used[gene] = true;
+    }
+
+    // Check k-mer overlaps
+    const auto& spectrum = instance.getSpectrum();
+    const int k = instance.getK();
+    for (size_t i = 0; i < genes.size() - 1; i++) {
+        int curr = genes[i];
+        int next = genes[i + 1];
+        int overlap = dna_utils::calculateEdgeWeight(spectrum[curr], spectrum[next], k);
+        if (overlap <= 0) {
+            LOG_ERROR("Invalid k-mer overlap at position " + std::to_string(i) + 
+                     ": " + spectrum[curr] + " -> " + spectrum[next]);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+int calculateKmerOverlapQuality(const std::vector<int>& genes, 
+                              const DNAInstance& instance,
+                              size_t start,
+                              size_t length) {
+    if (start + length > genes.size()) return 0;
+    
+    const auto& spectrum = instance.getSpectrum();
+    const int k = instance.getK();
+    int totalOverlap = 0;
+    
+    for (size_t i = start; i < start + length - 1; i++) {
+        int curr = genes[i];
+        int next = genes[i + 1];
+        if (curr >= 0 && next >= 0 && 
+            static_cast<size_t>(curr) < spectrum.size() && 
+            static_cast<size_t>(next) < spectrum.size()) {
+            int overlap = dna_utils::calculateEdgeWeight(spectrum[curr], spectrum[next], k);
+            totalOverlap += overlap;
+        }
+    }
+    
+    return totalOverlap;
 } 

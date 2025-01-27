@@ -311,6 +311,7 @@ bool GeneticAlgorithm::updateGlobalBest(
             m_bestFitness = fitness;
             m_globalBestGenes = population[i]->getGenes();
             m_bestDNA = vectorToString(population[i]->getGenes());
+            m_globalBestIndividual = population[i];
             m_bestIndex = i;
             improved = true;
         }
@@ -321,42 +322,71 @@ bool GeneticAlgorithm::updateGlobalBest(
 
 void GeneticAlgorithm::logGenerationStats(
     const std::vector<std::shared_ptr<Individual>>& population,
-    [[maybe_unused]] const DNAInstance& instance,
-    int generation)
-{
-    double sumFitness = 0.0;
-    double minFitness = std::numeric_limits<double>::infinity();
-    double maxFitness = -std::numeric_limits<double>::infinity();
-    int validCount = 0;
+    const DNAInstance& instance,
+    int generation) {
     
+    if (population.empty()) return;
+
+    // Calculate statistics
+    double totalFitness = 0.0;
+    double bestFitness = -std::numeric_limits<double>::infinity();
+    std::shared_ptr<Individual> bestInGen = nullptr;
+
     for (const auto& individual : population) {
-        if (!individual) continue;
-        
         double fitness = individual->getFitness();
-        sumFitness += fitness;
-        minFitness = std::min(minFitness, fitness);
-        maxFitness = std::max(maxFitness, fitness);
-        validCount++;
-    }
-    
-    double avgFitness = validCount > 0 ? sumFitness / validCount : 0.0;
-    bool improved = maxFitness > m_globalBestFit;
-    
-    // Only log if there's improvement or every 10 generations
-    if (improved || generation % 10 == 0) {
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(4);
-        ss << "Gen " << generation << ": ";
-        ss << "Best=" << maxFitness;  // Show raw fitness
-        if (improved) {
-            ss << " (↑ from " << m_globalBestFit << ")";
+        totalFitness += fitness;
+        if (fitness > bestFitness) {
+            bestFitness = fitness;
+            bestInGen = individual;
         }
-        ss << " Avg=" << avgFitness;
-        if (validCount < static_cast<int>(population.size())) {
-            ss << " [" << validCount << "/" << population.size() << " valid]";
-        }
-        LOG_INFO(ss.str());
     }
+
+    double avgFitness = totalFitness / population.size();
+    double normalizedBest = bestFitness / m_theoreticalMaxFitness;
+    double normalizedAvg = avgFitness / m_theoreticalMaxFitness;
+
+    // Calculate best and worst possible Levenshtein distances
+    int targetLength = instance.getTargetSequence().length();
+    int k = instance.getK();
+    const auto& spectrum = instance.getSpectrum();
+    int worstPossibleDistance = std::accumulate(spectrum.begin(), spectrum.end(),
+        0, [](int sum, const std::string& kmer) { return sum + kmer.length(); });
+    
+    // Get DNA sequence and Levenshtein distance for best in generation
+    std::string bestDNAInGen;
+    int bestDistanceInGen = std::numeric_limits<int>::max();
+    if (bestInGen && m_representation) {
+        bestDNAInGen = m_representation->toDNA(bestInGen, instance);
+        if (!bestDNAInGen.empty()) {
+            bestDistanceInGen = calculateLevenshteinDistance(bestDNAInGen, instance.getTargetSequence());
+        }
+    }
+
+    // Get DNA sequence and Levenshtein distance for global best
+    std::string globalBestDNA;
+    int globalBestDistance = std::numeric_limits<int>::max();
+    if (m_globalBestIndividual && m_representation) {
+        globalBestDNA = m_representation->toDNA(m_globalBestIndividual, instance);
+        if (!globalBestDNA.empty()) {
+            globalBestDistance = calculateLevenshteinDistance(globalBestDNA, instance.getTargetSequence());
+        }
+    }
+
+    // Calculate quality percentages
+    double currentQuality = 100.0 * (worstPossibleDistance - bestDistanceInGen) / (worstPossibleDistance - targetLength);
+    double bestQuality = 100.0 * (worstPossibleDistance - globalBestDistance) / (worstPossibleDistance - targetLength);
+
+    // Log the statistics
+    std::stringstream ss;
+    ss << "Gen " << generation << ": ";
+    ss << "Best=" << std::fixed << std::setprecision(4) << normalizedBest;
+    ss << " Avg=" << normalizedAvg;
+    ss << " | Quality: Current=" << std::setprecision(2) << currentQuality << "%";
+    ss << " Best=" << bestQuality << "%";
+    ss << " | Target Length=" << targetLength;
+    ss << " Current Length=" << (bestDNAInGen.empty() ? 0 : bestDNAInGen.length());
+    
+    LOG_INFO(ss.str());
 }
 
 std::string GeneticAlgorithm::vectorToString(const std::vector<int>& vec) {

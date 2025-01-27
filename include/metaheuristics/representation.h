@@ -19,6 +19,7 @@ public:
                         
 private:
     bool validateGenes(const std::vector<int>& genes, const DNAInstance& instance) const;
+    size_t countMismatches(const std::string& str1, const std::string& str2, size_t overlapLen) const;
     
     // Cache for validation results to avoid redundant validations
     mutable std::unordered_map<const Individual*, bool> m_validationCache;
