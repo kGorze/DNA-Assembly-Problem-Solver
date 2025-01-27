@@ -102,236 +102,169 @@ RunMetrics AdaptiveCrossover::getMetrics() const {
 void AdaptiveCrossover::updatePerformance(bool improved) {
     LOG_DEBUG("Entering updatePerformance, generation: " + std::to_string(generationCount));
     
-    // Log diversity metrics every generation
+    // Update performance metrics for current crossover operator
+    if (currentCrossoverIndex >= 0 && currentCrossoverIndex < static_cast<int>(crossovers.size())) {
+        auto& currentOp = crossovers[currentCrossoverIndex];
+        currentOp.trials++;
+        currentOp.recentUsageCount++;
+        if (improved) {
+            currentOp.successes++;
+            currentOp.recentSuccessCount++;
+        }
+        
+        // Update success rates
+        if (currentOp.trials > 0) {
+            currentOp.successRate = static_cast<double>(currentOp.successes) / currentOp.trials;
+        }
+        if (currentOp.recentUsageCount > 0) {
+            currentOp.recentSuccessRate = static_cast<double>(currentOp.recentSuccessCount) / currentOp.recentUsageCount;
+        }
+        
+        // Log operator performance
+        LOG_DEBUG("Operator " + std::to_string(currentCrossoverIndex) + 
+                 " performance - Success rate: " + std::to_string(currentOp.successRate) + 
+                 ", Recent success rate: " + std::to_string(currentOp.recentSuccessRate));
+    }
+    
+    // Log diversity metrics if we have a cache
     if (m_config.getCache()) {
         auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-        if (cache && !cache->getCurrentPopulation().empty()) {
-            LOG_DEBUG("Logging diversity metrics for generation " + std::to_string(generationCount));
-            logDiversityMetrics();
-        }
-    }
-    
-    auto& current = crossovers[currentCrossoverIndex];
-    current.usageCount++;
-    current.recentUsageCount++;
-    
-    // Calculate improvement magnitude
-    double improvementMagnitude = std::max(0.0, previousBestFitness - bestSeenFitness);
-    bool significantImprovement = improved || (improvementMagnitude > EPSILON);
-    
-    // Decay old success counts
-    for (auto& crossover : crossovers) {
-        crossover.successCount = static_cast<int>(crossover.successCount * 0.95);  // 5% decay per generation
-        crossover.recentSuccessCount = static_cast<int>(crossover.recentSuccessCount * 0.9);  // 10% decay for recent
-    }
-    
-    if (significantImprovement) {
-        current.successCount++;
-        current.recentSuccessCount++;
-        
-        // Scale success rate by improvement magnitude
-        double improvementFactor = 1.0 + std::min(1.0, improvementMagnitude * 2.0);
-        bestSeenFitness = previousBestFitness;
-        
-        // Update recent success rate with improvement scaling
-        if (current.recentUsageCount > 0) {
-            current.recentSuccessRate = (static_cast<double>(current.recentSuccessCount) / 
-                                       current.recentUsageCount) * improvementFactor;
-        }
-        
-        // Add diversity bonus if this operator produces more diverse offspring
-        if (m_config.getCache()) {
-            auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-            if (cache) {
-                const auto& population = cache->getCurrentPopulation();
-                double avgDistance = calculateAverageDistance(population);
-                if (avgDistance > m_lastDiversityMeasure) {
-                    current.recentSuccessRate *= 1.2;  // 20% bonus for diversity increase
-                }
-                m_lastDiversityMeasure = avgDistance;
+        if (cache) {
+            const auto& population = cache->getCurrentPopulation();
+            auto representation = m_config.getRepresentation();
+            if (representation) {
+                logDiversityMetrics(population, representation, metrics);
             }
         }
-    } else {
-        // Penalize lack of improvement more severely if diversity is low
-        double diversityPenalty = 1.0;
-        if (m_config.getCache()) {
-            auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-            if (cache) {
-                const auto& population = cache->getCurrentPopulation();
-                double avgDistance = calculateAverageDistance(population);
-                if (avgDistance < 0.2) {  // Low diversity threshold
-                    diversityPenalty = 0.7;  // 30% extra penalty
-                }
-            }
-        }
-        
-        if (current.recentUsageCount > 0) {
-            current.recentSuccessRate = (static_cast<double>(current.recentSuccessCount) / 
-                                       current.recentUsageCount) * 0.9 * diversityPenalty;
-        }
     }
     
-    // Update overall success rate with inertia and diversity consideration
-    if (current.usageCount > 0) {
-        double historicalRate = static_cast<double>(current.successCount) / current.usageCount;
-        current.successRate = (INERTIA * current.successRate) + 
-                            ((1.0 - INERTIA) * current.recentSuccessRate);
-        
-        // Blend with historical rate to prevent over-specialization
-        current.successRate = (0.7 * current.successRate) + (0.3 * historicalRate);
+    // Store operator usage and success rates
+    std::vector<double> usageRates;
+    std::vector<double> successRates;
+    for (const auto& op : crossovers) {
+        usageRates.push_back(static_cast<double>(op.recentUsageCount) / std::max(1, ADAPTATION_INTERVAL));
+        successRates.push_back(op.recentSuccessRate);
     }
+    metrics.operatorUsageHistory.push_back(usageRates);
+    metrics.operatorSuccessHistory.push_back(successRates);
     
-    generationCount++;  // Move increment to end of updatePerformance
-    LOG_DEBUG("Generation count after increment: " + std::to_string(generationCount));
-    
-    // Periodically adjust probabilities and log diversity
+    // Reset recent counters if adaptation interval is reached
     if (generationCount % ADAPTATION_INTERVAL == 0) {
-        LOG_DEBUG("Reached adaptation interval at generation " + std::to_string(generationCount));
-        adjustProbabilities();
-        // Log diversity metrics after population has been updated
+        for (auto& op : crossovers) {
+            op.recentUsageCount = 0;
+            op.recentSuccessCount = 0;
+            op.recentSuccessRate = 0.0;
+        }
+        
+        // Log diversity metrics after resetting counters
         if (m_config.getCache()) {
             auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-            if (cache && !cache->getCurrentPopulation().empty()) {
-                LOG_DEBUG("Logging diversity metrics at generation " + std::to_string(generationCount));
-                logDiversityMetrics();
-            } else {
-                LOG_DEBUG("Cache is null or population is empty at generation " + std::to_string(generationCount));
+            if (cache) {
+                const auto& population = cache->getCurrentPopulation();
+                auto representation = m_config.getRepresentation();
+                if (representation) {
+                    logDiversityMetrics(population, representation, metrics);
+                }
             }
-        } else {
-            LOG_DEBUG("No cache available at generation " + std::to_string(generationCount));
         }
-    } else {
-        LOG_DEBUG("Not at adaptation interval: " + std::to_string(generationCount) + " % " + 
-                  std::to_string(ADAPTATION_INTERVAL) + " = " + 
-                  std::to_string(generationCount % ADAPTATION_INTERVAL));
+        
+        // Adjust probabilities based on performance
+        adjustProbabilities();
     }
 }
 
 void AdaptiveCrossover::adjustProbabilities() {
-    // Debug logging for adaptation interval
-    LOG_DEBUG("Adjusting probabilities at generation " + std::to_string(generationCount));
+    LOG_DEBUG("Adjusting probabilities based on performance");
     
     // Calculate total success rate
-    double totalRate = 0.0;
-    int activeOperators = 0;
-    
-    for (auto& c : crossovers) {
-        if (c.recentUsageCount >= MIN_TRIALS) {
-            totalRate += c.successRate;
-            activeOperators++;
-        }
-    }
-    
-    if (totalRate < EPSILON || activeOperators == 0) {
-        // Reset probabilities if no operator is performing well
-        double evenRate = 1.0 / crossovers.size();
-        for (auto& c : crossovers) {
-            c.successRate = evenRate;
-        }
-        return;
+    double totalSuccessRate = 0.0;
+    for (const auto& op : crossovers) {
+        totalSuccessRate += op.successRate;
     }
     
     // Adjust probabilities based on success rates
-    for (auto& c : crossovers) {
-        if (c.recentUsageCount >= MIN_TRIALS) {
-            // Scale probability by success rate
-            c.successRate = (c.successRate / totalRate) * 0.9;  // Reserve 10% for exploration
-        } else {
-            // Give unexplored operators a chance
-            c.successRate = 0.1 / (crossovers.size() - activeOperators);
+    if (totalSuccessRate > EPSILON) {
+        for (auto& op : crossovers) {
+            double newRate = (1.0 - MIN_PROB * crossovers.size()) * 
+                           (op.successRate / totalSuccessRate) + MIN_PROB;
+            op.successRate = INERTIA * op.successRate + (1.0 - INERTIA) * newRate;
         }
         
-        // Ensure minimum probability
-        c.successRate = std::max(MIN_PROB, c.successRate);
-    }
-    
-    // Normalize probabilities
-    totalRate = 0.0;
-    for (auto& c : crossovers) {
-        totalRate += c.successRate;
-    }
-    
-    for (auto& c : crossovers) {
-        c.successRate /= totalRate;
+        // Log diversity metrics after probability adjustment
+        if (m_config.getCache()) {
+            auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
+            if (cache) {
+                const auto& population = cache->getCurrentPopulation();
+                auto representation = m_config.getRepresentation();
+                if (representation) {
+                    logDiversityMetrics(population, representation, metrics);
+                }
+            }
+        }
         
-        // Reset recent statistics
-        c.recentUsageCount = 0;
-        c.recentSuccessCount = 0;
-        c.recentSuccessRate = 0.0;
-    }
-    
-    // Log diversity metrics after adjusting probabilities
-    if (m_config.getCache()) {
-        auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-        if (cache && !cache->getCurrentPopulation().empty()) {
-            LOG_DEBUG("Logging diversity metrics after probability adjustment");
-            logDiversityMetrics();
-        } else {
-            LOG_DEBUG("Cannot log diversity metrics after probability adjustment - invalid cache or empty population");
+        // Normalize probabilities
+        double sum = 0.0;
+        for (const auto& op : crossovers) {
+            sum += op.successRate;
+        }
+        if (sum > EPSILON) {
+            for (auto& op : crossovers) {
+                op.successRate /= sum;
+            }
         }
     } else {
-        LOG_DEBUG("Cannot log diversity metrics after probability adjustment - no cache");
+        // If no success, use uniform distribution
+        double uniformProb = 1.0 / crossovers.size();
+        for (auto& op : crossovers) {
+            op.successRate = uniformProb;
+        }
     }
+    
+    // Log adjusted probabilities
+    std::stringstream ss;
+    ss << "Adjusted probabilities:";
+    for (size_t i = 0; i < crossovers.size(); ++i) {
+        ss << "\n  Operator " << i << ": " << crossovers[i].successRate;
+    }
+    LOG_DEBUG(ss.str());
 }
 
-void AdaptiveCrossover::logDiversityMetrics() {
+void AdaptiveCrossover::logDiversityMetrics(
+    const std::vector<std::shared_ptr<Individual>>& population,
+    std::shared_ptr<IRepresentation> representation,
+    Metrics& metrics) {
+    
     LOG_DEBUG("Attempting to log diversity metrics at generation " + std::to_string(generationCount));
     
-    if (!m_config.getCache()) {
-        LOG_DEBUG("No cache available for diversity metrics");
-        return;
-    }
-    
-    auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-    if (!cache) {
-        LOG_DEBUG("Cache cast failed for diversity metrics");
-        return;
-    }
-    
-    const auto& population = cache->getCurrentPopulation();
     if (population.empty()) {
-        LOG_DEBUG("Population is empty, cannot calculate diversity metrics");
+        LOG_WARNING("Empty population, skipping diversity metrics");
         return;
     }
-
+    
     // Calculate average Hamming distance
     double avgDistance = calculateAverageDistance(population);
     
     // Calculate unique solutions ratio
-    std::set<std::vector<int>> uniqueGenes;
-    for (const auto& individual : population) {
-        if (individual && !individual->getGenes().empty()) {
-            uniqueGenes.insert(individual->getGenes());
-        }
-    }
-    double uniqueSolutionsRatio = static_cast<double>(uniqueGenes.size()) / population.size();
+    std::unordered_set<std::string> uniqueGenes;
+    std::unordered_set<std::string> uniqueDNA;
     
-    // Calculate unique DNA sequences ratio with safety checks
-    std::set<std::string> uniqueDNA;
-    auto representation = m_config.getRepresentation();
-    if (representation) {
-        for (const auto& individual : population) {
-            if (!individual || individual->getGenes().empty()) {
-                continue;
-            }
-            
-            // Validate genes before conversion
-            bool validGenes = true;
-            const auto& genes = individual->getGenes();
-            const auto& spectrum = m_instance.getSpectrum();
-            
-            for (int gene : genes) {
-                if (gene < 0 || static_cast<size_t>(gene) >= spectrum.size()) {
-                    validGenes = false;
-                    break;
-                }
-            }
-            
-            if (!validGenes) {
-                LOG_DEBUG("Skipping individual with invalid genes");
-                continue;
-            }
-            
+    for (const auto& individual : population) {
+        if (!individual) {
+            LOG_DEBUG("Skipping null individual");
+            continue;
+        }
+        
+        // Use representation's validation
+        if (!representation->isValid(individual, m_instance)) {
+            LOG_DEBUG("Skipping individual with invalid genes");
+            continue;
+        }
+        
+        // Add to unique genes set
+        uniqueGenes.insert(representation->toString(individual, m_instance));
+        
+        // Convert to DNA if possible
+        if (representation) {
             try {
                 std::string dna = representation->toDNA(individual, m_instance);
                 if (!dna.empty()) {
@@ -342,9 +275,10 @@ void AdaptiveCrossover::logDiversityMetrics() {
                 continue;
             }
         }
-    } else {
-        LOG_DEBUG("No representation available for DNA conversion");
     }
+    
+    double uniqueSolutionsRatio = population.empty() ? 0.0 : 
+                                 static_cast<double>(uniqueGenes.size()) / population.size();
     double uniqueDNASequencesRatio = population.empty() ? 0.0 : 
                                     static_cast<double>(uniqueDNA.size()) / population.size();
     
@@ -435,20 +369,33 @@ std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
         return {};
     }
 
+    // Validate parents first
+    std::vector<std::shared_ptr<Individual>> validParents;
+    for (const auto& parent : parents) {
+        if (parent && representation->isValid(parent, instance)) {
+            validParents.push_back(parent);
+        }
+    }
+
+    if (validParents.size() < 2) {
+        LOG_WARNING("Not enough valid parents for crossover");
+        return parents;  // Return original parents as fallback
+    }
+
     // Select crossover operator based on performance
     auto crossoverOp = selectCrossover();
     if (!crossoverOp) {
         LOG_WARNING("No crossover operator selected");
-        return parents;
+        return validParents;
     }
 
-    // Perform crossover - always keep offspring regardless of validation
-    auto offspring = crossoverOp->crossover(parents, instance, representation);
+    // Perform crossover with valid parents
+    auto offspring = crossoverOp->crossover(validParents, instance, representation);
     
-    // If crossover produced no offspring (technical error), return parents
+    // If crossover produced no offspring (technical error), return valid parents
     if (offspring.empty()) {
         LOG_WARNING("Crossover produced no offspring - technical error");
-        return parents;
+        return validParents;
     }
     
     // Keep offspring regardless of validation status

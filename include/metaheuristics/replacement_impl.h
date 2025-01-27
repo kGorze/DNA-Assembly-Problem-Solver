@@ -71,9 +71,23 @@ public:
         }
 
         try {
+            // Filter out empty individuals from offspring
+            std::vector<std::shared_ptr<Individual>> validOffspring;
+            validOffspring.reserve(offspring.size());
+            for (const auto& child : offspring) {
+                if (child && !child->getGenes().empty() && representation->isValid(child, instance)) {
+                    validOffspring.push_back(child);
+                }
+            }
+
+            if (validOffspring.empty()) {
+                LOG_WARNING("No valid offspring after filtering, keeping parents");
+                return parents;
+            }
+
             // Calculate number of individuals to replace
             size_t numToReplace = static_cast<size_t>(m_replacementRatio * parents.size());
-            numToReplace = std::min(numToReplace, offspring.size());
+            numToReplace = std::min(numToReplace, validOffspring.size());
 
             // Create a new population starting with the best parent
             std::vector<std::shared_ptr<Individual>> newPopulation;
@@ -81,11 +95,11 @@ public:
 
             // Apply fitness sharing to both populations
             auto sharedFitnessParents = calculateSharedFitness(parents);
-            auto sharedFitnessOffspring = calculateSharedFitness(offspring);
+            auto sharedFitnessOffspring = calculateSharedFitness(validOffspring);
 
             // Sort populations by shared fitness
             auto sortedPopulation = parents;
-            auto sortedOffspring = offspring;
+            auto sortedOffspring = validOffspring;
             
             std::sort(sortedPopulation.begin(), sortedPopulation.end(),
                 [&](const auto& a, const auto& b) {
@@ -213,7 +227,7 @@ public:
     std::vector<std::shared_ptr<Individual>> replace(
         const std::vector<std::shared_ptr<Individual>>& parents,
         const std::vector<std::shared_ptr<Individual>>& offspring,
-        [[maybe_unused]] const DNAInstance& instance,
+        const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation) override {
         std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -228,6 +242,20 @@ public:
         }
 
         try {
+            // Filter out empty individuals from offspring
+            std::vector<std::shared_ptr<Individual>> validOffspring;
+            validOffspring.reserve(offspring.size());
+            for (const auto& child : offspring) {
+                if (child && !child->getGenes().empty() && representation->isValid(child, instance)) {
+                    validOffspring.push_back(child);
+                }
+            }
+
+            if (validOffspring.empty()) {
+                LOG_WARNING("No valid offspring after filtering, keeping parents");
+                return parents;
+            }
+
             // Find the best individual from the current population
             auto bestFromParents = std::max_element(parents.begin(), parents.end(),
                 [](const auto& a, const auto& b) {
@@ -244,7 +272,7 @@ public:
             }
 
             // Add offspring
-            for (const auto& individual : offspring) {
+            for (const auto& individual : validOffspring) {
                 if (newPopulation.size() >= parents.size()) break;
                 if (individual) {
                     newPopulation.push_back(std::make_shared<Individual>(*individual));
@@ -284,7 +312,7 @@ public:
     std::vector<std::shared_ptr<Individual>> replace(
         const std::vector<std::shared_ptr<Individual>>& parents,
         const std::vector<std::shared_ptr<Individual>>& offspring,
-        [[maybe_unused]] const DNAInstance& instance,
+        const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation) override {
         std::lock_guard<std::mutex> lock(m_mutex);
 
@@ -299,6 +327,20 @@ public:
         }
 
         try {
+            // Filter out empty individuals from offspring
+            std::vector<std::shared_ptr<Individual>> validOffspring;
+            validOffspring.reserve(offspring.size());
+            for (const auto& child : offspring) {
+                if (child && !child->getGenes().empty() && representation->isValid(child, instance)) {
+                    validOffspring.push_back(child);
+                }
+            }
+
+            if (validOffspring.empty()) {
+                LOG_WARNING("No valid offspring after filtering, keeping parents");
+                return parents;
+            }
+
             // Find the best individual from the current population
             auto bestFromPopulation = std::max_element(parents.begin(), parents.end(),
                 [](const auto& a, const auto& b) {
@@ -314,7 +356,7 @@ public:
             }
 
             // Sort offspring by fitness
-            auto sortedOffspring = offspring;
+            auto sortedOffspring = validOffspring;
             std::sort(sortedOffspring.begin(), sortedOffspring.end(),
                 [](const auto& a, const auto& b) {
                     return a && b && a->getFitness() > b->getFitness();

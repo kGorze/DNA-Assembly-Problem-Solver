@@ -97,7 +97,10 @@ private:
     void adjustProbabilities();
     std::shared_ptr<ICrossover> selectCrossover();
     
-    void logDiversityMetrics();
+    void logDiversityMetrics(
+        const std::vector<std::shared_ptr<Individual>>& population,
+        std::shared_ptr<IRepresentation> representation,
+        Metrics& metrics);
     double calculateAverageDistance(const std::vector<std::shared_ptr<Individual>>& population) const;
 
 public:

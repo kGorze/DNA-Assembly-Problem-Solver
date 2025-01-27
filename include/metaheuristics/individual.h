@@ -30,7 +30,10 @@ public:
     size_t getSize() const { return m_genes.size(); }
 
     // Setters
-    void setGenes(const std::vector<int>& genes);
+    void setGenes(const std::vector<int>& genes) {
+        m_genes = genes;
+        m_isValid = !m_genes.empty();  // Basic validation - genes vector is not empty
+    }
     void setFitness(double fitness);
 
     // Utility methods

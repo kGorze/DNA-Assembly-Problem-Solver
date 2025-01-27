@@ -95,6 +95,13 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             parents = std::move(selectedParents);
             LOG_DEBUG("Selected " + std::to_string(parents.size()) + " parents");
             
+            if (parents.size() >= 2) {
+                LOG_DEBUG("Parent 1 genes: " + std::to_string(parents[0]->getGenes().size()) + 
+                          " genes, valid: " + std::to_string(parents[0]->isValid()));
+                LOG_DEBUG("Parent 2 genes: " + std::to_string(parents[1]->getGenes().size()) + 
+                          " genes, valid: " + std::to_string(parents[1]->isValid()));
+            }
+            
             // Crossover and Mutation
             LOG_DEBUG("Performing crossover and mutation");
             std::vector<std::shared_ptr<Individual>> offspring;

@@ -53,10 +53,6 @@ Individual& Individual::operator=(Individual&& other) noexcept {
     return *this;
 }
 
-void Individual::setGenes(const std::vector<int>& genes) {
-    m_genes = genes;
-}
-
 void Individual::setFitness(double fitness) {
     if (!std::isfinite(fitness)) {
         throw std::invalid_argument("Fitness must be a finite number");
@@ -69,7 +65,7 @@ void Individual::setFitness(double fitness) {
 }
 
 bool Individual::isValid() const {
-    return !m_genes.empty();
+    return m_isValid && !m_genes.empty();
 }
 
 std::string Individual::toString() const {
@@ -93,11 +89,11 @@ void Individual::validateGenesVector(const std::vector<int>& genes) {
         throw std::invalid_argument("Genes vector cannot be empty");
     }
     
-    // Check for invalid gene values
+    // Only check for negative values, as the upper bound will be checked by the representation
     if (std::any_of(genes.begin(), genes.end(), [](int gene) {
-        return gene < 0 || gene >= std::numeric_limits<int>::max();
+        return gene < 0;
     })) {
-        throw std::invalid_argument("Genes vector contains invalid values");
+        throw std::invalid_argument("Genes vector contains negative values");
     }
 }
 

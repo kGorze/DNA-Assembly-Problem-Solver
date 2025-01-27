@@ -124,26 +124,11 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         return false;
     }
     
-    // Calculate minimum and maximum lengths based on instance parameters
-    size_t minLength = std::max(
-        static_cast<size_t>(spectrum.size() * 0.7),  // At least 70% of spectrum size
-        static_cast<size_t>(instance.getK() + instance.getLPoz())  // Or k + lPoz
-    );
-    size_t maxLength = std::min(
-        spectrum.size(),  // Full spectrum size
-        minLength + static_cast<size_t>(instance.getLNeg())  // Or min length + lNeg for noise tolerance
-    );
-    
-    // Check if valid length range exists
-    if (minLength > maxLength || minLength > spectrum.size()) {
-        LOG_ERROR("Invalid length range: min=" + std::to_string(minLength) + 
-                  ", max=" + std::to_string(maxLength) + 
-                  ", spectrum size=" + std::to_string(spectrum.size()));
-        return false;
-    }
+    // Use spectrum size as the fixed length for all individuals
+    size_t size = spectrum.size();
     
     // Create a permutation of indices
-    std::vector<int> indices(spectrum.size());
+    std::vector<int> indices(size);
     std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
     
     // Shuffle the indices
@@ -152,85 +137,38 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         std::swap(indices[i], indices[j]);
     }
     
-    // Generate a length that ensures good coverage
-    size_t size = rng.getRandomInt(
-        static_cast<int>(minLength),
-        static_cast<int>(maxLength)
-    );
-    
     // Keep track of used indices to avoid duplicates
-    std::vector<bool> usedIndices(spectrum.size(), false);
+    std::vector<bool> usedIndices(size, false);
     std::vector<int> finalIndices;
-    finalIndices.reserve(maxLength);
+    finalIndices.reserve(size);  // Pre-allocate to avoid reallocation
     
-    // First add the initial shuffled sequence up to size
-    for (size_t i = 0; i < size && i < indices.size(); i++) {
-        finalIndices.push_back(indices[i]);
-        usedIndices[indices[i]] = true;
-    }
-    
-    // If we have noise parameters, ensure variety in solution length
-    if (instance.getLNeg() > 0 || instance.getLPoz() > 0) {
-        // 20% chance to add extra elements for handling negative errors
-        if (rng.generateProbability() < 0.2 && finalIndices.size() < spectrum.size()) {
-            size_t extraElements = rng.getRandomInt(1, std::min(instance.getLNeg(), 
-                static_cast<int>(spectrum.size() - finalIndices.size())));
-            
-            // Try to add unused indices first
-            std::vector<int> unusedIndices;
-            for (size_t i = 0; i < spectrum.size(); i++) {
-                if (!usedIndices[i]) {
-                    unusedIndices.push_back(static_cast<int>(i));
-                }
-            }
-            
-            // Shuffle unused indices
-            for (size_t i = unusedIndices.size() - 1; i > 0; --i) {
-                size_t j = rng.getRandomInt(0, static_cast<int>(i));
-                std::swap(unusedIndices[i], unusedIndices[j]);
-            }
-            
-            // Add extra elements from unused indices
-            for (size_t i = 0; i < extraElements && i < unusedIndices.size(); i++) {
-                finalIndices.push_back(unusedIndices[i]);
-                usedIndices[unusedIndices[i]] = true;
-            }
-        }
-        // 20% chance to remove some elements for handling positive errors
-        else if (rng.generateProbability() < 0.2 && finalIndices.size() > minLength) {
-            size_t elementsToRemove = rng.getRandomInt(1, std::min(instance.getLPoz(), 
-                static_cast<int>(finalIndices.size() - minLength)));
-            finalIndices.resize(finalIndices.size() - elementsToRemove);
-        }
-    }
-    
-    // Ensure we have at least minLength elements
-    if (finalIndices.size() < minLength) {
-        // Add unused indices until we reach minLength
-        for (size_t i = 0; i < spectrum.size() && finalIndices.size() < minLength; i++) {
-            if (!usedIndices[i]) {
-                finalIndices.push_back(i);
-                usedIndices[i] = true;
-            }
-        }
-        
-        // If still not enough, allow reuse of indices
-        while (finalIndices.size() < minLength) {
-            int randomIndex = rng.getRandomInt(0, static_cast<int>(spectrum.size() - 1));
-            finalIndices.push_back(randomIndex);
+    // Add all shuffled indices
+    for (size_t i = 0; i < size; i++) {
+        if (indices[i] >= 0 && static_cast<size_t>(indices[i]) < spectrum.size()) {
+            finalIndices.push_back(indices[i]);
+            usedIndices[indices[i]] = true;
         }
     }
     
     // Final validation
-    if (finalIndices.empty() || finalIndices.size() < minLength || finalIndices.size() > maxLength) {
+    if (finalIndices.empty() || finalIndices.size() != size) {
         LOG_ERROR("Failed to generate valid individual: size=" + std::to_string(finalIndices.size()) +
-                  ", required min=" + std::to_string(minLength) +
-                  ", max=" + std::to_string(maxLength));
+                  ", required size=" + std::to_string(size));
         return false;
     }
     
+    // Validate all indices are within bounds
+    for (int idx : finalIndices) {
+        if (idx < 0 || static_cast<size_t>(idx) >= spectrum.size()) {
+            LOG_ERROR("Invalid index generated: " + std::to_string(idx) + 
+                     " (spectrum size: " + std::to_string(spectrum.size()) + ")");
+            return false;
+        }
+    }
+    
     individual.setGenes(finalIndices);
-    return validateGenes(finalIndices, instance);
+    individual.validate();  // Explicitly validate the individual
+    return true;
 }
 
 bool PermutationRepresentation::isValid(
@@ -241,14 +179,8 @@ bool PermutationRepresentation::isValid(
     const auto& genes = individual->getGenes();
     if (genes.empty()) return false;
     
-    // Only check if indices are within bounds
-    for (int gene : genes) {
-        if (gene < 0 || gene >= static_cast<int>(instance.getSpectrum().size())) {
-            return false;
-        }
-    }
-    
-    return true;  // Accept any solution with valid indices
+    // Use the more flexible validation
+    return validateGenes(genes, instance);
 }
 
 std::string PermutationRepresentation::toString(
@@ -369,12 +301,18 @@ bool PermutationRepresentation::validateGenes(
     
     const auto& spectrum = instance.getSpectrum();
     
-    // Only check if indices are within bounds
+    // First check: all genes must be within valid bounds
     for (int gene : genes) {
-        if (gene < 0 || gene >= static_cast<int>(spectrum.size())) {
+        if (gene < 0 || static_cast<size_t>(gene) >= spectrum.size()) {
             return false;
         }
     }
     
-    return true;  // Accept any solution with valid indices
+    // Second check: genes must be the same size as spectrum
+    // since we initialize with full spectrum size
+    if (genes.size() != spectrum.size()) {
+        return false;
+    }
+    
+    return true;
 } 

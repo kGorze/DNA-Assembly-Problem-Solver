@@ -94,11 +94,27 @@ private:
     bool m_diversityTrackingEnabled = false;
     double m_diversityThreshold = 0.2;
 
+    bool isValidIndividual(const std::shared_ptr<Individual>& individual) const {
+        if (!individual) return false;
+        const auto& genes = individual->getGenes();
+        if (genes.empty()) return false;
+        return true;
+    }
+
 public:
     void updatePopulation(const std::vector<std::shared_ptr<Individual>>& population) override {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_population = population;
+        m_population.clear();
         m_fitnessCache.clear();
+        
+        // Only add valid individuals
+        for (const auto& individual : population) {
+            if (isValidIndividual(individual)) {
+                m_population.push_back(individual);
+            } else {
+                LOG_WARNING("Skipping invalid individual during population update");
+            }
+        }
     }
     
     const std::vector<std::shared_ptr<Individual>>& getCurrentPopulation() const override {
@@ -120,6 +136,10 @@ public:
 
     void add(const std::shared_ptr<Individual>& individual) override {
         std::lock_guard<std::mutex> lock(m_mutex);
+        if (!isValidIndividual(individual)) {
+            LOG_WARNING("Attempted to add invalid individual to cache");
+            return;
+        }
         if (!contains(individual)) {
             m_population.push_back(individual);
         }
@@ -127,12 +147,18 @@ public:
 
     bool contains(const std::shared_ptr<Individual>& individual) const override {
         std::lock_guard<std::mutex> lock(m_mutex);
+        if (!isValidIndividual(individual)) return false;
         return std::find(m_population.begin(), m_population.end(), individual) != m_population.end();
     }
 
     double getOrCalculateFitness(const std::shared_ptr<Individual>& individual,
                                 const DNAInstance& instance) override {
         std::lock_guard<std::mutex> lock(m_mutex);
+        if (!isValidIndividual(individual)) {
+            LOG_WARNING("Attempted to calculate fitness for invalid individual");
+            return 0.0;
+        }
+        
         auto it = m_fitnessCache.find(individual);
         if (it != m_fitnessCache.end()) {
             return it->second;
