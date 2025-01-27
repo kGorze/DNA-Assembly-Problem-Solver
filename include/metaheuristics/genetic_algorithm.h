@@ -28,7 +28,7 @@ class GeneticAlgorithm : public IAlgorithm {
 public:
     GeneticAlgorithm(
         std::unique_ptr<IRepresentation> representation,
-        const GAConfig& config,
+        GAConfig& config,
         bool debugMode = false);
     ~GeneticAlgorithm() override = default;
 
@@ -62,9 +62,10 @@ private:
 
     std::vector<std::shared_ptr<Individual>> m_population;
     std::unique_ptr<IRepresentation> m_representation;
-    GAConfig m_config;
+    GAConfig& m_config;
     std::unique_ptr<Random> m_random;
     double m_globalBestFit;
+    std::shared_ptr<Individual> m_globalBestIndividual;
     double m_bestFitness;
     double m_theoreticalMaxFitness;
     std::vector<int> m_globalBestGenes;
@@ -73,4 +74,9 @@ private:
     int m_processId{0};
     int m_bestIndex;
     std::shared_ptr<IFitness> m_fitness{std::make_shared<OptimizedGraphBasedFitness>()};
+
+    bool shouldStop(int generation) const {
+        auto stopping = m_config.getStopping();
+        return stopping && stopping->shouldStop(generation, m_globalBestFit);
+    }
 };

@@ -37,6 +37,7 @@ set(SOURCES
     src/metaheuristics/individual.cpp
     src/metaheuristics/stopping_criteria.cpp
     src/metaheuristics/path_analyzer.cpp
+    src/metaheuristics/edge_table.cpp
     src/dna/dna_instance.cpp
     src/dna/dna_instance_io.cpp
     src/dna/dna_instance_builder.cpp

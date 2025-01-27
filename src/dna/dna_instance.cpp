@@ -1,76 +1,112 @@
-#include "dna/dna_instance.h"
-#include "utils/logging.h"
-#include <algorithm>
+#include "../../include/dna/dna_instance.h"
+#include "../../include/utils/logging.h"
 #include <random>
-#include <chrono>
+#include <algorithm>
+#include <stdexcept>
+#include <sstream>
 
-std::string DNAInstance::generateRandomDNA(int length, Random& random) const {
-    std::string dna;
-    dna.reserve(length);
-    const std::string nucleotides = "ACGT";
+DNAInstance::DNAInstance(int n, int k, int lNeg, int lPoz, int maxErrors, bool allowNegative, double errorProb, int seed)
+    : n(n), k(k), deltaK(maxErrors), lNeg(lNeg), lPoz(lPoz), repAllowed(allowNegative), probablePositive(errorProb) {
     
-    for (int i = 0; i < length; ++i) {
-        dna += nucleotides[random.getGenerator()() % 4];
+    if (n <= 0 || k <= 0 || k > n) {
+        LOG_ERROR("Invalid parameters: n={}, k={}", n, k);
+        throw std::invalid_argument("Invalid DNA or k-mer length");
     }
-    
-    return dna;
+
+    m_random = std::make_unique<Random>(seed);
+    m_dna = generateRandomDNA(n, *m_random);
+    m_originalDNA = m_dna;
+    generateSpectrum();
 }
 
 void DNAInstance::generateSpectrum() {
-    if (m_originalDNA.empty() || k <= 0) {
-        LOG_WARNING("Cannot generate spectrum: DNA is empty or k <= 0");
-        return;
+    if (k <= 0) {
+        LOG_ERROR("Invalid k-mer length: {}", k);
+        throw std::invalid_argument("k-mer length must be positive");
+    }
+
+    if (static_cast<size_t>(k) > m_dna.length()) {
+        LOG_ERROR("k-mer length {} exceeds DNA length {}", k, m_dna.length());
+        throw std::invalid_argument("k-mer length exceeds DNA length");
     }
 
     m_spectrum.clear();
-    
-    for (size_t i = 0; i + k <= m_originalDNA.length(); ++i) {
-        m_spectrum.push_back(m_originalDNA.substr(i, k));
+    m_spectrum.reserve(m_dna.length() - k + 1);
+
+    // Generate k-mers
+    for (size_t i = 0; i + k <= m_dna.length(); ++i) {
+        m_spectrum.push_back(m_dna.substr(i, k));
     }
-    
+
+    // Sort spectrum for consistent ordering
+    std::sort(m_spectrum.begin(), m_spectrum.end());
+
+    // Remove duplicates if repetitions are not allowed
     if (!repAllowed) {
-        std::sort(m_spectrum.begin(), m_spectrum.end());
-        m_spectrum.erase(std::unique(m_spectrum.begin(), m_spectrum.end()), m_spectrum.end());
+        auto last = std::unique(m_spectrum.begin(), m_spectrum.end());
+        m_spectrum.erase(last, m_spectrum.end());
     }
+
+    if (!validateSpectrum()) {
+        LOG_ERROR("Generated spectrum is invalid");
+        throw std::runtime_error("Generated spectrum is invalid");
+    }
+
+    LOG_DEBUG("Generated spectrum with {} k-mers", m_spectrum.size());
 }
 
-int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
-    if (instance.getSpectrum().empty() || instance.getDNA().empty() || instance.getK() <= 0) {
-        return -1;
+std::string DNAInstance::generateRandomDNA(int length, Random& random) const {
+    static const char nucleotides[] = "ACGT";
+    static const int numNucleotides = 4;
+
+    std::string dna;
+    dna.reserve(length);
+
+    for (int i = 0; i < length; ++i) {
+        dna += nucleotides[random.getRandomInt(0, numNucleotides - 1)];
     }
 
-    std::string startFrag = instance.getDNA().substr(0, instance.getK());
-    const auto& spectrum = instance.getSpectrum();
+    return dna;
+}
+
+bool DNAInstance::validateSpectrum() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_spectrum.empty()) {
+        LOG_ERROR("Spectrum validation failed: spectrum is empty");
+        return false;
+    }
     
-    for (int i = 0; i < static_cast<int>(spectrum.size()); i++) {
-        if (spectrum[i] == startFrag) {
-            return i;
+    // Check that all k-mers have the same length
+    const size_t kmerLength = m_spectrum[0].length();
+    for (const auto& kmer : m_spectrum) {
+        if (kmer.length() != kmerLength) {
+            LOG_ERROR("Spectrum validation failed: inconsistent k-mer lengths");
+            return false;
+        }
+        // Check that k-mer only contains valid DNA bases
+        if (kmer.find_first_not_of("ACGT") != std::string::npos) {
+            LOG_ERROR("Spectrum validation failed: invalid DNA bases in k-mer: " + kmer);
+            return false;
         }
     }
     
-    return -1;
+    LOG_DEBUG("Spectrum validation passed: " + std::to_string(m_spectrum.size()) + " k-mers of length " + std::to_string(kmerLength));
+    return true;
 }
 
-DNAInstance::DNAInstance(int n_val, int k_val, int lNeg_val, int lPoz_val, 
-                        [[maybe_unused]] int maxErrors, bool allowNegative, 
-                        double errorProb, int seed) {
-    n = n_val;
-    k = k_val;
-    lNeg = lNeg_val;
-    lPoz = lPoz_val;
-    repAllowed = allowNegative;
-    probablePositive = errorProb;
-    m_random = std::make_unique<Random>(seed);
-    
-    // Generate random DNA sequence
-    const std::string nucleotides = "ACGT";
-    std::uniform_int_distribution<> dist(0, 3);
-    
-    m_originalDNA.reserve(n);
-    for (int i = 0; i < n; ++i) {
-        m_originalDNA += nucleotides[dist(m_random->getGenerator())];
+int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
+    const auto& spectrum = instance.getSpectrum();
+    if (spectrum.empty()) {
+        LOG_ERROR("Cannot find start vertex: empty spectrum");
+        return -1;
     }
-    
-    // Generate spectrum
-    generateSpectrum();
-} 
+
+    // Find the lexicographically smallest k-mer
+    auto minKmer = std::min_element(spectrum.begin(), spectrum.end());
+    if (minKmer == spectrum.end()) {
+        LOG_ERROR("Failed to find minimum k-mer");
+        return -1;
+    }
+
+    return static_cast<int>(std::distance(spectrum.begin(), minKmer));
+}

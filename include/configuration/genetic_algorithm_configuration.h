@@ -62,7 +62,7 @@ enum class CrossoverType {
 
 class GAConfig {
 public:
-    GAConfig() : m_crossoverType(CrossoverType::ADAPTIVE) {}
+    GAConfig();  // Constructor declaration only
     GAConfig(const GAConfig& other) = default;
     GAConfig& operator=(const GAConfig& other) = default;
 
@@ -91,7 +91,7 @@ public:
     const AdaptiveParams& getAdaptiveParams() const { return m_adaptiveParams; }
     const DiversityParams& getDiversityParams() const { return m_diversityParams; }
     CrossoverType getCrossoverType() const { return m_crossoverType; }
-    const DNAInstance& getInstance() const { return m_instance; }
+    const std::shared_ptr<DNAInstance>& getInstance() const { return m_instance; }
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
@@ -112,7 +112,7 @@ public:
     void setAdaptiveParams(const AdaptiveParams& params) { m_adaptiveParams = params; }
     void setDiversityParams(const DiversityParams& params) { m_diversityParams = params; }
     void setCrossoverType(CrossoverType type) { m_crossoverType = type; }
-    void setInstance(const DNAInstance& instance) { m_instance = instance; }
+    void setInstance(const std::shared_ptr<DNAInstance>& instance) { m_instance = instance; }
 
     // Cache management
     void setCache(std::shared_ptr<IPopulationCache> cachePtr) {
@@ -161,6 +161,6 @@ private:
     // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;
     CrossoverType m_crossoverType;
-    DNAInstance m_instance;
+    std::shared_ptr<DNAInstance> m_instance;
     mutable std::shared_ptr<ICrossover> m_cachedAdaptiveCrossover;
 };

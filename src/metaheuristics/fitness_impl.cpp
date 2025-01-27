@@ -348,39 +348,6 @@ double OptimizedGraphBasedFitness::calculateFitness(
     [[maybe_unused]] std::shared_ptr<IRepresentation> representation) const {
     if (!solution) return 0.0;
     
-    // Try to get cached fitness first
-    if (auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache())) {
-        double cachedFitness = cache->getOrCalculateFitness(solution, instance);
-        
-        // Check for stagnation and adapt parameters if needed
-        if (m_stagnationCount > 3) {  // If stagnated for more than 3 generations
-            // Increase exploration through mutation rate
-            if (auto mutationOp = m_config.getMutation()) {
-                mutationOp->setMutationRate(std::min(0.4, mutationOp->getMutationRate() * 1.5));
-            }
-            
-            // Increase replacement ratio for more population turnover
-            if (auto replacementOp = m_config.getReplacement()) {
-                replacementOp->setReplacementRatio(std::min(0.9, replacementOp->getReplacementRatio() * 1.2));
-            }
-            
-            // Consider random restart if stagnation persists
-            if (m_stagnationCount > 10) {
-                m_needsRestart = true;
-                m_stagnationCount = 0;  // Reset counter after triggering restart
-            }
-        } else if (m_stagnationCount == 0) {  // If not stagnating, gradually return to base values
-            if (auto mutationOp = m_config.getMutation()) {
-                mutationOp->setMutationRate(std::max(0.1, mutationOp->getMutationRate() * 0.9));
-            }
-            if (auto replacementOp = m_config.getReplacement()) {
-                replacementOp->setReplacementRatio(std::max(0.7, replacementOp->getReplacementRatio() * 0.95));
-            }
-        }
-        
-        return cachedFitness;
-    }
-    
     // Calculate component scores
     double edgeQualityScore = calculateEdgeQuality(solution, instance);
     double lengthScore = calculateLength(solution, instance);
@@ -393,44 +360,15 @@ double OptimizedGraphBasedFitness::calculateFitness(
     edgeQualityScore = std::min(1.0, edgeQualityScore / maxEdgeQuality);
     lengthScore = std::min(1.0, lengthScore / maxLength);
     
-    // Apply progressive scaling to reward incremental improvements
-    edgeQualityScore = std::pow(edgeQualityScore, 0.8);  // Less punishing for small improvements
-    lengthScore = std::pow(lengthScore, 0.9);            // Slightly less punishing for length
+    // Apply more aggressive scaling to heavily penalize invalid lengths
+    edgeQualityScore = std::pow(edgeQualityScore, 0.7);  // Less punishing for small improvements
+    lengthScore = std::pow(lengthScore, 1.5);            // More punishing for length violations
     
-    // Weight the components with emphasis on edge quality
-    double weightedScore = (0.7 * edgeQualityScore + 0.3 * lengthScore);
+    // Weight the components with more emphasis on length
+    const double edgeWeight = 0.6;
+    const double lengthWeight = 0.4;
     
-    // Add bonuses for significant achievements
-    if (edgeQualityScore > 0.6) {  // Bonus for good edge quality
-        weightedScore *= 1.1;  // 10% bonus
-    }
-    if (edgeQualityScore > 0.8) {  // Extra bonus for excellent edge quality
-        weightedScore *= 1.1;  // Additional 10% bonus
-    }
-    if (lengthScore > 0.8) {  // Bonus for good length
-        weightedScore *= 1.05;  // 5% bonus
-    }
-    
-    // Calculate diversity contribution if we have a population
-    if (!m_currentPopulation.empty()) {
-        double diversityBonus = 0.0;
-        double minDistance = 1.0;
-        
-        // Find minimum distance to any other solution
-        for (const auto& other : m_currentPopulation) {
-            if (other && other.get() != solution.get()) {
-                double distance = calculateDistance(solution, other);
-                minDistance = std::min(minDistance, distance);
-            }
-        }
-        
-        // Add diversity bonus (up to 10% extra)
-        diversityBonus = minDistance * 0.1;
-        weightedScore *= (1.0 + diversityBonus);
-    }
-    
-    // Ensure score is properly bounded
-    return std::clamp(weightedScore, 0.0, 1.0);
+    return (edgeWeight * edgeQualityScore) + (lengthWeight * lengthScore);
 }
 
 double OptimizedGraphBasedFitness::calculateEdgeQuality(
@@ -598,6 +536,10 @@ double OptimizedGraphBasedFitness::calculateLengthPenalty(
     int actualLength,
     int targetLength) const {
     double diff = std::abs(actualLength - targetLength);
+    // More aggressive penalty for being over length
+    if (actualLength > targetLength) {
+        diff *= 1.5;  // 50% more penalty for being too long
+    }
     return std::max(0.0, 1.0 - (diff * diff) / (targetLength * targetLength));
 }
 

@@ -23,34 +23,43 @@ NegativeErrorIntroducer::NegativeErrorIntroducer(int lNeg)
 }
 
 void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
+    if (!validateInstance(instance)) {
+        throw std::runtime_error("Cannot introduce negative errors: invalid instance");
+    }
+
     if (instance.getLNeg() <= 0) {
         LOG_WARNING("No negative errors to introduce (lNeg <= 0)");
         return;
     }
 
-    // Get current spectrum
+    // Get a copy of the current spectrum
     auto spectrum = instance.getSpectrum();
+    const size_t originalSize = spectrum.size();
     
-    // Generate random k-mers that are not in the spectrum
-    const std::string nucleotides = "ACGT";
-    std::uniform_int_distribution<> dist(0, 3);
-    
-    for (int i = 0; i < instance.getLNeg(); ++i) {
-        std::string kmer;
-        bool unique;
-        do {
-            kmer.clear();
-            for (int j = 0; j < instance.getK(); ++j) {
-                kmer += nucleotides[dist(m_random)];
-            }
-            unique = std::find(spectrum.begin(), spectrum.end(), kmer) == spectrum.end();
-        } while (!unique);
-        
-        spectrum.push_back(kmer);
+    if (spectrum.empty()) {
+        LOG_ERROR("Cannot introduce negative errors: spectrum is empty");
+        throw std::runtime_error("Cannot introduce negative errors: spectrum is empty");
     }
     
-    // Update the instance's spectrum
-    instance.setSpectrum(spectrum);
+    LOG_INFO("Introducing " + std::to_string(instance.getLNeg()) + " negative errors");
+    LOG_INFO("Original spectrum size: " + std::to_string(originalSize));
+    
+    // Remove random k-mers from the spectrum
+    std::uniform_int_distribution<> dist(0, spectrum.size() - 1);
+    
+    for (int i = 0; i < std::min(instance.getLNeg(), static_cast<int>(spectrum.size())); ++i) {
+        int index = dist(m_random);
+        spectrum.erase(spectrum.begin() + index);
+    }
+    
+    // Update the instance's spectrum in a thread-safe way
+    if (!spectrum.empty()) {
+        instance.setSpectrum(spectrum);
+        LOG_INFO("Final spectrum size after negative errors: " + std::to_string(spectrum.size()));
+    } else {
+        LOG_ERROR("Cannot set empty spectrum after negative errors");
+        throw std::runtime_error("Cannot set empty spectrum after negative errors");
+    }
 }
 
 PositiveErrorIntroducer::PositiveErrorIntroducer(int lPoz, int k)
@@ -74,24 +83,53 @@ std::string PositiveErrorIntroducer::generateRandomKmer(int length) {
 }
 
 void PositiveErrorIntroducer::introduceErrors(DNAInstance& instance) {
+    if (!validateInstance(instance)) {
+        throw std::runtime_error("Cannot introduce positive errors: invalid instance");
+    }
+
     if (instance.getLPoz() <= 0) {
         LOG_WARNING("No positive errors to introduce (lPoz <= 0)");
         return;
     }
 
-    // Get current spectrum
+    // Get a copy of the current spectrum
     auto spectrum = instance.getSpectrum();
+    const size_t originalSize = spectrum.size();
     
-    // Remove random k-mers from the spectrum
-    std::uniform_int_distribution<> dist(0, spectrum.size() - 1);
-    
-    for (int i = 0; i < std::min(instance.getLPoz(), static_cast<int>(spectrum.size())); ++i) {
-        int index = dist(m_random);
-        spectrum.erase(spectrum.begin() + index);
+    if (spectrum.empty()) {
+        LOG_ERROR("Cannot introduce positive errors: spectrum is empty");
+        throw std::runtime_error("Cannot introduce positive errors: spectrum is empty");
     }
     
-    // Update the instance's spectrum
-    instance.setSpectrum(spectrum);
+    LOG_INFO("Introducing " + std::to_string(instance.getLPoz()) + " positive errors");
+    LOG_INFO("Original spectrum size: " + std::to_string(originalSize));
+    
+    // Generate random k-mers that are not in the spectrum
+    const std::string nucleotides = "ACGT";
+    std::uniform_int_distribution<> dist(0, 3);
+    
+    for (int i = 0; i < instance.getLPoz(); ++i) {
+        std::string kmer;
+        bool unique;
+        do {
+            kmer.clear();
+            for (int j = 0; j < instance.getK(); ++j) {
+                kmer += nucleotides[dist(m_random)];
+            }
+            unique = std::find(spectrum.begin(), spectrum.end(), kmer) == spectrum.end();
+        } while (!unique);
+        
+        spectrum.push_back(kmer);
+    }
+    
+    // Update the instance's spectrum in a thread-safe way
+    if (!spectrum.empty()) {
+        instance.setSpectrum(spectrum);
+        LOG_INFO("Final spectrum size after positive errors: " + std::to_string(spectrum.size()));
+    } else {
+        LOG_ERROR("Cannot set empty spectrum after positive errors");
+        throw std::runtime_error("Cannot set empty spectrum after positive errors");
+    }
 }
 
 std::unique_ptr<IErrorIntroductionStrategy> ErrorIntroducerFactory::createNegativeErrorIntroducer(int lNeg) {

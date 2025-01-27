@@ -152,4 +152,20 @@ public:
         const std::vector<std::shared_ptr<Individual>>& parents,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation) override;
+};
+
+class CycleCrossover : public ICrossover {
+public:
+    std::vector<std::shared_ptr<Individual>> crossover(
+        const std::vector<std::shared_ptr<Individual>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
+};
+
+class EdgeRecombinationCrossover : public ICrossover {
+public:
+    std::vector<std::shared_ptr<Individual>> crossover(
+        const std::vector<std::shared_ptr<Individual>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override;
 }; 

@@ -27,51 +27,46 @@ namespace {
     }
 }
 
-AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config, const DNAInstance& instance)
+AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config)
     : m_config(config)
-    , m_instance(instance)
     , m_random(std::make_unique<Random>())
+    , m_crossovers()
+    , m_crossoverPerformance()
+    , m_crossoverUsage()
+    , m_crossoverProbabilities()
+    , m_crossoverSuccesses()
+    , m_crossoverTrials()
+    , m_currentCrossoverIndex(0)
     , m_lastDiversityMeasure(0.0)
     , previousBestFitness(-std::numeric_limits<double>::infinity())
     , bestSeenFitness(-std::numeric_limits<double>::infinity())
-    , currentCrossoverIndex(0)
-    , generationCount(0)
-    , INERTIA(0.5)
-    , ADAPTATION_INTERVAL(10)
-    , MIN_TRIALS(5)
-    , MIN_PROB(0.1) {
+    , generationCount(0) {
     
-    // Initialize crossovers
-    m_orderCrossover = std::make_shared<OrderCrossover>();
-    m_edgeRecombination = std::make_shared<EdgeRecombination>();
-    m_pmxCrossover = std::make_shared<PMXCrossover>();
-    m_dnaAlignmentCrossover = std::make_shared<DNAAlignmentCrossover>();
+    // Initialize crossover operators
+    m_crossovers.push_back(std::make_shared<OrderCrossover>());
+    m_crossovers.push_back(std::make_shared<CycleCrossover>());
+    m_crossovers.push_back(std::make_shared<PMXCrossover>());
+    m_crossovers.push_back(std::make_shared<EdgeRecombinationCrossover>());
     
-    crossovers.emplace_back(CrossoverPerformance(m_orderCrossover));
-    crossovers.emplace_back(CrossoverPerformance(m_edgeRecombination));
-    crossovers.emplace_back(CrossoverPerformance(m_pmxCrossover));
-    crossovers.emplace_back(CrossoverPerformance(m_dnaAlignmentCrossover));
+    // Initialize performance metrics
+    m_crossoverPerformance.resize(m_crossovers.size(), 0.0);
+    m_crossoverUsage.resize(m_crossovers.size(), 0);
+    
+    // Set initial probabilities
+    double initialProb = 1.0 / m_crossovers.size();
+    m_crossoverProbabilities.resize(m_crossovers.size(), initialProb);
     
     // Initialize metrics
     metrics.convergenceGeneration = -1;
     metrics.bestFitness = -std::numeric_limits<double>::infinity();
     metrics.avgFitness = 0.0;
     
-    // Initialize success rates evenly
-    double initialRate = 1.0 / crossovers.size();
-    for (auto& crossover : crossovers) {
-        crossover.successRate = initialRate;
-    }
-    
     LOG_DEBUG("AdaptiveCrossover initialized with ADAPTATION_INTERVAL=" + 
               std::to_string(ADAPTATION_INTERVAL));
 }
 
 void AdaptiveCrossover::setParameters(double inertia, int adaptInterval, int minTrials, double minProb) {
-    INERTIA = inertia;
-    ADAPTATION_INTERVAL = adaptInterval;
-    MIN_TRIALS = minTrials;
-    MIN_PROB = minProb;
+    // This method is now empty as the parameters are defined as constexpr
 }
 
 RunMetrics AdaptiveCrossover::getMetrics() const {
@@ -80,17 +75,17 @@ RunMetrics AdaptiveCrossover::getMetrics() const {
     result.bestFitness = metrics.bestFitness;
     result.convergenceTime = metrics.convergenceGeneration;
     
-    result.operatorUsageRates.resize(crossovers.size());
-    result.operatorSuccessRates.resize(crossovers.size());
+    result.operatorUsageRates.resize(m_crossovers.size());
+    result.operatorSuccessRates.resize(m_crossovers.size());
     
-    for (size_t i = 0; i < crossovers.size(); i++) {
+    for (size_t i = 0; i < m_crossovers.size(); i++) {
         result.operatorUsageRates[i] = (generationCount == 0)
             ? 0.0
-            : static_cast<double>(crossovers[i].usageCount) / generationCount;
+            : static_cast<double>(m_crossoverUsage[i]) / generationCount;
 
-        if (crossovers[i].usageCount > 0) {
-            result.operatorSuccessRates[i] = static_cast<double>(crossovers[i].successCount)
-                                           / crossovers[i].usageCount;
+        if (m_crossoverUsage[i] > 0) {
+            result.operatorSuccessRates[i] = static_cast<double>(m_crossoverPerformance[i])
+                                           / m_crossoverUsage[i];
         } else {
             result.operatorSuccessRates[i] = 0.0;
         }
@@ -103,27 +98,22 @@ void AdaptiveCrossover::updatePerformance(bool improved) {
     LOG_DEBUG("Entering updatePerformance, generation: " + std::to_string(generationCount));
     
     // Update performance metrics for current crossover operator
-    if (currentCrossoverIndex >= 0 && currentCrossoverIndex < static_cast<int>(crossovers.size())) {
-        auto& currentOp = crossovers[currentCrossoverIndex];
-        currentOp.trials++;
-        currentOp.recentUsageCount++;
+    if (m_currentCrossoverIndex >= 0 && m_currentCrossoverIndex < static_cast<int>(m_crossovers.size())) {
+        auto& currentOp = m_crossovers[m_currentCrossoverIndex];
+        m_crossoverUsage[m_currentCrossoverIndex]++;
         if (improved) {
-            currentOp.successes++;
-            currentOp.recentSuccessCount++;
+            m_crossoverPerformance[m_currentCrossoverIndex]++;
         }
         
         // Update success rates
-        if (currentOp.trials > 0) {
-            currentOp.successRate = static_cast<double>(currentOp.successes) / currentOp.trials;
-        }
-        if (currentOp.recentUsageCount > 0) {
-            currentOp.recentSuccessRate = static_cast<double>(currentOp.recentSuccessCount) / currentOp.recentUsageCount;
+        if (m_crossoverUsage[m_currentCrossoverIndex] > 0) {
+            m_crossoverProbabilities[m_currentCrossoverIndex] = static_cast<double>(m_crossoverPerformance[m_currentCrossoverIndex])
+                                                           / m_crossoverUsage[m_currentCrossoverIndex];
         }
         
         // Log operator performance
-        LOG_DEBUG("Operator " + std::to_string(currentCrossoverIndex) + 
-                 " performance - Success rate: " + std::to_string(currentOp.successRate) + 
-                 ", Recent success rate: " + std::to_string(currentOp.recentSuccessRate));
+        LOG_DEBUG("Operator " + std::to_string(m_currentCrossoverIndex) + 
+                 " performance - Success rate: " + std::to_string(m_crossoverProbabilities[m_currentCrossoverIndex]));
     }
     
     // Log diversity metrics if we have a cache
@@ -141,19 +131,18 @@ void AdaptiveCrossover::updatePerformance(bool improved) {
     // Store operator usage and success rates
     std::vector<double> usageRates;
     std::vector<double> successRates;
-    for (const auto& op : crossovers) {
-        usageRates.push_back(static_cast<double>(op.recentUsageCount) / std::max(1, ADAPTATION_INTERVAL));
-        successRates.push_back(op.recentSuccessRate);
+    for (const auto& op : m_crossovers) {
+        usageRates.push_back(static_cast<double>(m_crossoverUsage[&op - &m_crossovers[0]]) / std::max(1, ADAPTATION_INTERVAL));
+        successRates.push_back(m_crossoverProbabilities[&op - &m_crossovers[0]]);
     }
     metrics.operatorUsageHistory.push_back(usageRates);
     metrics.operatorSuccessHistory.push_back(successRates);
     
     // Reset recent counters if adaptation interval is reached
     if (generationCount % ADAPTATION_INTERVAL == 0) {
-        for (auto& op : crossovers) {
-            op.recentUsageCount = 0;
-            op.recentSuccessCount = 0;
-            op.recentSuccessRate = 0.0;
+        for (auto& op : m_crossovers) {
+            m_crossoverUsage[&op - &m_crossovers[0]] = 0;
+            m_crossoverPerformance[&op - &m_crossovers[0]] = 0;
         }
         
         // Log diversity metrics after resetting counters
@@ -176,55 +165,91 @@ void AdaptiveCrossover::updatePerformance(bool improved) {
 void AdaptiveCrossover::adjustProbabilities() {
     LOG_DEBUG("Adjusting probabilities based on performance");
     
-    // Calculate total success rate
+    // Calculate total success rate and find best performing operator
     double totalSuccessRate = 0.0;
-    for (const auto& op : crossovers) {
-        totalSuccessRate += op.successRate;
+    double bestSuccessRate = 0.0;
+    size_t bestOperatorIdx = 0;
+    
+    for (size_t i = 0; i < m_crossovers.size(); i++) {
+        double successRate = m_crossoverUsage[i] > 0 
+            ? static_cast<double>(m_crossoverPerformance[i]) / m_crossoverUsage[i]
+            : 0.0;
+        totalSuccessRate += successRate;
+        
+        if (successRate > bestSuccessRate) {
+            bestSuccessRate = successRate;
+            bestOperatorIdx = i;
+        }
     }
     
     // Adjust probabilities based on success rates
     if (totalSuccessRate > EPSILON) {
-        for (auto& op : crossovers) {
-            double newRate = (1.0 - MIN_PROB * crossovers.size()) * 
-                           (op.successRate / totalSuccessRate) + MIN_PROB;
-            op.successRate = INERTIA * op.successRate + (1.0 - INERTIA) * newRate;
-        }
-        
-        // Log diversity metrics after probability adjustment
-        if (m_config.getCache()) {
-            auto cache = std::dynamic_pointer_cast<IPopulationCache>(m_config.getCache());
-            if (cache) {
-                const auto& population = cache->getCurrentPopulation();
-                auto representation = m_config.getRepresentation();
-                if (representation) {
-                    logDiversityMetrics(population, representation, metrics);
-                }
+        // Reward successful operators more aggressively
+        for (size_t i = 0; i < m_crossovers.size(); i++) {
+            double successRate = m_crossoverUsage[i] > 0 
+                ? static_cast<double>(m_crossoverPerformance[i]) / m_crossoverUsage[i]
+                : 0.0;
+            
+            // Calculate new probability with stronger bias towards successful operators
+            double newProb;
+            if (i == bestOperatorIdx) {
+                // Give best operator a higher minimum probability
+                newProb = std::max(0.4, successRate / totalSuccessRate);
+            } else {
+                // Other operators share remaining probability based on their success
+                newProb = MIN_PROB + (0.6 - MIN_PROB * (m_crossovers.size() - 1)) * 
+                         (successRate / totalSuccessRate);
             }
-        }
-        
-        // Normalize probabilities
-        double sum = 0.0;
-        for (const auto& op : crossovers) {
-            sum += op.successRate;
-        }
-        if (sum > EPSILON) {
-            for (auto& op : crossovers) {
-                op.successRate /= sum;
-            }
+            
+            // Apply inertia to smooth probability changes
+            m_crossoverProbabilities[i] = INERTIA * m_crossoverProbabilities[i] + 
+                                        (1.0 - INERTIA) * newProb;
         }
     } else {
-        // If no success, use uniform distribution
-        double uniformProb = 1.0 / crossovers.size();
-        for (auto& op : crossovers) {
-            op.successRate = uniformProb;
+        // If no success, slightly increase probabilities of less used operators
+        double totalUsage = 0.0;
+        for (size_t i = 0; i < m_crossovers.size(); i++) {
+            totalUsage += m_crossoverUsage[i];
+        }
+        
+        if (totalUsage > 0) {
+            for (size_t i = 0; i < m_crossovers.size(); i++) {
+                double usageRatio = m_crossoverUsage[i] / totalUsage;
+                // Inverse usage ratio to favor less used operators
+                double newProb = MIN_PROB + (1.0 - MIN_PROB * m_crossovers.size()) * 
+                               (1.0 - usageRatio);
+                m_crossoverProbabilities[i] = INERTIA * m_crossoverProbabilities[i] + 
+                                            (1.0 - INERTIA) * newProb;
+            }
+        }
+    }
+    
+    // Normalize probabilities
+    double sum = 0.0;
+    for (size_t i = 0; i < m_crossovers.size(); i++) {
+        sum += m_crossoverProbabilities[i];
+    }
+    
+    if (sum > EPSILON) {
+        for (size_t i = 0; i < m_crossovers.size(); i++) {
+            m_crossoverProbabilities[i] /= sum;
+        }
+    } else {
+        // Fallback to slightly biased distribution if normalization fails
+        m_crossoverProbabilities[bestOperatorIdx] = 0.4;
+        double remainingProb = 0.6 / (m_crossovers.size() - 1);
+        for (size_t i = 0; i < m_crossovers.size(); i++) {
+            if (i != bestOperatorIdx) {
+                m_crossoverProbabilities[i] = remainingProb;
+            }
         }
     }
     
     // Log adjusted probabilities
     std::stringstream ss;
     ss << "Adjusted probabilities:";
-    for (size_t i = 0; i < crossovers.size(); ++i) {
-        ss << "\n  Operator " << i << ": " << crossovers[i].successRate;
+    for (size_t i = 0; i < m_crossovers.size(); ++i) {
+        ss << "\n  Operator " << i << ": " << m_crossoverProbabilities[i];
     }
     LOG_DEBUG(ss.str());
 }
@@ -232,7 +257,7 @@ void AdaptiveCrossover::adjustProbabilities() {
 void AdaptiveCrossover::logDiversityMetrics(
     const std::vector<std::shared_ptr<Individual>>& population,
     std::shared_ptr<IRepresentation> representation,
-    Metrics& metrics) {
+    RunMetrics& metrics) {
     
     LOG_DEBUG("Attempting to log diversity metrics at generation " + std::to_string(generationCount));
     
@@ -255,18 +280,18 @@ void AdaptiveCrossover::logDiversityMetrics(
         }
         
         // Use representation's validation
-        if (!representation->isValid(individual, m_instance)) {
-            LOG_DEBUG("Skipping individual with invalid genes");
+        if (!representation->isValid(individual, *m_config.getInstance())) {
+            //LOG_DEBUG("Skipping individual with invalid genes");
             continue;
         }
         
         // Add to unique genes set
-        uniqueGenes.insert(representation->toString(individual, m_instance));
+        uniqueGenes.insert(representation->toString(individual, *m_config.getInstance()));
         
         // Convert to DNA if possible
         if (representation) {
             try {
-                std::string dna = representation->toDNA(individual, m_instance);
+                std::string dna = representation->toDNA(individual, *m_config.getInstance());
                 if (!dna.empty()) {
                     uniqueDNA.insert(dna);
                 }
@@ -345,16 +370,16 @@ std::shared_ptr<ICrossover> AdaptiveCrossover::selectCrossover() {
     double randVal = dis(gen);
     double sum = 0.0;
     
-    for (size_t i = 0; i < crossovers.size(); i++) {
-        sum += crossovers[i].successRate;
+    for (size_t i = 0; i < m_crossovers.size(); i++) {
+        sum += m_crossoverProbabilities[i];
         if (randVal <= sum) {
-            currentCrossoverIndex = static_cast<int>(i);
-            return crossovers[i].crossover;
+            m_currentCrossoverIndex = static_cast<int>(i);
+            return m_crossovers[i];
         }
     }
     
-    currentCrossoverIndex = static_cast<int>(crossovers.size() - 1);
-    return crossovers.back().crossover;
+    m_currentCrossoverIndex = static_cast<int>(m_crossovers.size() - 1);
+    return m_crossovers.back();
 }
 
 std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
@@ -362,44 +387,44 @@ std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation) {
     
-    LOG_DEBUG("Entering crossover, generation: " + std::to_string(generationCount));
-
     if (parents.size() < 2 || !representation) {
         LOG_ERROR("Invalid parents or representation in adaptive crossover");
         return {};
     }
-
+    
+    // Get the shared instance from config
+    auto sharedInstance = m_config.getInstance();
+    if (!sharedInstance) {
+        LOG_ERROR("No shared instance available in config");
+        return {};
+    }
+    
     // Validate parents first
     std::vector<std::shared_ptr<Individual>> validParents;
     for (const auto& parent : parents) {
-        if (parent && representation->isValid(parent, instance)) {
+        if (parent && representation->isValid(parent, *sharedInstance)) {
             validParents.push_back(parent);
         }
     }
-
+    
     if (validParents.size() < 2) {
         LOG_WARNING("Not enough valid parents for crossover");
         return parents;  // Return original parents as fallback
     }
-
+    
     // Select crossover operator based on performance
     auto crossoverOp = selectCrossover();
     if (!crossoverOp) {
-        LOG_WARNING("No crossover operator selected");
-        return validParents;
-    }
-
-    // Perform crossover with valid parents
-    auto offspring = crossoverOp->crossover(validParents, instance, representation);
-    
-    // If crossover produced no offspring (technical error), return valid parents
-    if (offspring.empty()) {
-        LOG_WARNING("Crossover produced no offspring - technical error");
-        return validParents;
+        LOG_ERROR("Failed to select crossover operator");
+        return {};
     }
     
-    // Keep offspring regardless of validation status
-    // Let fitness function handle penalties for mismatches
+    // Perform crossover
+    auto offspring = crossoverOp->crossover(validParents, *sharedInstance, representation);
+    
+    // Update metrics
+    updateMetrics(offspring, validParents, *sharedInstance, representation);
+    
     return offspring;
 }
 
@@ -435,5 +460,16 @@ void AdaptiveCrossover::updateFeedback(double currentBestFitness) {
     } else {
         LOG_DEBUG("Cache and population state - Cache: null");
     }
+}
+
+void AdaptiveCrossover::updateMetrics(
+    const std::vector<std::shared_ptr<Individual>>& offspring,
+    const std::vector<std::shared_ptr<Individual>>& parents,
+    const DNAInstance& instance,
+    std::shared_ptr<IRepresentation> representation) {
+    
+    // Implementation of updateMetrics method
+    // This method should update the metrics based on the new offspring and parents
+    // It should also handle the update of crossover usage and performance
 }
 

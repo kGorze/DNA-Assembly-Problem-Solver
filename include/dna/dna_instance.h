@@ -29,37 +29,55 @@ private:
 
     void generateSpectrum();
     std::string generateRandomDNA(int length, Random& random) const;
+    bool validateSpectrum() const;
 
 public:
     DNAInstance() = default;
     
-    DNAInstance(const DNAInstance& other) 
-        : n(other.n), k(other.k), deltaK(other.deltaK), 
-          lNeg(other.lNeg), lPoz(other.lPoz),
-          repAllowed(other.repAllowed), probablePositive(other.probablePositive),
-          startIndex(other.startIndex), size(other.size),
-          targetSequence(other.targetSequence),
-          m_dna(other.m_dna), m_originalDNA(other.m_originalDNA),
-          m_spectrum(other.m_spectrum) {
-        // Create a new Random instance
+    DNAInstance(const DNAInstance& other) {
+        std::lock_guard<std::mutex> lock(other.m_mutex);
+        n = other.n;
+        k = other.k;
+        deltaK = other.deltaK;
+        lNeg = other.lNeg;
+        lPoz = other.lPoz;
+        repAllowed = other.repAllowed;
+        probablePositive = other.probablePositive;
+        startIndex = other.startIndex;
+        size = other.size;
+        targetSequence = other.targetSequence;
+        m_dna = other.m_dna;
+        m_originalDNA = other.m_originalDNA;
+        m_spectrum = other.m_spectrum;
         m_random = std::make_unique<Random>();
     }
     
     // Move constructor
-    DNAInstance(DNAInstance&& other) noexcept
-        : n(other.n), k(other.k), deltaK(other.deltaK),
-          lNeg(other.lNeg), lPoz(other.lPoz),
-          repAllowed(other.repAllowed), probablePositive(other.probablePositive),
-          startIndex(other.startIndex), size(other.size),
-          targetSequence(std::move(other.targetSequence)),
-          m_dna(std::move(other.m_dna)), 
-          m_originalDNA(std::move(other.m_originalDNA)),
-          m_spectrum(std::move(other.m_spectrum)),
-          m_random(std::move(other.m_random)) {}
+    DNAInstance(DNAInstance&& other) noexcept {
+        std::lock_guard<std::mutex> lock(other.m_mutex);
+        n = other.n;
+        k = other.k;
+        deltaK = other.deltaK;
+        lNeg = other.lNeg;
+        lPoz = other.lPoz;
+        repAllowed = other.repAllowed;
+        probablePositive = other.probablePositive;
+        startIndex = other.startIndex;
+        size = other.size;
+        targetSequence = std::move(other.targetSequence);
+        m_dna = std::move(other.m_dna);
+        m_originalDNA = std::move(other.m_originalDNA);
+        m_spectrum = std::move(other.m_spectrum);
+        m_random = std::move(other.m_random);
+    }
     
     // Copy assignment
     DNAInstance& operator=(const DNAInstance& other) {
         if (this != &other) {
+            std::unique_lock<std::mutex> lock1(m_mutex, std::defer_lock);
+            std::unique_lock<std::mutex> lock2(other.m_mutex, std::defer_lock);
+            std::lock(lock1, lock2);  // Prevent deadlock
+            
             n = other.n;
             k = other.k;
             deltaK = other.deltaK;
@@ -81,6 +99,10 @@ public:
     // Move assignment
     DNAInstance& operator=(DNAInstance&& other) noexcept {
         if (this != &other) {
+            std::unique_lock<std::mutex> lock1(m_mutex, std::defer_lock);
+            std::unique_lock<std::mutex> lock2(other.m_mutex, std::defer_lock);
+            std::lock(lock1, lock2);  // Prevent deadlock
+            
             n = other.n;
             k = other.k;
             deltaK = other.deltaK;
@@ -99,7 +121,7 @@ public:
         return *this;
     }
 
-    // Getters and setters
+    // Getters and setters with thread safety
     int getN() const { return n; }
     void setN(int value) { n = value; }
     
@@ -136,9 +158,20 @@ public:
     const std::string& getOriginalDNA() const { return m_originalDNA; }
     void setOriginalDNA(const std::string& value) { m_originalDNA = value; }
     
-    const std::vector<std::string>& getSpectrum() const { return m_spectrum; }
-    void setSpectrum(const std::vector<std::string>& value) { m_spectrum = value; }
-    void clearSpectrum() { m_spectrum.clear(); }
+    const std::vector<std::string>& getSpectrum() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_spectrum;
+    }
+    
+    void setSpectrum(const std::vector<std::string>& value) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_spectrum = value;
+    }
+    
+    void clearSpectrum() {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_spectrum.clear();
+    }
 
     // Additional functionality
     int findStartVertexIndex(const DNAInstance& instance);
@@ -157,19 +190,14 @@ public:
             solutionKmers.push_back(solution.substr(i, k));
         }
         
-        // Count matches with spectrum
-        int matches = 0;
+        // Count matching k-mers
+        std::lock_guard<std::mutex> lock(m_mutex);
         for (const auto& kmer : solutionKmers) {
             if (std::find(m_spectrum.begin(), m_spectrum.end(), kmer) != m_spectrum.end()) {
-                matches++;
+                fitness += 1.0;
             }
         }
         
-        // Fitness is the ratio of matches to total k-mers
-        if (!solutionKmers.empty()) {
-            fitness = static_cast<double>(matches) / solutionKmers.size();
-        }
-        
-        return fitness;
+        return fitness / m_spectrum.size();  // Normalize by spectrum size
     }
 }; 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "dna/dna_instance.h"
+#include "dna/error_introduction.h"
 #include "generator/dna_generator.h"
-#include "error_introduction.h"
 #include <string>
 #include <vector>
 #include <mutex>
@@ -11,12 +11,7 @@
 
 class DNAInstanceBuilder {
 public:
-    explicit DNAInstanceBuilder(std::unique_ptr<DNAGenerator> generator) 
-        : m_generator(std::move(generator)) {
-        if (!m_generator) {
-            throw std::invalid_argument("Generator cannot be null");
-        }
-    }
+    explicit DNAInstanceBuilder(std::shared_ptr<DNAGenerator> generator);
     
     // Builder methods with validation
     DNAInstanceBuilder& setN(int n);
@@ -41,17 +36,8 @@ public:
     const DNAInstance& getInstance() const { return m_instance; }
     
 private:
+    bool validateState(const std::string& context) const;
     mutable std::mutex m_mutex;
     DNAInstance m_instance;
-    std::unique_ptr<DNAGenerator> m_generator;
-    int m_n = 0;
-    int m_k = 0;
-    int m_deltaK = 0;
-    int m_lPoz = 0;
-    int m_lNeg = 0;
-    bool m_repAllowed = false;
-    double m_probablePositive = 0.0;
-    int m_startIndex = 0;
-    std::string m_dna;
-    std::vector<std::string> m_spectrum;
+    std::shared_ptr<DNAGenerator> m_generator;
 }; 

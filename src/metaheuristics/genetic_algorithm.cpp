@@ -29,15 +29,16 @@ namespace {
 
 GeneticAlgorithm::GeneticAlgorithm(
     std::unique_ptr<IRepresentation> representation,
-    const GAConfig& config,
+    GAConfig& config,
     bool debugMode)
     : m_representation(std::move(representation))
     , m_config(config)
     , m_random(std::make_unique<Random>())
     , m_globalBestFit(-std::numeric_limits<double>::infinity())
-    , m_bestFitness(0.0)
-    , m_theoreticalMaxFitness(1.0)  // Initialize with default value
+    , m_bestFitness(-std::numeric_limits<double>::infinity())
+    , m_theoreticalMaxFitness(0.0)
     , m_debugMode(debugMode)
+    , m_bestIndex(-1)
 {
     if (!m_representation) {
         throw std::invalid_argument("Invalid representation pointer");
@@ -52,32 +53,40 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
         }
         
         LOG_DEBUG("Initializing genetic algorithm run");
+        
+        // Make a deep copy of the instance and store it in a shared pointer
+        auto sharedInstance = std::make_shared<DNAInstance>(instance);
+        if (sharedInstance->getSpectrum().empty()) {
+            LOG_ERROR("Instance copy has empty spectrum");
+            return "";
+        }
+        
+        // Update the config with the shared instance
+        m_config.setInstance(sharedInstance);
+        
         int generation = 0;
-        calculateTheoreticalMaxFitness(instance);
+        calculateTheoreticalMaxFitness(*sharedInstance);
         m_globalBestFit = -std::numeric_limits<double>::infinity();
         int bestLevenshteinDistance = std::numeric_limits<int>::max();
         std::string bestDNASequence;
         
         LOG_DEBUG("Initializing population");
-        initializePopulation(m_config.getPopulationSize(), instance);
+        initializePopulation(m_config.getPopulationSize(), *sharedInstance);
         
+        // Create a shared representation for thread safety
         auto sharedRepresentation = std::shared_ptr<IRepresentation>(
-            m_representation.release(),
-            [](IRepresentation* ptr) { delete ptr; }
+            m_representation.get(),
+            [](IRepresentation*){} // Empty deleter since we don't own the pointer
         );
         
-        auto stopping = m_config.getStopping();
-        int stagnationCount = 0;
-        double previousBestFitness = -std::numeric_limits<double>::infinity();
-        
+        // Statistics for monitoring
         int crossoverAttempts = 0;
         int successfulCrossovers = 0;
         int mutationAttempts = 0;
         int successfulMutations = 0;
         
-        LOG_DEBUG("Starting main evolution loop");
-        while (!stopping->shouldStop(generation, m_globalBestFit)) {
-            LOG_DEBUG("Generation " + std::to_string(generation) + " starting");
+        while (!shouldStop(generation)) {
+            LOG_DEBUG("Starting generation " + std::to_string(generation));
             
             // Selection
             LOG_DEBUG("Performing selection");
@@ -87,20 +96,13 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             auto selection = m_config.getSelection();
             auto fitness = m_config.getFitness();
             
-            auto selectedParents = selection->select(m_population, instance, fitness, sharedRepresentation);
+            auto selectedParents = selection->select(m_population, *sharedInstance, fitness, sharedRepresentation);
             if (selectedParents.empty()) {
                 LOG_ERROR("Selection produced no parents - terminating");
                 break;
             }
             parents = std::move(selectedParents);
             LOG_DEBUG("Selected " + std::to_string(parents.size()) + " parents");
-            
-            if (parents.size() >= 2) {
-                LOG_DEBUG("Parent 1 genes: " + std::to_string(parents[0]->getGenes().size()) + 
-                          " genes, valid: " + std::to_string(parents[0]->isValid()));
-                LOG_DEBUG("Parent 2 genes: " + std::to_string(parents[1]->getGenes().size()) + 
-                          " genes, valid: " + std::to_string(parents[1]->isValid()));
-            }
             
             // Crossover and Mutation
             LOG_DEBUG("Performing crossover and mutation");
@@ -114,7 +116,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                 if (m_random->generateProbability() < m_config.getCrossoverProbability()) {
                     crossoverAttempts++;
                     auto crossover = m_config.getCrossover(std::to_string(generation));
-                    auto children = crossover->crossover(parentPair, instance, sharedRepresentation);
+                    auto children = crossover->crossover(parentPair, *sharedInstance, sharedRepresentation);
                     
                     if (!children.empty()) {
                         offspring.insert(offspring.end(), children.begin(), children.end());
@@ -133,7 +135,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                 }
             }
             
-            if (parents.size() % 2 == 1) {
+            if (parents.size() % 1 == 1) {
                 offspring.push_back(parents.back());
             }
             
@@ -148,8 +150,8 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                     
                     for (int attempt = 0; attempt < 3 && !mutationSuccessful; attempt++) {
                         try {
-                            mutation->mutate(individual, instance, sharedRepresentation);
-                            if (sharedRepresentation->isValid(individual, instance)) {
+                            mutation->mutate(individual, *sharedInstance, sharedRepresentation);
+                            if (sharedRepresentation->isValid(individual, *sharedInstance)) {
                                 mutationSuccessful = true;
                                 successfulMutations++;
                                 LOG_DEBUG("Mutation successful on attempt " + std::to_string(attempt + 1));
@@ -167,11 +169,11 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             }
             
             LOG_DEBUG("Evaluating offspring population");
-            evaluatePopulation(instance, offspring, sharedRepresentation);
+            evaluatePopulation(*sharedInstance, offspring, sharedRepresentation);
             
             LOG_DEBUG("Performing replacement");
             auto replacement = m_config.getReplacement();
-            m_population = replacement->replace(m_population, offspring, instance, sharedRepresentation);
+            m_population = replacement->replace(m_population, offspring, *sharedInstance, sharedRepresentation);
             
             // Update cache with new population
             if (auto cache = m_config.getCache()) {
@@ -187,45 +189,27 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                 }
             }
             
-            if (updateGlobalBest(m_population, instance)) {
-                auto bestIndividual = m_population[m_bestIndex];
-                std::string currentDNA = sharedRepresentation->toDNA(bestIndividual, instance);
+            // Update best solution
+            bool improved = updateGlobalBest(m_population, *sharedInstance);
+            if (improved) {
+                LOG_INFO("New best solution found in generation " + std::to_string(generation));
+                LOG_INFO("Best fitness: " + std::to_string(m_globalBestFit));
                 
-                if (!currentDNA.empty()) {
-                    int currentDistance = calculateLevenshteinDistance(currentDNA, instance.getOriginalDNA());
-                    
-                    if (currentDistance < bestLevenshteinDistance || bestDNASequence.empty()) {
-                        bestLevenshteinDistance = currentDistance;
-                        bestDNASequence = currentDNA;
-                        
-                        std::stringstream ss;
-                        ss << "New best solution - Normalized Fitness: " << std::fixed << std::setprecision(4) 
-                           << (m_globalBestFit / m_theoreticalMaxFitness)
-                           << ", Levenshtein distance: " << bestLevenshteinDistance
-                           << ", DNA length: " << currentDNA.length();
-                        LOG_INFO(ss.str());
+                // Convert to DNA sequence and calculate Levenshtein distance
+                std::string dnaSequence = sharedRepresentation->toDNA(m_globalBestIndividual, *sharedInstance);
+                if (!dnaSequence.empty()) {
+                    int distance = calculateLevenshteinDistance(dnaSequence, sharedInstance->getTargetSequence());
+                    if (distance < bestLevenshteinDistance) {
+                        bestLevenshteinDistance = distance;
+                        bestDNASequence = dnaSequence;
+                        LOG_INFO("New best DNA sequence found (Levenshtein distance: " + 
+                                std::to_string(bestLevenshteinDistance) + ")");
                     }
-                } else {
-                    LOG_WARNING("Best individual produced empty DNA sequence");
                 }
             }
             
-            if (std::abs(m_globalBestFit - previousBestFitness) < 1e-6) {
-                stagnationCount++;
-                LOG_DEBUG("Stagnation count increased to " + std::to_string(stagnationCount));
-            } else {
-                stagnationCount = 0;
-                previousBestFitness = m_globalBestFit;
-                LOG_DEBUG("Fitness improved - resetting stagnation count");
-            }
-            
-            if (m_debugMode) {
-                std::stringstream ss;
-                ss << "Operation stats - Crossover: " << successfulCrossovers << "/" << crossoverAttempts
-                   << " successful, Mutation: " << successfulMutations << "/" << mutationAttempts 
-                   << " successful, Stagnation count: " << stagnationCount;
-                LOG_DEBUG(ss.str());
-            }
+            // Log generation statistics
+            logGenerationStats(m_population, *sharedInstance, generation);
             
             generation++;
             LOG_DEBUG("Generation " + std::to_string(generation) + " completed");

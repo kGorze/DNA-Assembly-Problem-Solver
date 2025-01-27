@@ -34,41 +34,56 @@ static std::shared_mutex configMutex;
 /*
     Konstruktor prywatny: ustawiamy domyślne wartości.
 */
-// GAConfig::GAConfig() { ... }
-
-void GAConfig::resetToDefaults()
-{
+GAConfig::GAConfig() : m_crossoverType(CrossoverType::ADAPTIVE) {
+    // Algorithm-related defaults only
     m_populationSize = 100;
-    m_mutationRate = 0.2;
+    m_tournamentSize = 2;
+    m_mutationRate = 0.1;
     m_crossoverProbability = 0.8;
-    m_targetFitness = 1.0;
-    m_tournamentSize = 3;  // Changed from 1 to 3 for better selection pressure
     m_replacementRatio = 0.7;
-    m_selectionMethod = "rank";
     m_noImprovementGenerations = 30;
     m_timeLimitSeconds = 60;
+    m_targetFitness = 1.0;
+    m_selectionMethod = "rank";
     
-    // Instance-specific parameters with defaults
-    m_k = 7;
-    m_deltaK = 0;
-    m_lNeg = 10;
-    m_lPoz = 10;
-    m_repAllowed = true;
-    m_probablePositive = 0;
-    
-    // Reset adaptive parameters
+    // Adaptive parameters
     m_adaptiveParams.useAdaptiveMutation = true;
     m_adaptiveParams.minMutationRate = 0.1;
     m_adaptiveParams.maxMutationRate = 0.4;
     m_adaptiveParams.stagnationGenerations = 5;
     m_adaptiveParams.improvementThreshold = 0.01;
     
-    // Reset diversity parameters
+    // Diversity parameters
+    m_diversityParams.sharingRadius = 0.2;
     m_diversityParams.useFitnessSharing = true;
     m_diversityParams.useCrowding = false;
-    m_diversityParams.sharingRadius = 0.2;
     m_diversityParams.sharingAlpha = 1.0;
-    m_diversityParams.diversityWeight = 0.3;
+}
+
+void GAConfig::resetToDefaults() {
+    // Algorithm-related defaults only
+    m_populationSize = 100;
+    m_tournamentSize = 2;
+    m_mutationRate = 0.1;
+    m_crossoverProbability = 0.8;
+    m_replacementRatio = 0.7;
+    m_noImprovementGenerations = 30;
+    m_timeLimitSeconds = 60;
+    m_targetFitness = 1.0;
+    m_selectionMethod = "rank";
+    
+    // Adaptive parameters
+    m_adaptiveParams.useAdaptiveMutation = true;
+    m_adaptiveParams.minMutationRate = 0.1;
+    m_adaptiveParams.maxMutationRate = 0.4;
+    m_adaptiveParams.stagnationGenerations = 5;
+    m_adaptiveParams.improvementThreshold = 0.01;
+    
+    // Diversity parameters
+    m_diversityParams.sharingRadius = 0.2;
+    m_diversityParams.useFitnessSharing = true;
+    m_diversityParams.useCrowding = false;
+    m_diversityParams.sharingAlpha = 1.0;
 }
 
 bool GAConfig::loadFromFile(const std::string& filename) {
@@ -233,32 +248,20 @@ std::shared_ptr<ISelection> GAConfig::getSelection() const
     return std::make_shared<TournamentSelection>(*this);
 }
 
-std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& generationStr) const {
+std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& generation) const {
     if (m_crossoverType == CrossoverType::ADAPTIVE) {
-        LOG_DEBUG("Getting adaptive crossover");
         if (!m_cachedAdaptiveCrossover) {
-            LOG_DEBUG("Creating new adaptive crossover instance");
-            m_cachedAdaptiveCrossover = std::make_shared<AdaptiveCrossover>(*this, m_instance);
+            m_cachedAdaptiveCrossover = std::make_shared<AdaptiveCrossover>(*this);
         }
-        // Set the generation if provided
-        if (!generationStr.empty()) {
-            try {
-                int generation = std::stoi(generationStr);
-                auto adaptiveCrossover = std::dynamic_pointer_cast<AdaptiveCrossover>(m_cachedAdaptiveCrossover);
-                if (adaptiveCrossover) {
-                    adaptiveCrossover->setGeneration(generation);
-                    LOG_DEBUG("Set generation " + std::to_string(generation) + " for adaptive crossover");
-                } else {
-                    LOG_ERROR("Failed to cast to AdaptiveCrossover");
-                }
-            } catch (const std::exception& e) {
-                LOG_ERROR("Failed to parse generation number: " + generationStr);
+        if (!generation.empty()) {
+            if (auto adaptiveCrossover = std::dynamic_pointer_cast<AdaptiveCrossover>(m_cachedAdaptiveCrossover)) {
+                adaptiveCrossover->setGeneration(std::stoi(generation));
             }
         }
         return m_cachedAdaptiveCrossover;
     }
-    LOG_DEBUG("Using edge recombination crossover");
-    return std::make_shared<EdgeRecombination>();
+    // Add other crossover types here if needed
+    return nullptr;
 }
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const

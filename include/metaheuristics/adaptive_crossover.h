@@ -13,6 +13,7 @@
 #include <random>
 #include <string>
 #include <set>
+#include "utils/random.h"
 
 // Define DiversityMetrics before it's used
 struct DiversityMetrics {
@@ -29,6 +30,10 @@ struct RunMetrics {
     double convergenceTime;  // in generations
     double executionTime;    // in milliseconds
     std::vector<DiversityMetrics> diversityHistory;
+    int convergenceGeneration;
+    std::vector<std::vector<double>> operatorUsageHistory;
+    std::vector<std::vector<double>> operatorSuccessHistory;
+    std::vector<double> fitnessHistory;
 };
 
 // Define CrossoverPerformance before it's used
@@ -56,63 +61,56 @@ struct CrossoverPerformance {
 };
 
 class AdaptiveCrossover : public ICrossover {
-private:
-    // Reorder members to match initialization order
-    GAConfig m_config;
-    DNAInstance m_instance;
-    std::unique_ptr<Random> m_random;
-    double m_lastDiversityMeasure;
-    
-    // Add member variables for crossover operators
-    std::shared_ptr<ICrossover> m_orderCrossover;
-    std::shared_ptr<ICrossover> m_edgeRecombination;
-    std::shared_ptr<ICrossover> m_pmxCrossover;
-    std::shared_ptr<ICrossover> m_dnaAlignmentCrossover;
-    
-    double previousBestFitness;
-    double bestSeenFitness;       
-    int currentCrossoverIndex;
-    int generationCount;
-    
-    // Configurable parameters
-    double INERTIA;
-    int ADAPTATION_INTERVAL;
-    int MIN_TRIALS;
-    double MIN_PROB;
-    const double EPSILON = 1e-6;   
-    
-    struct Metrics {
-        std::vector<double> fitnessHistory;
-        std::vector<std::vector<double>> operatorUsageHistory;
-        std::vector<std::vector<double>> operatorSuccessHistory;
-        std::vector<DiversityMetrics> diversityHistory;
-        int convergenceGeneration;
-        double bestFitness;
-        double avgFitness;
-    } metrics;
-
-    std::vector<CrossoverPerformance> crossovers;
-    
-    void updatePerformance(bool improved);
-    void adjustProbabilities();
-    std::shared_ptr<ICrossover> selectCrossover();
-    
-    void logDiversityMetrics(
-        const std::vector<std::shared_ptr<Individual>>& population,
-        std::shared_ptr<IRepresentation> representation,
-        Metrics& metrics);
-    double calculateAverageDistance(const std::vector<std::shared_ptr<Individual>>& population) const;
-
 public:
-    AdaptiveCrossover(const GAConfig& config, const DNAInstance& instance);
-    
+    explicit AdaptiveCrossover(const GAConfig& config);
+    ~AdaptiveCrossover() override = default;
+
     std::vector<std::shared_ptr<Individual>> crossover(
         const std::vector<std::shared_ptr<Individual>>& parents,
         const DNAInstance& instance,
         std::shared_ptr<IRepresentation> representation) override;
-        
-    void setParameters(double inertia, int adaptInterval, int minTrials, double minProb);
+
+    void updateFeedback(double fitness);
+    void logMetrics() const;
     void setGeneration(int gen) { generationCount = gen; }
-    void updateFeedback(double currentBestFitness);
+    void setParameters(double inertia, int adaptInterval, int minTrials, double minProb);
     RunMetrics getMetrics() const;
+
+    // Static constants
+    inline static constexpr double INERTIA = 0.5;
+    inline static constexpr int ADAPTATION_INTERVAL = 10;
+    inline static constexpr int MIN_TRIALS = 5;
+    inline static constexpr double MIN_PROB = 0.1;
+    inline static constexpr double EPSILON = 1e-6;
+
+private:
+    const GAConfig& m_config;
+    std::unique_ptr<Random> m_random;
+    std::vector<std::shared_ptr<ICrossover>> m_crossovers;
+    std::vector<double> m_crossoverPerformance;
+    std::vector<int> m_crossoverUsage;
+    std::vector<double> m_crossoverProbabilities;
+    std::vector<int> m_crossoverSuccesses;
+    std::vector<int> m_crossoverTrials;
+    int m_currentCrossoverIndex;
+    double m_lastDiversityMeasure;
+    double previousBestFitness;
+    double bestSeenFitness;
+    int generationCount;
+    RunMetrics metrics;
+
+    std::shared_ptr<ICrossover> selectCrossover();
+    void updatePerformance(bool improved);
+    void adjustProbabilities();
+    void logDiversityMetrics(
+        const std::vector<std::shared_ptr<Individual>>& population,
+        std::shared_ptr<IRepresentation> representation,
+        RunMetrics& metrics);
+    double calculateAverageDistance(
+        const std::vector<std::shared_ptr<Individual>>& population) const;
+    void updateMetrics(
+        const std::vector<std::shared_ptr<Individual>>& offspring,
+        const std::vector<std::shared_ptr<Individual>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation);
 };

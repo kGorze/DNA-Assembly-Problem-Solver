@@ -69,21 +69,22 @@ void Logger::log(LogLevel level, const std::string& message, const char* file, i
         return;
     }
     
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << getCurrentTimestamp() << " ["
        << std::setw(7) << std::left << levelToString(level) << "] "
        << file << ":" << line << " - "
        << message << std::endl;
-       
-    logFile << ss.str();
+    
+    std::string output = ss.str();
+    logFile << output;
     logFile.flush();
     
     // Print to console for all levels in debug mode or ERROR level
     if (level == LogLevel::ERROR || currentLevel == LogLevel::DEBUG) {
         if (level == LogLevel::ERROR) {
-            std::cerr << ss.str();
+            std::cerr << output;
         } else {
-            std::cout << ss.str();
+            std::cout << output;
         }
     }
 }

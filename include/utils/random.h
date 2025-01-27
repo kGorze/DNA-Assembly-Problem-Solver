@@ -3,10 +3,12 @@
 #include <random>
 #include <chrono>
 #include <mutex>
+#include <stdexcept>
 
 class Random {
 private:
     std::mt19937 m_generator;
+    static constexpr size_t MAX_SIZE_T = 1000000;  // Reasonable limit for our use case
 
 public:
     Random() {
@@ -31,7 +33,21 @@ public:
     }
 
     int getRandomInt(int min, int max) {
+        if (min > max) {
+            throw std::invalid_argument("min cannot be greater than max");
+        }
         std::uniform_int_distribution<int> dist(min, max);
+        return dist(m_generator);
+    }
+
+    size_t getRandomSizeT(size_t min, size_t max) {
+        if (min > max) {
+            throw std::invalid_argument("min cannot be greater than max");
+        }
+        if (max > MAX_SIZE_T) {
+            throw std::invalid_argument("max value exceeds reasonable limit");
+        }
+        std::uniform_int_distribution<size_t> dist(min, max);
         return dist(m_generator);
     }
 }; 

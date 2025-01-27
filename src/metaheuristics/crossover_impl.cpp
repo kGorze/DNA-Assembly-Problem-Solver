@@ -1,4 +1,5 @@
 #include "../../include/metaheuristics/crossover_impl.h"
+#include "../../include/metaheuristics/edge_table.h"
 #include "../../include/utils/logging.h"
 #include "../../include/metaheuristics/individual.h"
 #include "../../include/metaheuristics/dna_utils.h"
@@ -11,215 +12,153 @@
 // Forward declaration of helper function
 std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const std::vector<int>& parent2, size_t size);
 
+namespace {
+
+// Utility functions for handling duplicate genes
+[[maybe_unused]]
+bool hasDuplicateGenes(const std::vector<int>& genes) {
+    std::unordered_set<int> geneSet;
+    for (int gene : genes) {
+        if (gene >= 0 && !geneSet.insert(gene).second) {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[maybe_unused]]
+void repairDuplicateGenes(std::vector<int>& genes, const DNAInstance& instance) {
+    const size_t spectrumSize = instance.getSpectrum().size();
+    std::vector<bool> used(spectrumSize, false);
+    std::vector<size_t> duplicatePositions;
+    
+    // Mark used genes and find duplicates
+    for (size_t i = 0; i < genes.size(); ++i) {
+        if (genes[i] >= 0 && static_cast<size_t>(genes[i]) < spectrumSize) {
+            if (used[genes[i]]) {
+                duplicatePositions.push_back(i);
+            } else {
+                used[genes[i]] = true;
+            }
+        } else {
+            duplicatePositions.push_back(i);
+        }
+    }
+    
+    // Replace duplicates with unused genes
+    for (size_t pos : duplicatePositions) {
+        for (size_t i = 0; i < spectrumSize; ++i) {
+            if (!used[i]) {
+                genes[pos] = static_cast<int>(i);
+                used[i] = true;
+                break;
+            }
+        }
+    }
+}
+
+} // anonymous namespace
+
 std::vector<std::shared_ptr<Individual>> OrderCrossover::crossover(
     const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation) {
     
-    // Basic validation
-    if (parents.size() < 2) {
-        LOG_WARNING("OrderCrossover: Not enough parents for crossover");
-        return parents;
-    }
-    
-    if (!parents[0] || !parents[1]) {
-        LOG_WARNING("OrderCrossover: Null parent received");
-        return parents;
-    }
-    
-    const auto& parent1Genes = parents[0]->getGenes();
-    const auto& parent2Genes = parents[1]->getGenes();
-    const size_t spectrumSize = instance.getSpectrum().size();
-    
-    // Validate gene lengths
-    if (parent1Genes.empty() || parent2Genes.empty()) {
-        LOG_WARNING("OrderCrossover: Empty parent genes");
-        return parents;
-    }
-    
-    // Enforce same length equal to spectrum size
-    if (parent1Genes.size() != spectrumSize || parent2Genes.size() != spectrumSize) {
-        LOG_WARNING("OrderCrossover: Parents must have length equal to spectrum size (" + 
-                   std::to_string(spectrumSize) + ")");
-        return parents;
-    }
-    
-    std::vector<std::shared_ptr<Individual>> offspring;
-    offspring.reserve(2);
-    
-    int attempts = 0;
-    const int MAX_ATTEMPTS = 3;
-    bool success = false;
-    
-    while (!success && attempts < MAX_ATTEMPTS) {
-        try {
-            // Create child genes with fixed size equal to spectrum size
-            auto child1Genes = performOrderCrossover(parent1Genes, parent2Genes, spectrumSize);
-            auto child2Genes = performOrderCrossover(parent2Genes, parent1Genes, spectrumSize);
-            
-            // Validate gene indices
-            bool validIndices = true;
-            for (int gene : child1Genes) {
-                if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
-                    validIndices = false;
-                    break;
-                }
-            }
-            for (int gene : child2Genes) {
-                if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
-                    validIndices = false;
-                    break;
-                }
-            }
-            
-            if (!validIndices) {
-                LOG_WARNING("OrderCrossover: Invalid gene indices in offspring");
-                attempts++;
-                continue;
-            }
-            
-            // Create offspring individuals
-            auto child1 = std::make_shared<Individual>(child1Genes);
-            auto child2 = std::make_shared<Individual>(child2Genes);
-            
-            // Validate offspring
-            bool child1Valid = representation->isValid(child1, instance);
-            bool child2Valid = representation->isValid(child2, instance);
-            
-            if (child1Valid) {
-                offspring.push_back(child1);
-                LOG_DEBUG("OrderCrossover: Created valid first offspring");
-            }
-            if (child2Valid) {
-                offspring.push_back(child2);
-                LOG_DEBUG("OrderCrossover: Created valid second offspring");
-            }
-            
-            if (!offspring.empty()) {
-                success = true;
-            } else {
-                LOG_WARNING("OrderCrossover: No valid offspring produced");
-                attempts++;
-            }
-            
-        } catch (const std::exception& e) {
-            LOG_WARNING("OrderCrossover: Exception during crossover: " + std::string(e.what()));
-            attempts++;
+    try {
+        auto [genes1, genes2] = validateAndGetGenes(parents);
+        if (genes1.empty() || genes2.empty()) {
+            LOG_WARNING("Invalid parent genes in order crossover");
+            return parents;
         }
-    }
-    
-    // If no valid offspring were produced, return copies of parents
-    if (offspring.empty()) {
-        LOG_WARNING("OrderCrossover: Failed to create valid offspring, returning parents");
+        
+        std::vector<std::shared_ptr<Individual>> offspring;
+        offspring.reserve(2);
+        
+        auto& rng = Random::instance();
+        const size_t size = std::min(genes1.size(), genes2.size());
+        
+        int maxAttempts = 3;
+        while (offspring.size() < 2 && maxAttempts > 0) {
+            int start = rng.getRandomInt(0, static_cast<int>(size - 1));
+            int end = rng.getRandomInt(0, static_cast<int>(size - 1));
+            if (start > end) std::swap(start, end);
+            
+            // Create offspring with duplicate detection and repair
+            auto offspring1Genes = performOrderCrossover(genes1, genes2, size);
+            if (!offspring1Genes.empty()) {
+                if (auto child = createOffspring(offspring1Genes, representation, instance)) {
+                    offspring.push_back(child);
+                }
+            }
+            
+            auto offspring2Genes = performOrderCrossover(genes2, genes1, size);
+            if (!offspring2Genes.empty()) {
+                if (auto child = createOffspring(offspring2Genes, representation, instance)) {
+                    offspring.push_back(child);
+                }
+            }
+            
+            maxAttempts--;
+        }
+        
+        if (offspring.empty()) {
+            LOG_WARNING("Failed to create valid offspring in order crossover, validating parents before return");
+            std::vector<std::shared_ptr<Individual>> validatedParents;
+            for (const auto& parent : parents) {
+                if (parent && representation->isValid(parent, instance)) {
+                    validatedParents.push_back(parent);
+                }
+            }
+            if (!validatedParents.empty()) {
+                return validatedParents;
+            }
+            LOG_ERROR("OrderCrossover: No valid parents to return as fallback");
+            return {};
+        }
+        
+        return offspring;
+        
+    } catch (const std::exception& e) {
+        LOG_ERROR("Error in order crossover: " + std::string(e.what()));
         return parents;
     }
-    
-    return offspring;
 }
 
-// EdgeTable implementation
-EdgeRecombination::EdgeTable::EdgeTable(const std::vector<std::shared_ptr<Individual>>& parents, const DNAInstance& instance) {
-    if (parents.empty()) return;
-    
-    // Initialize edge lists for each node with overlap quality
-    for (const auto& parent : parents) {
-        if (!parent) continue;
-        
-        const auto& genes = parent->getGenes();
-        if (genes.empty()) continue;
-        
-        const auto& spectrum = instance.getSpectrum();
-        int k = instance.getK();
-        
-        for (size_t i = 0; i < genes.size(); ++i) {
-            int current = genes[i];
-            int prev = i > 0 ? genes[i - 1] : genes.back();
-            int next = i < genes.size() - 1 ? genes[i + 1] : genes.front();
-            
-            // Only add edges if both nodes represent valid k-mers
-            if (current >= 0 && static_cast<size_t>(current) < spectrum.size() &&
-                prev >= 0 && static_cast<size_t>(prev) < spectrum.size()) {
-                // Calculate overlap quality for prev -> current
-                int overlapQuality = dna_utils::calculateEdgeWeight(spectrum[prev], spectrum[current], k);
-                if (overlapQuality > 0) {
-                    edges[current].push_back({prev, overlapQuality});
-                }
-            }
-            
-            if (current >= 0 && static_cast<size_t>(current) < spectrum.size() &&
-                next >= 0 && static_cast<size_t>(next) < spectrum.size()) {
-                // Calculate overlap quality for current -> next
-                int overlapQuality = dna_utils::calculateEdgeWeight(spectrum[current], spectrum[next], k);
-                if (overlapQuality > 0) {
-                    edges[current].push_back({next, overlapQuality});
-                }
-            }
-        }
-    }
-    
-    // Sort edges by overlap quality and remove duplicates
-    for (auto& [node, neighbors] : edges) {
-        std::sort(neighbors.begin(), neighbors.end(),
-                 [](const EdgeInfo& a, const EdgeInfo& b) {
-                     return a.overlapQuality > b.overlapQuality;
-                 });
-        
-        // Keep only the highest quality edge for each neighbor
-        auto it = std::unique(neighbors.begin(), neighbors.end(),
-                            [](const EdgeInfo& a, const EdgeInfo& b) {
-                                return a.node == b.node;
-                            });
-        neighbors.erase(it, neighbors.end());
-    }
-}
-
-std::vector<EdgeRecombination::EdgeInfo> EdgeRecombination::EdgeTable::getNeighbors(int node) const {
-    auto it = edges.find(node);
-    return it != edges.end() ? it->second : std::vector<EdgeInfo>();
-}
-
-void EdgeRecombination::EdgeTable::removeNode(int node) {
-    // Remove node from all neighbor lists
-    for (auto& [_, neighbors] : edges) {
-        auto it = std::remove_if(neighbors.begin(), neighbors.end(),
-                                 [node](const EdgeInfo& info) {
-                                     return info.node == node;
-                                 });
-        neighbors.erase(it, neighbors.end());
-    }
-    // Remove node's edge list
-    edges.erase(node);
-}
-
-bool EdgeRecombination::EdgeTable::hasNode(int node) const {
-    return edges.find(node) != edges.end();
-}
-
-std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
+std::vector<std::shared_ptr<Individual>> EdgeRecombinationCrossover::crossover(
     const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation) {
     
     if (parents.size() < 2 || !parents[0] || !parents[1]) {
         LOG_WARNING("EdgeRecombination: Invalid parents");
-        return parents;
+        return {};
     }
     
     const auto& parent1Genes = parents[0]->getGenes();
     const auto& parent2Genes = parents[1]->getGenes();
     const size_t spectrumSize = instance.getSpectrum().size();
     
-    // Validate gene lengths
+    // Validate gene lengths and values
     if (parent1Genes.empty() || parent2Genes.empty()) {
         LOG_WARNING("EdgeRecombination: Empty parent genes");
-        return parents;
+        return {};
     }
     
     // Enforce same length equal to spectrum size
     if (parent1Genes.size() != spectrumSize || parent2Genes.size() != spectrumSize) {
         LOG_WARNING("EdgeRecombination: Parents must have length equal to spectrum size (" + 
                    std::to_string(spectrumSize) + ")");
-        return parents;
+        return {};
+    }
+    
+    // Validate gene values in parents
+    for (const auto& genes : {parent1Genes, parent2Genes}) {
+        for (int gene : genes) {
+            if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
+                LOG_WARNING("EdgeRecombination: Invalid gene value in parent");
+                return {};
+            }
+        }
     }
     
     std::vector<std::shared_ptr<Individual>> offspring;
@@ -234,11 +173,23 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
             // Try to create two offspring
             for (int k = 0; k < 2 && offspring.size() < 2; k++) {
                 std::vector<int> childGenes;
-                childGenes.reserve(spectrumSize);  // Reserve fixed size
+                childGenes.reserve(spectrumSize);
                 
                 // Start with a random gene from first parent
-                int current = parent1Genes[rng.getRandomInt(0, static_cast<int>(spectrumSize - 1))];
+                int startPos = rng.getRandomInt(0, static_cast<int>(spectrumSize - 1));
+                if (startPos < 0 || static_cast<size_t>(startPos) >= parent1Genes.size()) {
+                    LOG_ERROR("EdgeRecombination: Invalid start position generated");
+                    continue;
+                }
+                
+                int current = parent1Genes[startPos];
+                if (current < 0 || static_cast<size_t>(current) >= spectrumSize) {
+                    LOG_ERROR("EdgeRecombination: Invalid start gene selected");
+                    continue;
+                }
+                
                 childGenes.push_back(current);
+                std::unordered_set<int> usedGenes{current};
                 
                 // Build the rest of the path prioritizing high-quality overlaps
                 bool validPath = true;
@@ -248,39 +199,66 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                     
                     // First try: Find unused neighbor with best overlap quality
                     for (const auto& neighbor : neighbors) {
-                        if (std::find(childGenes.begin(), childGenes.end(), neighbor.node) == childGenes.end()) {
+                        if (neighbor.node < 0 || static_cast<size_t>(neighbor.node) >= spectrumSize) {
+                            LOG_ERROR("EdgeRecombination: Invalid neighbor node");
+                            validPath = false;
+                            break;
+                        }
+                        
+                        if (usedGenes.find(neighbor.node) == usedGenes.end()) {
                             childGenes.push_back(neighbor.node);
+                            usedGenes.insert(neighbor.node);
                             current = neighbor.node;
                             foundNext = true;
                             break;
                         }
                     }
                     
-                    if (!foundNext) {
+                    if (!foundNext && validPath) {
                         // Second try: Use any unused gene from parents
                         std::vector<int> unusedGenes;
                         for (int gene : parent1Genes) {
-                            if (std::find(childGenes.begin(), childGenes.end(), gene) == childGenes.end()) {
+                            if (gene >= 0 && static_cast<size_t>(gene) < spectrumSize && 
+                                usedGenes.find(gene) == usedGenes.end()) {
                                 unusedGenes.push_back(gene);
                             }
                         }
                         
                         if (!unusedGenes.empty()) {
-                            // Choose random unused gene
                             int idx = rng.getRandomInt(0, static_cast<int>(unusedGenes.size() - 1));
-                            childGenes.push_back(unusedGenes[idx]);
-                            current = unusedGenes[idx];
-                        } else {
+                            if (idx >= 0 && idx < static_cast<int>(unusedGenes.size())) {
+                                int nextGene = unusedGenes[idx];
+                                if (nextGene >= 0 && static_cast<size_t>(nextGene) < spectrumSize) {
+                                    childGenes.push_back(nextGene);
+                                    usedGenes.insert(nextGene);
+                                    current = nextGene;
+                                    foundNext = true;
+                                }
+                            }
+                        }
+                        
+                        if (!foundNext) {
                             validPath = false;
                         }
                     }
                 }
                 
+                // Validate final child genes
+                bool validChild = true;
                 if (validPath && childGenes.size() == spectrumSize) {
-                    auto child = std::make_shared<Individual>(childGenes);
-                    if (representation->isValid(child, instance)) {
-                        offspring.push_back(child);
-                        LOG_DEBUG("EdgeRecombination: Created valid offspring");
+                    for (int gene : childGenes) {
+                        if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
+                            validChild = false;
+                            break;
+                        }
+                    }
+                    
+                    if (validChild) {
+                        auto child = std::make_shared<Individual>(childGenes);
+                        if (representation->isValid(child, instance)) {
+                            offspring.push_back(child);
+                            LOG_DEBUG("EdgeRecombination: Created valid offspring");
+                        }
                     }
                 }
             }
@@ -293,73 +271,31 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
     }
     
     if (offspring.empty()) {
-        LOG_WARNING("EdgeRecombination: Failed to create valid offspring, returning parents");
-        return parents;
+        LOG_WARNING("EdgeRecombination: Failed to create valid offspring, validating parents before return");
+        std::vector<std::shared_ptr<Individual>> validatedParents;
+        for (const auto& parent : parents) {
+            if (parent && representation->isValid(parent, instance)) {
+                validatedParents.push_back(parent);
+            }
+        }
+        if (!validatedParents.empty()) {
+            return validatedParents;
+        }
+        LOG_ERROR("EdgeRecombination: No valid parents to return as fallback");
+        return {};
     }
     
     return offspring;
 }
 
-std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const std::vector<int>& parent2, size_t size) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<size_t> dist(0, size - 1);
+std::vector<std::shared_ptr<Individual>> CycleCrossover::crossover(
+    [[maybe_unused]] const std::vector<std::shared_ptr<Individual>>& parents,
+    [[maybe_unused]] const DNAInstance& instance,
+    [[maybe_unused]] std::shared_ptr<IRepresentation> representation) {
     
-    // Select two random crossover points
-    size_t point1 = dist(gen);
-    size_t point2 = dist(gen);
-    if (point1 > point2) std::swap(point1, point2);
-    
-    // Create child with same size as parents, initialized with first valid value
-    std::vector<int> child(size, 0);  // Initialize with 0 instead of -1
-    std::unordered_set<int> used;
-    
-    // Copy segment between crossover points from parent1
-    for (size_t i = point1; i <= point2; ++i) {
-        child[i] = parent1[i];
-        used.insert(parent1[i]);
-    }
-    
-    // Fill remaining positions with genes from parent2 in order
-    size_t curr = (point2 + 1) % size;
-    size_t p2pos = (point2 + 1) % size;
-    
-    while (curr != point1) {
-        // Try to find an unused gene from parent2
-        bool foundUnused = false;
-        for (size_t i = 0; i < size; ++i) {
-            size_t checkPos = (p2pos + i) % size;
-            if (used.find(parent2[checkPos]) == used.end()) {
-                child[curr] = parent2[checkPos];
-                used.insert(parent2[checkPos]);
-                p2pos = (checkPos + 1) % size;
-                foundUnused = true;
-                break;
-            }
-        }
-        
-        // If no unused gene found in parent2, find any unused index
-        if (!foundUnused) {
-            for (size_t val = 0; val < size; ++val) {
-                if (used.find(val) == used.end()) {
-                    child[curr] = val;
-                    used.insert(val);
-                    foundUnused = true;
-                    break;
-                }
-            }
-        }
-        
-        // If still no unused gene found, something is wrong with our logic
-        if (!foundUnused) {
-            LOG_ERROR("OrderCrossover: Failed to find unused gene");
-            return {};  // Return empty vector to signal failure
-        }
-        
-        curr = (curr + 1) % size;
-    }
-    
-    return child;
+    // TODO: Implement cycle crossover
+    LOG_WARNING("CycleCrossover not implemented yet");
+    return parents;  // Return parents as fallback
 }
 
 std::vector<std::shared_ptr<Individual>> PMXCrossover::crossover(
@@ -424,8 +360,22 @@ std::vector<std::shared_ptr<Individual>> PMXCrossover::crossover(
                 // For child1
                 if (i < static_cast<int>(parent1Genes.size())) {
                     int value1 = parent1Genes[i];
-                    while (mapping1.find(value1) != mapping1.end()) {
+                    int iterations = 0;
+                    std::unordered_set<int> seen;
+                    while (mapping1.find(value1) != mapping1.end() && iterations < 100) {
+                        if (seen.find(value1) != seen.end()) {
+                            // Cycle detected, use first unused value
+                            for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
+                                if (mapping1.find(val) == mapping1.end()) {
+                                    value1 = val;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                        seen.insert(value1);
                         value1 = mapping1[value1];
+                        iterations++;
                     }
                     child1Genes[i] = value1;
                 }
@@ -433,8 +383,22 @@ std::vector<std::shared_ptr<Individual>> PMXCrossover::crossover(
                 // For child2
                 if (i < static_cast<int>(parent2Genes.size())) {
                     int value2 = parent2Genes[i];
-                    while (mapping2.find(value2) != mapping2.end()) {
+                    int iterations = 0;
+                    std::unordered_set<int> seen;
+                    while (mapping2.find(value2) != mapping2.end() && iterations < 100) {
+                        if (seen.find(value2) != seen.end()) {
+                            // Cycle detected, use first unused value
+                            for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
+                                if (mapping2.find(val) == mapping2.end()) {
+                                    value2 = val;
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                        seen.insert(value2);
                         value2 = mapping2[value2];
+                        iterations++;
                     }
                     child2Genes[i] = value2;
                 }
@@ -516,27 +480,34 @@ std::vector<std::shared_ptr<Individual>> PMXCrossover::crossover(
         maxAttempts--;
     }
     
-    // If we couldn't create any valid offspring, return copies of parents
     if (offspring.empty()) {
-        LOG_WARNING("PMXCrossover: Failed to create valid offspring, returning parents");
-        return parents;
+        LOG_WARNING("PMXCrossover: Failed to create valid offspring, validating parents before return");
+        std::vector<std::shared_ptr<Individual>> validatedParents;
+        for (const auto& parent : parents) {
+            if (parent && representation->isValid(parent, instance)) {
+                validatedParents.push_back(parent);
+            }
+        }
+        if (!validatedParents.empty()) {
+            return validatedParents;
+        }
+        LOG_ERROR("PMXCrossover: No valid parents to return as fallback");
+        return {};
     }
     
     return offspring;
 }
 
-std::vector<DNAAlignmentCrossover::AlignmentSegment> 
-DNAAlignmentCrossover::findAlignmentSegments(
+std::vector<DNAAlignmentCrossover::AlignmentSegment> DNAAlignmentCrossover::findAlignmentSegments(
     const std::vector<int>& genes,
     const DNAInstance& instance,
-    int minLength) const {
+    int minSegmentLength) const {
     
     std::vector<AlignmentSegment> segments;
-    const auto& spectrum = instance.getSpectrum();
     
     // Find all possible segments of length >= minLength
     for (size_t start = 0; start < genes.size(); start++) {
-        for (size_t len = minLength; start + len <= genes.size(); len++) {
+        for (size_t len = minSegmentLength; start + len <= genes.size(); len++) {
             double quality = calculateSegmentQuality(genes, start, len, instance);
             if (quality > 0.0) {  // Only keep segments with good overlaps
                 std::vector<int> segmentGenes(genes.begin() + start, 
@@ -745,4 +716,94 @@ std::pair<std::vector<int>, std::vector<int>> validateAndGetGenes(
     }
     
     return {genes1, genes2};
+}
+
+std::vector<int> performOrderCrossover(const std::vector<int>& parent1, const std::vector<int>& parent2, size_t size) {
+    // Use the shared Random instance instead of creating a new one
+    auto& rng = Random::instance();
+    
+    // Validate size
+    if (size == 0 || size > parent1.size() || size > parent2.size()) {
+        LOG_ERROR("OrderCrossover: Invalid size parameter");
+        return {};
+    }
+    
+    // Select two random crossover points with proper bounds checking
+    int point1 = rng.getRandomInt(0, static_cast<int>(size - 1));
+    int point2 = rng.getRandomInt(0, static_cast<int>(size - 1));
+    if (point1 > point2) std::swap(point1, point2);
+    
+    // Validate crossover points
+    if (point1 < 0 || point2 < 0 || static_cast<size_t>(point1) >= size || static_cast<size_t>(point2) >= size) {
+        LOG_ERROR("OrderCrossover: Invalid crossover points generated");
+        return {};
+    }
+    
+    // Create child with same size as parents
+    std::vector<int> child(size);
+    std::unordered_set<int> used;
+    
+    // Copy segment between crossover points from parent1 with validation
+    for (int i = point1; i <= point2; ++i) {
+        if (static_cast<size_t>(i) >= parent1.size()) {
+            LOG_ERROR("OrderCrossover: Index out of bounds while copying segment");
+            return {};
+        }
+        child[i] = parent1[i];
+        used.insert(parent1[i]);
+    }
+    
+    // Fill remaining positions with genes from parent2 in order
+    int curr = (point2 + 1) % size;
+    int p2pos = (point2 + 1) % size;
+    
+    while (curr != point1) {
+        // Try to find an unused gene from parent2
+        bool foundUnused = false;
+        for (size_t i = 0; i < size; ++i) {
+            int checkPos = (p2pos + static_cast<int>(i)) % size;
+            if (checkPos < 0 || static_cast<size_t>(checkPos) >= parent2.size()) {
+                LOG_ERROR("OrderCrossover: Invalid position while checking parent2");
+                return {};
+            }
+            
+            if (used.find(parent2[checkPos]) == used.end()) {
+                child[curr] = parent2[checkPos];
+                used.insert(parent2[checkPos]);
+                p2pos = (checkPos + 1) % size;
+                foundUnused = true;
+                break;
+            }
+        }
+        
+        // If no unused gene found in parent2, find any unused index
+        if (!foundUnused) {
+            for (size_t val = 0; val < size; ++val) {
+                if (used.find(static_cast<int>(val)) == used.end()) {
+                    child[curr] = static_cast<int>(val);
+                    used.insert(static_cast<int>(val));
+                    foundUnused = true;
+                    break;
+                }
+            }
+        }
+        
+        // If still no unused gene found, something is wrong
+        if (!foundUnused) {
+            LOG_ERROR("OrderCrossover: Failed to find unused gene");
+            return {};
+        }
+        
+        curr = (curr + 1) % size;
+    }
+    
+    // Validate final child
+    for (size_t i = 0; i < child.size(); ++i) {
+        if (child[i] < 0 || static_cast<size_t>(child[i]) >= size) {
+            LOG_ERROR("OrderCrossover: Invalid gene value in final child");
+            return {};
+        }
+    }
+    
+    return child;
 } 
