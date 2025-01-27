@@ -111,27 +111,59 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         static_cast<int>(maxLength)
     );
     
-    // Resize while keeping the shuffled order
-    indices.resize(size);
+    // Keep track of used indices to avoid duplicates
+    std::vector<bool> usedIndices(spectrum.size(), false);
+    std::vector<int> finalIndices;
+    finalIndices.reserve(maxLength);
+    
+    // First add the initial shuffled sequence
+    for (size_t i = 0; i < size && i < indices.size(); i++) {
+        finalIndices.push_back(indices[i]);
+        usedIndices[indices[i]] = true;
+    }
     
     // If we have noise parameters, ensure variety in solution length
     if (instance.getLNeg() > 0 || instance.getLPoz() > 0) {
         // 20% chance to add extra elements for handling negative errors
-        if (rng.generateProbability() < 0.2 && size < spectrum.size()) {
+        if (rng.generateProbability() < 0.2 && finalIndices.size() < spectrum.size()) {
             size_t extraElements = rng.getRandomInt(1, std::min(instance.getLNeg(), 
-                static_cast<int>(spectrum.size() - size)));
-            indices.resize(size + extraElements);
+                static_cast<int>(spectrum.size() - finalIndices.size())));
+            
+            // Try to add unused indices first
+            std::vector<int> unusedIndices;
+            for (size_t i = 0; i < spectrum.size(); i++) {
+                if (!usedIndices[i]) {
+                    unusedIndices.push_back(static_cast<int>(i));
+                }
+            }
+            
+            // Shuffle unused indices
+            for (size_t i = unusedIndices.size() - 1; i > 0; --i) {
+                size_t j = rng.getRandomInt(0, static_cast<int>(i));
+                std::swap(unusedIndices[i], unusedIndices[j]);
+            }
+            
+            // Add extra elements from unused indices
+            for (size_t i = 0; i < extraElements && i < unusedIndices.size(); i++) {
+                finalIndices.push_back(unusedIndices[i]);
+            }
+            
+            // If we still need more elements, allow repeats from the original sequence
+            while (finalIndices.size() < size + extraElements) {
+                int randomIndex = indices[rng.getRandomInt(0, static_cast<int>(indices.size() - 1))];
+                finalIndices.push_back(randomIndex);
+            }
         }
         // 20% chance to remove some elements for handling positive errors
-        else if (rng.generateProbability() < 0.2 && size > minLength) {
+        else if (rng.generateProbability() < 0.2 && finalIndices.size() > minLength) {
             size_t elementsToRemove = rng.getRandomInt(1, std::min(instance.getLPoz(), 
-                static_cast<int>(size - minLength)));
-            indices.resize(size - elementsToRemove);
+                static_cast<int>(finalIndices.size() - minLength)));
+            finalIndices.resize(finalIndices.size() - elementsToRemove);
         }
     }
     
-    individual.setGenes(indices);
-    return true;
+    individual.setGenes(finalIndices);
+    return validateGenes(finalIndices, instance);
 }
 
 bool PermutationRepresentation::isValid(
@@ -180,19 +212,34 @@ std::string PermutationRepresentation::toDNA(
     if (genes.empty()) return "";
     
     const auto& spectrum = instance.getSpectrum();
+    if (spectrum.empty()) return "";
+    
+    // Check if first gene is valid
+    if (genes[0] < 0 || static_cast<size_t>(genes[0]) >= spectrum.size()) {
+        LOG_ERROR("Invalid first gene index: " + std::to_string(genes[0]));
+        return "";
+    }
+    
     const int k = instance.getK();
     std::string dna = spectrum[genes[0]];  // Start with first k-mer
     
-    // Track used k-mers to avoid duplicates
+    // Track used k-mers to ensure we're using the spectrum correctly
     std::vector<bool> used(spectrum.size(), false);
     used[genes[0]] = true;
     
     // For each remaining gene
     for (size_t i = 1; i < genes.size(); i++) {
-        if (static_cast<size_t>(genes[i]) >= spectrum.size()) continue;  // Skip invalid indices
+        // Validate gene index
+        if (genes[i] < 0 || static_cast<size_t>(genes[i]) >= spectrum.size()) {
+            LOG_ERROR("Invalid gene index at position " + std::to_string(i) + ": " + std::to_string(genes[i]));
+            return "";  // Invalid sequence
+        }
         
         // Skip if already used and repetitions not allowed
-        if (!instance.isRepAllowed() && used[genes[i]]) continue;
+        if (!instance.isRepAllowed() && used[genes[i]]) {
+            LOG_DEBUG("Skipping repeated k-mer at position " + std::to_string(i));
+            continue;
+        }
         
         const std::string& current = spectrum[genes[i]];
         
@@ -200,8 +247,8 @@ std::string PermutationRepresentation::toDNA(
         int bestOverlap = -1;
         int minMismatches = k + 1;  // More than maximum possible
         
-        // Try overlaps from k-1 down to 1
-        for (int overlap = k - 1; overlap > 0; overlap--) {
+        // Try overlaps from k-1 down to k/2
+        for (int overlap = k - 1; overlap >= k/2; overlap--) {
             if (static_cast<int>(dna.length()) < overlap) continue;
             
             // Count mismatches in overlap region
@@ -212,30 +259,40 @@ std::string PermutationRepresentation::toDNA(
                 }
             }
             
-            // If this is the best overlap so far, store it
-            if (mismatches < minMismatches) {
+            // Only accept overlaps with at most deltaK mismatches
+            if (mismatches <= instance.getDeltaK() && mismatches < minMismatches) {
                 minMismatches = mismatches;
                 bestOverlap = overlap;
+                
+                // If we found a perfect match, no need to check smaller overlaps
+                if (mismatches == 0) break;
             }
-            
-            // If we found a perfect match, no need to check smaller overlaps
-            if (mismatches == 0) break;
         }
         
-        // If we found any valid overlap, append with that overlap
-        if (bestOverlap > 0) {
-            // Even if there are mismatches, we'll still append but track the quality
+        // Only append if we found a valid overlap
+        if (bestOverlap > 0 && minMismatches <= instance.getDeltaK()) {
             dna += current.substr(bestOverlap);
             used[genes[i]] = true;
         } else {
-            // No overlap found - append with a single base overlap
-            // This ensures we keep building the solution even with poor overlaps
-            dna += current.substr(1);
-            used[genes[i]] = true;
+            LOG_DEBUG("No valid overlap found for k-mer at position " + std::to_string(i));
+            return "";  // Return empty string if no valid overlap found
         }
     }
     
-    return dna;  // Return the DNA sequence as is, without length adjustments
+    // Verify final sequence length
+    if (dna.length() < instance.getK()) {
+        LOG_DEBUG("Final sequence too short: " + std::to_string(dna.length()));
+        return "";
+    }
+    
+    // Verify that the sequence contains enough k-mers from the spectrum
+    size_t usedCount = std::count(used.begin(), used.end(), true);
+    if (usedCount < spectrum.size() * 0.7) {  // Require at least 70% coverage
+        LOG_DEBUG("Insufficient spectrum coverage: " + std::to_string(usedCount) + "/" + std::to_string(spectrum.size()));
+        return "";
+    }
+    
+    return dna;
 }
 
 bool PermutationRepresentation::validateGenes(

@@ -52,11 +52,16 @@ OrderCrossover::crossover(
     std::shared_ptr<IRepresentation> representation)
 {
     if (!representation) {
-        throw std::invalid_argument("Invalid representation pointer");
+        LOG_ERROR("Invalid representation pointer");
+        return parents;  // Return parents instead of empty vector
     }
     
     try {
         auto [genes1, genes2] = validateAndGetGenes(parents);
+        if (genes1.empty() || genes2.empty()) {
+            LOG_ERROR("Empty parent genes");
+            return parents;  // Return parents instead of empty vector
+        }
         
         std::vector<std::shared_ptr<Individual>> offspring;
         offspring.reserve(2);
@@ -66,57 +71,110 @@ OrderCrossover::crossover(
         int end = rng.getRandomInt(0, static_cast<int>(genes1.size() - 1));
         if (start > end) std::swap(start, end);
         
-        // Create first offspring
-        std::vector<int> offspring1Genes(genes1.size());
-        std::vector<bool> used1(genes1.size(), false);
-        
-        // Copy segment from first parent
-        for (int i = start; i <= end; i++) {
-            offspring1Genes[i] = genes1[i];
-            used1[genes1[i]] = true;
-        }
-        
-        // Fill remaining positions from second parent
-        int j = 0;
-        for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
-            if (i >= start && i <= end) continue;
-            while (j < static_cast<int>(genes2.size()) && used1[genes2[j]]) j++;
-            if (j < static_cast<int>(genes2.size())) {
-                offspring1Genes[i] = genes2[j++];
+        int maxAttempts = 3;  // Try up to 3 times to create valid offspring
+        while (offspring.size() < 2 && maxAttempts > 0) {
+            // Create first offspring
+            std::vector<int> offspring1Genes(genes1.size());
+            std::vector<bool> used1(genes1.size(), false);
+            
+            // Copy segment from first parent
+            for (int i = start; i <= end; i++) {
+                offspring1Genes[i] = genes1[i];
+                used1[genes1[i]] = true;
             }
-        }
-        
-        if (auto child = createOffspring(offspring1Genes, representation, instance)) {
-            offspring.push_back(child);
-        }
-        
-        // Create second offspring (reverse roles)
-        std::vector<int> offspring2Genes(genes1.size());
-        std::vector<bool> used2(genes1.size(), false);
-        
-        for (int i = start; i <= end; i++) {
-            offspring2Genes[i] = genes2[i];
-            used2[genes2[i]] = true;
-        }
-        
-        j = 0;
-        for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
-            if (i >= start && i <= end) continue;
-            while (j < static_cast<int>(genes1.size()) && used2[genes1[j]]) j++;
-            if (j < static_cast<int>(genes1.size())) {
-                offspring2Genes[i] = genes1[j++];
+            
+            // Fill remaining positions from second parent
+            int j = 0;
+            bool validOffspring1 = true;
+            for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+                if (i >= start && i <= end) continue;
+                
+                // Find next unused gene from parent2
+                while (j < static_cast<int>(genes2.size()) && used1[genes2[j]]) j++;
+                
+                if (j < static_cast<int>(genes2.size())) {
+                    offspring1Genes[i] = genes2[j++];
+                } else {
+                    // If we run out of genes, find any unused valid index
+                    bool foundUnused = false;
+                    for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
+                        if (!used1[val]) {
+                            offspring1Genes[i] = val;
+                            used1[val] = true;
+                            foundUnused = true;
+                            break;
+                        }
+                    }
+                    if (!foundUnused) {
+                        validOffspring1 = false;
+                        break;
+                    }
+                }
             }
+            
+            if (validOffspring1) {
+                if (auto child = createOffspring(offspring1Genes, representation, instance)) {
+                    offspring.push_back(child);
+                }
+            }
+            
+            // Create second offspring (reverse roles)
+            std::vector<int> offspring2Genes(genes1.size());
+            std::vector<bool> used2(genes1.size(), false);
+            
+            for (int i = start; i <= end; i++) {
+                offspring2Genes[i] = genes2[i];
+                used2[genes2[i]] = true;
+            }
+            
+            j = 0;
+            bool validOffspring2 = true;
+            for (int i = 0; i < static_cast<int>(genes1.size()); i++) {
+                if (i >= start && i <= end) continue;
+                
+                // Find next unused gene from parent1
+                while (j < static_cast<int>(genes1.size()) && used2[genes1[j]]) j++;
+                
+                if (j < static_cast<int>(genes1.size())) {
+                    offspring2Genes[i] = genes1[j++];
+                } else {
+                    // If we run out of genes, find any unused valid index
+                    bool foundUnused = false;
+                    for (size_t val = 0; val < instance.getSpectrum().size(); val++) {
+                        if (!used2[val]) {
+                            offspring2Genes[i] = val;
+                            used2[val] = true;
+                            foundUnused = true;
+                            break;
+                        }
+                    }
+                    if (!foundUnused) {
+                        validOffspring2 = false;
+                        break;
+                    }
+                }
+            }
+            
+            if (validOffspring2) {
+                if (auto child = createOffspring(offspring2Genes, representation, instance)) {
+                    offspring.push_back(child);
+                }
+            }
+            
+            maxAttempts--;
         }
         
-        if (auto child = createOffspring(offspring2Genes, representation, instance)) {
-            offspring.push_back(child);
+        // If we couldn't create any valid offspring, return copies of parents
+        if (offspring.empty()) {
+            LOG_WARNING("Failed to create valid offspring, returning parents");
+            return parents;
         }
         
         return offspring;
         
     } catch (const std::exception& e) {
         LOG_ERROR("Error in order crossover: " + std::string(e.what()));
-        return {};
+        return parents;  // Return parents instead of empty vector
     }
 }
 

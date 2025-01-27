@@ -177,41 +177,42 @@ bool EdgeRecombination::EdgeTable::hasNode(int node) const {
 std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
     const std::vector<std::shared_ptr<Individual>>& parents,
     const DNAInstance& instance,
-    [[maybe_unused]] std::shared_ptr<IRepresentation> representation) {
+    std::shared_ptr<IRepresentation> representation) {
+    
     if (parents.size() < 2) {
         LOG_WARNING("Insufficient parents for crossover");
-        return parents;
+        return parents;  // Return parents instead of empty vector
     }
-
-    std::vector<std::shared_ptr<Individual>> offspring;
-    offspring.reserve(2);
 
     const auto& parent1 = parents[0]->getGenes();
     const auto& parent2 = parents[1]->getGenes();
     
     if (parent1.empty() || parent2.empty()) {
         LOG_WARNING("Empty parent genes in crossover");
-        return parents;
+        return parents;  // Return parents instead of empty vector
     }
 
     // Build edge table with DNA overlap information
     EdgeTable edgeTable(parents, instance);
     
+    std::vector<std::shared_ptr<Individual>> offspring;
+    offspring.reserve(2);
+    int maxAttempts = 3;  // Try up to 3 times to create valid offspring
+    
     // Create two offspring
-    for (int k = 0; k < 2; k++) {
+    for (int k = 0; k < 2 && maxAttempts > 0; k++) {
         std::vector<int> childGenes;
         childGenes.reserve(parent1.size());
         std::unordered_set<int> used;
         
         // Start with a random gene from first parent
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<size_t> dist(0, parent1.size() - 1);
-        int current = parent1[dist(gen)];
+        auto& rng = Random::instance();
+        int current = parent1[rng.getRandomInt(0, static_cast<int>(parent1.size() - 1))];
         childGenes.push_back(current);
         used.insert(current);
         
         // Build the rest of the path prioritizing high-quality overlaps
+        bool validPath = true;
         while (childGenes.size() < parent1.size()) {
             const auto neighbors = edgeTable.getNeighbors(current);
             bool foundNext = false;
@@ -222,7 +223,6 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                     childGenes.push_back(neighbor.node);
                     used.insert(neighbor.node);
                     current = neighbor.node;
-                    edgeTable.removeNode(current);
                     foundNext = true;
                     break;
                 }
@@ -260,24 +260,40 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                     childGenes.push_back(next);
                     used.insert(next);
                     current = next;
-                    edgeTable.removeNode(current);
                 } else {
-                    // Last resort: Use any unused value
-                    for (size_t i = 0; i < parent1.size(); i++) {
+                    // Last resort: Use any unused value from valid range
+                    bool foundUnused = false;
+                    for (size_t i = 0; i < instance.getSpectrum().size(); i++) {
                         if (used.find(i) == used.end()) {
                             childGenes.push_back(i);
                             used.insert(i);
                             current = i;
-                            edgeTable.removeNode(current);
+                            foundUnused = true;
                             break;
                         }
+                    }
+                    if (!foundUnused) {
+                        validPath = false;
+                        break;
                     }
                 }
             }
         }
         
-        auto child = std::make_shared<Individual>(childGenes);
-        offspring.push_back(child);
+        if (validPath) {
+            auto child = std::make_shared<Individual>(childGenes);
+            if (representation->isValid(child, instance)) {
+                offspring.push_back(child);
+                k++;  // Only increment k if we successfully created a child
+            }
+        }
+        maxAttempts--;
+    }
+    
+    // If we couldn't create any valid offspring, return copies of parents
+    if (offspring.empty()) {
+        LOG_WARNING("Failed to create valid offspring, returning parents");
+        return parents;
     }
     
     return offspring;

@@ -45,11 +45,31 @@ namespace {
     [[maybe_unused]]
     std::shared_ptr<Individual> createOffspring(
         std::vector<int> genes,
-        [[maybe_unused]] std::shared_ptr<IRepresentation> representation,
-        [[maybe_unused]] const DNAInstance& instance) {
+        std::shared_ptr<IRepresentation> representation,
+        const DNAInstance& instance) {
         
-        // Always create and return offspring, let fitness function handle validation
-        return std::make_shared<Individual>(std::move(genes));
+        // Basic validation
+        if (genes.empty()) {
+            LOG_ERROR("Cannot create offspring with empty genes");
+            return nullptr;
+        }
+        
+        // Check if all genes are valid indices
+        for (int gene : genes) {
+            if (gene < 0 || static_cast<size_t>(gene) >= instance.getSpectrum().size()) {
+                LOG_ERROR("Invalid gene index in offspring: " + std::to_string(gene));
+                return nullptr;
+            }
+        }
+        
+        // Create individual and validate with representation
+        auto offspring = std::make_shared<Individual>(std::move(genes));
+        if (!representation->isValid(offspring, instance)) {
+            LOG_ERROR("Created offspring failed representation validation");
+            return nullptr;
+        }
+        
+        return offspring;
     }
 }
 

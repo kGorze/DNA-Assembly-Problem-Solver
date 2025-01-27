@@ -54,9 +54,15 @@ struct DiversityParams {
     double diversityWeight = 0.3; // Weight for diversity score in fitness
 };
 
+// Add before GAConfig class
+enum class CrossoverType {
+    ADAPTIVE,
+    // Add other types if needed
+};
+
 class GAConfig {
 public:
-    GAConfig() = default;
+    GAConfig() : m_crossoverType(CrossoverType::ADAPTIVE) {}
     GAConfig(const GAConfig& other) = default;
     GAConfig& operator=(const GAConfig& other) = default;
 
@@ -84,6 +90,8 @@ public:
     int getTimeLimitSeconds() const { return m_timeLimitSeconds; }
     const AdaptiveParams& getAdaptiveParams() const { return m_adaptiveParams; }
     const DiversityParams& getDiversityParams() const { return m_diversityParams; }
+    CrossoverType getCrossoverType() const { return m_crossoverType; }
+    const DNAInstance& getInstance() const { return m_instance; }
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
@@ -103,6 +111,8 @@ public:
     void setTimeLimitSeconds(int seconds) { m_timeLimitSeconds = seconds; }
     void setAdaptiveParams(const AdaptiveParams& params) { m_adaptiveParams = params; }
     void setDiversityParams(const DiversityParams& params) { m_diversityParams = params; }
+    void setCrossoverType(CrossoverType type) { m_crossoverType = type; }
+    void setInstance(const DNAInstance& instance) { m_instance = instance; }
 
     // Cache management
     void setCache(std::shared_ptr<IPopulationCache> cachePtr) {
@@ -150,4 +160,7 @@ private:
     
     // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;
+    CrossoverType m_crossoverType;
+    DNAInstance m_instance;
+    mutable std::shared_ptr<ICrossover> m_cachedAdaptiveCrossover;
 };

@@ -23,4 +23,10 @@ public:
     virtual void add(const std::shared_ptr<Individual>& individual) = 0;
     
     virtual bool contains(const std::shared_ptr<Individual>& individual) const = 0;
+
+    // Diversity tracking methods
+    virtual void enableDiversityTracking(bool enabled) = 0;
+    virtual void setDiversityThreshold(double threshold) = 0;
+    virtual bool isDiversityTrackingEnabled() const = 0;
+    virtual double getDiversityThreshold() const = 0;
 }; 

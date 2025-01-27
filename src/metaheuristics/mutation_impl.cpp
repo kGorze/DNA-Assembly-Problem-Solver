@@ -35,6 +35,8 @@ void PointMutation::mutate(
     bool anyValidMutation = false;
     int consecutiveFailures = 0;
     
+    const size_t spectrumSize = instance.getSpectrum().size();
+    
     // Try multiple point mutations with backtracking
     for (int i = 0; i < numMutations && consecutiveFailures < 5; ++i) {
         // Store current state
@@ -44,7 +46,13 @@ void PointMutation::mutate(
         bool mutationSuccessful = false;
         for (int attempt = 0; attempt < 3 && !mutationSuccessful; ++attempt) {
             int pos = rng.getRandomInt(0, static_cast<int>(mutatedGenes.size() - 1));
-            int newValue = rng.getRandomInt(0, static_cast<int>(instance.getSpectrum().size()) - 1);
+            
+            // Generate a new value that's different from the current one and within bounds
+            int currentValue = mutatedGenes[pos];
+            int newValue;
+            do {
+                newValue = rng.getRandomInt(0, static_cast<int>(spectrumSize - 1));
+            } while (newValue == currentValue);
             
             // Perform mutation
             mutatedGenes[pos] = newValue;
@@ -55,6 +63,8 @@ void PointMutation::mutate(
                 mutationSuccessful = true;
                 anyValidMutation = true;
                 consecutiveFailures = 0;
+                LOG_DEBUG("PointMutation: Successfully mutated position " + std::to_string(pos) + 
+                         " from " + std::to_string(currentValue) + " to " + std::to_string(newValue));
             } else {
                 // Undo this mutation and try another position
                 mutatedGenes = currentState;

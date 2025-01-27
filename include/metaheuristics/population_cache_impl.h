@@ -12,6 +12,8 @@
 class SimplePopulationCache : public IPopulationCache {
 private:
     std::unordered_map<std::shared_ptr<Individual>, double> m_cache;
+    bool m_diversityTrackingEnabled = false;
+    double m_diversityThreshold = 0.2;
 
 public:
     void updatePopulation(const std::vector<std::shared_ptr<Individual>>& population) override {
@@ -51,6 +53,22 @@ public:
         return fitness;
     }
 
+    void enableDiversityTracking(bool enabled) override {
+        m_diversityTrackingEnabled = enabled;
+    }
+
+    void setDiversityThreshold(double threshold) override {
+        m_diversityThreshold = threshold;
+    }
+
+    bool isDiversityTrackingEnabled() const override {
+        return m_diversityTrackingEnabled;
+    }
+
+    double getDiversityThreshold() const override {
+        return m_diversityThreshold;
+    }
+
 private:
     double calculateFitness(const std::shared_ptr<Individual>& individual) {
         // Simple fitness calculation based on the genes
@@ -73,6 +91,8 @@ private:
     std::vector<std::shared_ptr<Individual>> m_population;
     std::unordered_map<std::shared_ptr<Individual>, double> m_fitnessCache;
     mutable std::mutex m_mutex;
+    bool m_diversityTrackingEnabled = false;
+    double m_diversityThreshold = 0.2;
 
 public:
     void updatePopulation(const std::vector<std::shared_ptr<Individual>>& population) override {
@@ -122,6 +142,26 @@ public:
         double fitness = calculateFitness(individual, instance);
         m_fitnessCache[individual] = fitness;
         return fitness;
+    }
+
+    void enableDiversityTracking(bool enabled) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_diversityTrackingEnabled = enabled;
+    }
+
+    void setDiversityThreshold(double threshold) {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_diversityThreshold = threshold;
+    }
+
+    bool isDiversityTrackingEnabled() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_diversityTrackingEnabled;
+    }
+
+    double getDiversityThreshold() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_diversityThreshold;
     }
 
 private:

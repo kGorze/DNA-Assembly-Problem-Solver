@@ -186,6 +186,12 @@ bool GAConfig::loadFromFile(const std::string& filename) {
                 else if (key == "diversityWeight") {
                     m_diversityParams.diversityWeight = std::stod(value);
                 }
+                else if (key == "crossoverType") {
+                    if (value == "adaptive") {
+                        m_crossoverType = CrossoverType::ADAPTIVE;
+                        LOG_DEBUG("Setting crossover type to adaptive");
+                    }
+                }
             } catch (const std::exception& e) {
                 LOG_ERROR("Error parsing value for key " + key + ": " + e.what());
                 return false;
@@ -227,10 +233,32 @@ std::shared_ptr<ISelection> GAConfig::getSelection() const
     return std::make_shared<TournamentSelection>(*this);
 }
 
-std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string&) const
-{
-    // Always return adaptive crossover
-    return std::make_shared<AdaptiveCrossover>(*this);
+std::shared_ptr<ICrossover> GAConfig::getCrossover(const std::string& generationStr) const {
+    if (m_crossoverType == CrossoverType::ADAPTIVE) {
+        LOG_DEBUG("Getting adaptive crossover");
+        if (!m_cachedAdaptiveCrossover) {
+            LOG_DEBUG("Creating new adaptive crossover instance");
+            m_cachedAdaptiveCrossover = std::make_shared<AdaptiveCrossover>(*this, m_instance);
+        }
+        // Set the generation if provided
+        if (!generationStr.empty()) {
+            try {
+                int generation = std::stoi(generationStr);
+                auto adaptiveCrossover = std::dynamic_pointer_cast<AdaptiveCrossover>(m_cachedAdaptiveCrossover);
+                if (adaptiveCrossover) {
+                    adaptiveCrossover->setGeneration(generation);
+                    LOG_DEBUG("Set generation " + std::to_string(generation) + " for adaptive crossover");
+                } else {
+                    LOG_ERROR("Failed to cast to AdaptiveCrossover");
+                }
+            } catch (const std::exception& e) {
+                LOG_ERROR("Failed to parse generation number: " + generationStr);
+            }
+        }
+        return m_cachedAdaptiveCrossover;
+    }
+    LOG_DEBUG("Using edge recombination crossover");
+    return std::make_shared<EdgeRecombination>();
 }
 
 std::shared_ptr<IMutation> GAConfig::getMutation() const

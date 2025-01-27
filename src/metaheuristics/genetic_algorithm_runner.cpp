@@ -100,7 +100,11 @@ void runGeneticAlgorithm(
             throw std::runtime_error("Failed to create cache");
         }
         cache->reserve(config.getPopulationSize() * 2);  // Reserve space for population and offspring
+        cache->enableDiversityTracking(true);  // Enable diversity tracking
+        cache->setDiversityThreshold(config.getDiversityParams().sharingRadius);
         config.setCache(cache);
+        
+        LOG_DEBUG("Cache initialized with diversity tracking enabled");
         
         LOG_DEBUG("Creating genetic algorithm...");
         GeneticAlgorithm ga(std::move(representation), config, debugMode);

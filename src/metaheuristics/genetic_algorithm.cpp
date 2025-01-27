@@ -106,7 +106,7 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
                 
                 if (m_random->generateProbability() < m_config.getCrossoverProbability()) {
                     crossoverAttempts++;
-                    auto crossover = m_config.getCrossover("");
+                    auto crossover = m_config.getCrossover(std::to_string(generation));
                     auto children = crossover->crossover(parentPair, instance, sharedRepresentation);
                     
                     if (!children.empty()) {
@@ -165,6 +165,20 @@ std::string GeneticAlgorithm::run(const DNAInstance& instance) {
             LOG_DEBUG("Performing replacement");
             auto replacement = m_config.getReplacement();
             m_population = replacement->replace(m_population, offspring, instance, sharedRepresentation);
+            
+            // Update cache with new population
+            if (auto cache = m_config.getCache()) {
+                LOG_DEBUG("Updating cache with new population");
+                cache->updatePopulation(m_population);
+                
+                // Update adaptive crossover feedback
+                if (auto crossover = m_config.getCrossover(std::to_string(generation))) {
+                    if (auto adaptiveCrossover = std::dynamic_pointer_cast<AdaptiveCrossover>(crossover)) {
+                        LOG_DEBUG("Updating adaptive crossover feedback");
+                        adaptiveCrossover->updateFeedback(m_globalBestFit);
+                    }
+                }
+            }
             
             if (updateGlobalBest(m_population, instance)) {
                 auto bestIndividual = m_population[m_bestIndex];
