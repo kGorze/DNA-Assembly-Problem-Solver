@@ -817,44 +817,112 @@ class SBHTestingFramework:
     def display_rankings(self) -> None:
         logging.info("Displaying solver rankings.")
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                c = conn.cursor()
-                c.execute("""
-                    SELECT 
-                        v.version_name,
-                        v.description,
-                        COUNT(r.result_id) as total_tests,
-                        AVG(r.execution_time_ms) as avg_execution_time,
-                        AVG(CASE WHEN r.levenshtein_distance = 0 THEN 1.0 ELSE 0.0 END) as perfect_solutions,
-                        AVG(r.levenshtein_distance) as avg_levenshtein
-                    FROM solver_versions v
-                    LEFT JOIN test_results r ON v.version_id = r.version_id
-                    GROUP BY v.version_id
-                    ORDER BY perfect_solutions DESC, avg_levenshtein ASC, avg_execution_time ASC
-                """)
-                results = c.fetchall()
+            # Check if database exists and print diagnostic info
+            print(f"\nChecking database at: {self.db_path}")
+            
+            # Detailed file check
+            try:
+                file_exists = os.path.exists(self.db_path)
+                file_size = os.path.getsize(self.db_path) if file_exists else 0
+                file_permissions = oct(os.stat(self.db_path).st_mode)[-3:] if file_exists else "N/A"
+                print(f"File exists: {file_exists}")
+                print(f"File size: {file_size} bytes")
+                print(f"File permissions: {file_permissions}")
+            except Exception as e:
+                print(f"Error checking file: {e}")
 
-                print("\nSOLVER RANKINGS")
-                print("=" * 100)
-                print(f"{'Version':<30} {'Tests':<8} {'Avg Time':<12} {'Perfect':<10} {'Avg Lev':<15}")
-                print("-" * 100)
+            if not os.path.exists(self.db_path):
+                print("\nNo rankings available - database file not found.")
+                print(f"Expected database at: {self.db_path}")
+                print("Please run some tests first using --test flag to create the database.")
+                logging.warning(f"Database file not found at: {self.db_path}")
+                return
+            
+            try:
+                with sqlite3.connect(self.db_path) as conn:
+                    # First check if the required tables exist
+                    c = conn.cursor()
+                    
+                    # Get all tables in the database
+                    c.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                    all_tables = c.fetchall()
+                    print("\nAll tables in database:")
+                    for table in all_tables:
+                        print(f"- {table[0]}")
+                        # Count rows in each table
+                        try:
+                            c.execute(f"SELECT COUNT(*) FROM {table[0]}")
+                            count = c.fetchone()[0]
+                            print(f"  Rows: {count}")
+                        except sqlite3.Error as e:
+                            print(f"  Error counting rows: {e}")
+                    
+                    # Check for our specific tables
+                    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('solver_versions', 'test_results')")
+                    tables = c.fetchall()
+                    tables = [t[0] for t in tables]
+                    
+                    if 'solver_versions' not in tables or 'test_results' not in tables:
+                        print("\nDatabase exists but required tables are missing.")
+                        print(f"Found tables: {', '.join(tables)}")
+                        print("Please run some tests first using --test flag to initialize the database.")
+                        return
 
-                for row in results:
-                    version, desc, tests, avg_time, perfect, avg_lev = row
-                    perfect_percentage = (perfect * 100) if perfect is not None else 0
-                    avg_time = avg_time if avg_time is not None else 0
-                    avg_lev = avg_lev if avg_lev is not None else float('inf')
-                    print(f"{version:<30} {tests:>7} {avg_time:>11.0f}ms {perfect_percentage:>9.1f}% {avg_lev:>14.2f}")
+                    # Check solver_versions content
+                    print("\nSolver versions in database:")
+                    c.execute("SELECT version_id, version_name, description FROM solver_versions")
+                    versions = c.fetchall()
+                    for v in versions:
+                        print(f"- ID: {v[0]}, Name: {v[1]}, Desc: {v[2]}")
 
-                logging.info("Displayed solver rankings successfully.")
-        except sqlite3.Error as e:
-            error_msg = f"SBHTestingFramework: Database error while displaying rankings: {e}"
-            print(error_msg)
-            logging.error(error_msg)
+                    c.execute("""
+                        SELECT 
+                            v.version_name,
+                            v.description,
+                            COUNT(r.result_id) as total_tests,
+                            AVG(r.execution_time_ms) as avg_execution_time,
+                            AVG(CASE WHEN r.levenshtein_distance = 0 THEN 1.0 ELSE 0.0 END) as perfect_solutions,
+                            AVG(r.levenshtein_distance) as avg_levenshtein
+                        FROM solver_versions v
+                        LEFT JOIN test_results r ON v.version_id = r.version_id
+                        GROUP BY v.version_id
+                        ORDER BY perfect_solutions DESC, avg_levenshtein ASC, avg_execution_time ASC
+                    """)
+                    results = c.fetchall()
+
+                    if not results:
+                        print("\nNo rankings available - no test results found in database.")
+                        print("Please run some tests first using --test flag.")
+                        logging.warning("No test results found in database")
+                        return
+
+                    print("\nSOLVER RANKINGS")
+                    print("=" * 100)
+                    print(f"{'Version':<30} {'Tests':<8} {'Avg Time':<12} {'Perfect':<10} {'Avg Lev':<15}")
+                    print("-" * 100)
+
+                    for row in results:
+                        version, desc, tests, avg_time, perfect, avg_lev = row
+                        perfect_percentage = (perfect * 100) if perfect is not None else 0
+                        avg_time = avg_time if avg_time is not None else 0
+                        avg_lev = avg_lev if avg_lev is not None else float('inf')
+                        print(f"{version:<30} {tests:>7} {avg_time:>11.0f}ms {perfect_percentage:>9.1f}% {avg_lev:>14.2f}")
+
+                    logging.info("Displayed solver rankings successfully.")
+                    
+            except sqlite3.OperationalError as e:
+                print(f"\nError accessing database: {e}")
+                print("The database file might be corrupted or not properly initialized.")
+                print("Try running some tests first using --test flag.")
+                logging.error(f"SQLite operational error: {e}")
+                
         except Exception as e:
-            error_msg = f"SBHTestingFramework: Error while displaying rankings: {e}"
+            error_msg = f"Error displaying rankings: {e}"
             print(error_msg)
             logging.error(error_msg)
+            if args.debug:
+                import traceback
+                traceback.print_exc()
 
     def debug_processes(self, solver_path: str, num_processes: int = 1) -> None:
         """
@@ -1185,11 +1253,14 @@ def handle_stderr_line(line: str, buffer: List[str], process_id: int) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="SBH Testing Framework (multiprocessing + curses)")
 
-    script_dir = Path(__file__).parent
-    build_dir = script_dir / 'build'
-    default_solver = build_dir / 'optymalizacja_kombinatoryczna'
-    default_db = build_dir / 'results.db'
-    default_test_dir = build_dir / 'test_cases'
+    # Get the directory where the script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Define paths relative to the parent directory of scripts
+    parent_dir = os.path.dirname(script_dir)
+    default_solver = os.path.join(parent_dir, 'optymalizacja_kombinatoryczna')
+    default_db = os.path.join(parent_dir, 'results.db')
+    default_test_dir = os.path.join(parent_dir, 'test_cases')
 
     parser.add_argument('--generate', action='store_true', help='Generate test cases (if not exist)')
     parser.add_argument('--test', action='store_true', help='Run tests on solver in parallel')
@@ -1201,32 +1272,45 @@ def main() -> None:
     parser.add_argument('--log', action='store_true', help='Use logging instead of UI')
     parser.add_argument('--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--debug-processes', action='store_true', help='Run in process debugging mode')
+    parser.add_argument('--db', default=str(default_db), help='Path to results database')
 
     args = parser.parse_args()
 
     try:
         use_ui = not args.log and sys.stdout.isatty()
-        # Inicjalizacja loggera z odpowiednim trybem
         logger = setup_logger(debug_mode=args.debug)
-        logging.info(f"Determined use_ui: {use_ui}")
+        
+        # Print diagnostic information
+        print(f"Current working directory: {os.getcwd()}")
+        print(f"Script directory: {script_dir}")
+        print(f"Database path: {args.db}")
+        print(f"Database exists: {os.path.exists(args.db)}")
+        
+        if args.debug:
+            logging.info(f"Current working directory: {os.getcwd()}")
+            logging.info(f"Script directory: {script_dir}")
+            logging.info(f"Database path: {args.db}")
+            logging.info(f"Database exists: {os.path.exists(args.db)}")
 
         framework = SBHTestingFramework(
-            db_path=str(default_db),
+            db_path=args.db,
             test_dir=str(default_test_dir),
             use_ui=use_ui
         )
         global framework_instance
         framework_instance = framework
 
-        framework.solver_path = args.solver
-        logging.info(f"Using solver at path: {args.solver}")
+        # Only check for solver executable if we need it
+        if args.test or args.debug_processes or args.generate:
+            framework.solver_path = args.solver
+            logging.info(f"Using solver at path: {args.solver}")
 
-        if not os.path.isfile(framework.solver_path):
-            error_msg = f"Solver executable not found at path: {framework.solver_path}"
-            print(error_msg)
-            logging.error(error_msg)
-            sys.exit(1)
-        logging.info(f"Validated solver path: {framework.solver_path}")
+            if not os.path.isfile(framework.solver_path):
+                error_msg = f"Solver executable not found at path: {framework.solver_path}"
+                print(error_msg)
+                logging.error(error_msg)
+                sys.exit(1)
+            logging.info(f"Validated solver path: {framework.solver_path}")
 
         if args.generate:
             logging.info("Generating test cases as per --generate flag.")
