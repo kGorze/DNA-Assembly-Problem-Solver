@@ -16,8 +16,10 @@ std::vector<std::shared_ptr<Individual>> PermutationRepresentation::initializePo
     std::vector<std::vector<int>> existingGenes;
     existingGenes.reserve(populationSize);
     
-    int maxAttempts = populationSize * 3;  // Allow multiple attempts to generate diverse individuals
+    int maxAttempts = populationSize * 5;  // Increased attempts to ensure success
     int attempts = 0;
+    int consecutiveFailures = 0;
+    const int MAX_CONSECUTIVE_FAILURES = 10;
     
     while (population.size() < static_cast<size_t>(populationSize) && attempts < maxAttempts) {
         auto individual = std::make_shared<Individual>();
@@ -46,22 +48,59 @@ std::vector<std::shared_ptr<Individual>> PermutationRepresentation::initializePo
             if (!isDuplicate) {
                 population.push_back(individual);
                 existingGenes.push_back(genes);
+                consecutiveFailures = 0;  // Reset failure counter on success
+            } else {
+                consecutiveFailures++;
+            }
+        } else {
+            consecutiveFailures++;
+        }
+        
+        attempts++;
+        
+        // If too many consecutive failures, try to copy and modify existing solutions
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES && !population.empty()) {
+            LOG_WARNING("Too many consecutive failures, using existing solutions as templates");
+            
+            // Take a random existing solution and modify it
+            auto& rng = Random::instance();
+            size_t idx = rng.getRandomInt(0, static_cast<int>(population.size() - 1));
+            auto baseIndividual = population[idx];
+            auto newIndividual = std::make_shared<Individual>(*baseIndividual);
+            auto& genes = newIndividual->getGenes();
+            
+            // Perform more aggressive modifications
+            size_t numSwaps = std::max(3UL, genes.size() / 3);  // Swap at least 33% of genes
+            for (size_t i = 0; i < numSwaps; ++i) {
+                size_t pos1 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
+                size_t pos2 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
+                std::swap(genes[pos1], genes[pos2]);
+            }
+            
+            // Validate the modified individual
+            if (validateGenes(genes, instance)) {
+                population.push_back(newIndividual);
+                existingGenes.push_back(genes);
+                consecutiveFailures = 0;
             }
         }
-        attempts++;
     }
     
-    // If we couldn't generate enough diverse individuals, fill remaining slots
-    // with modified versions of existing solutions
+    // If we still don't have enough individuals, fill remaining slots with modified copies
+    if (population.empty()) {
+        LOG_ERROR("Failed to generate any valid individuals after " + std::to_string(attempts) + " attempts");
+        throw std::runtime_error("Could not initialize population");
+    }
+    
     while (population.size() < static_cast<size_t>(populationSize)) {
-        // Take a random existing solution and modify it
+        // Take a random existing solution and modify it more aggressively
         auto& rng = Random::instance();
         size_t idx = rng.getRandomInt(0, static_cast<int>(population.size() - 1));
         auto newIndividual = std::make_shared<Individual>(*population[idx]);
         auto& genes = newIndividual->getGenes();
         
-        // Perform random modifications to make it different
-        size_t numSwaps = std::max(2UL, genes.size() / 5);  // Swap at least 20% of genes
+        // Perform very aggressive modifications
+        size_t numSwaps = std::max(4UL, genes.size() / 2);  // Swap at least 50% of genes
         for (size_t i = 0; i < numSwaps; ++i) {
             size_t pos1 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
             size_t pos2 = rng.getRandomInt(0, static_cast<int>(genes.size() - 1));
@@ -85,16 +124,6 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         return false;
     }
     
-    // Create a permutation of indices
-    std::vector<int> indices(spectrum.size());
-    std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
-    
-    // Shuffle the indices
-    for (size_t i = indices.size() - 1; i > 0; --i) {
-        size_t j = rng.getRandomInt(0, static_cast<int>(i));
-        std::swap(indices[i], indices[j]);
-    }
-    
     // Calculate minimum and maximum lengths based on instance parameters
     size_t minLength = std::max(
         static_cast<size_t>(spectrum.size() * 0.7),  // At least 70% of spectrum size
@@ -104,6 +133,24 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         spectrum.size(),  // Full spectrum size
         minLength + static_cast<size_t>(instance.getLNeg())  // Or min length + lNeg for noise tolerance
     );
+    
+    // Check if valid length range exists
+    if (minLength > maxLength || minLength > spectrum.size()) {
+        LOG_ERROR("Invalid length range: min=" + std::to_string(minLength) + 
+                  ", max=" + std::to_string(maxLength) + 
+                  ", spectrum size=" + std::to_string(spectrum.size()));
+        return false;
+    }
+    
+    // Create a permutation of indices
+    std::vector<int> indices(spectrum.size());
+    std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
+    
+    // Shuffle the indices
+    for (size_t i = indices.size() - 1; i > 0; --i) {
+        size_t j = rng.getRandomInt(0, static_cast<int>(i));
+        std::swap(indices[i], indices[j]);
+    }
     
     // Generate a length that ensures good coverage
     size_t size = rng.getRandomInt(
@@ -116,7 +163,7 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
     std::vector<int> finalIndices;
     finalIndices.reserve(maxLength);
     
-    // First add the initial shuffled sequence
+    // First add the initial shuffled sequence up to size
     for (size_t i = 0; i < size && i < indices.size(); i++) {
         finalIndices.push_back(indices[i]);
         usedIndices[indices[i]] = true;
@@ -146,12 +193,7 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
             // Add extra elements from unused indices
             for (size_t i = 0; i < extraElements && i < unusedIndices.size(); i++) {
                 finalIndices.push_back(unusedIndices[i]);
-            }
-            
-            // If we still need more elements, allow repeats from the original sequence
-            while (finalIndices.size() < size + extraElements) {
-                int randomIndex = indices[rng.getRandomInt(0, static_cast<int>(indices.size() - 1))];
-                finalIndices.push_back(randomIndex);
+                usedIndices[unusedIndices[i]] = true;
             }
         }
         // 20% chance to remove some elements for handling positive errors
@@ -160,6 +202,31 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
                 static_cast<int>(finalIndices.size() - minLength)));
             finalIndices.resize(finalIndices.size() - elementsToRemove);
         }
+    }
+    
+    // Ensure we have at least minLength elements
+    if (finalIndices.size() < minLength) {
+        // Add unused indices until we reach minLength
+        for (size_t i = 0; i < spectrum.size() && finalIndices.size() < minLength; i++) {
+            if (!usedIndices[i]) {
+                finalIndices.push_back(i);
+                usedIndices[i] = true;
+            }
+        }
+        
+        // If still not enough, allow reuse of indices
+        while (finalIndices.size() < minLength) {
+            int randomIndex = rng.getRandomInt(0, static_cast<int>(spectrum.size() - 1));
+            finalIndices.push_back(randomIndex);
+        }
+    }
+    
+    // Final validation
+    if (finalIndices.empty() || finalIndices.size() < minLength || finalIndices.size() > maxLength) {
+        LOG_ERROR("Failed to generate valid individual: size=" + std::to_string(finalIndices.size()) +
+                  ", required min=" + std::to_string(minLength) +
+                  ", max=" + std::to_string(maxLength));
+        return false;
     }
     
     individual.setGenes(finalIndices);
