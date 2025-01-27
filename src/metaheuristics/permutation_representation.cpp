@@ -124,12 +124,11 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         return false;
     }
     
-    // Initialize with a size between 50% and 100% of spectrum size
-    size_t minSize = std::max(instance.getK(), static_cast<int>(spectrum.size() / 2));
-    size_t size = rng.getRandomInt(minSize, static_cast<int>(spectrum.size()));
+    // Always use the full spectrum size
+    size_t size = spectrum.size();
     
     // Create a permutation of indices
-    std::vector<int> indices(spectrum.size());
+    std::vector<int> indices(size);
     std::iota(indices.begin(), indices.end(), 0);  // Fill with 0, 1, 2, ...
     
     // Shuffle the indices
@@ -138,19 +137,18 @@ bool PermutationRepresentation::initializeIndividual(Individual& individual, con
         std::swap(indices[i], indices[j]);
     }
     
-    // Take the first 'size' elements
-    std::vector<int> finalIndices(indices.begin(), indices.begin() + size);
-    
-    // Final validation
-    if (finalIndices.empty() || finalIndices.size() < minSize || finalIndices.size() > spectrum.size()) {
-        LOG_ERROR("Failed to generate valid individual: size=" + std::to_string(finalIndices.size()) +
-                  ", required size between " + std::to_string(minSize) +
-                  " and " + std::to_string(spectrum.size()));
-        return false;
+    // Validate indices
+    for (int index : indices) {
+        if (index < 0 || static_cast<size_t>(index) >= spectrum.size()) {
+            LOG_ERROR("Generated invalid index: " + std::to_string(index) + 
+                      ", spectrum size: " + std::to_string(spectrum.size()));
+            return false;
+        }
     }
     
     // Set the genes
-    individual.setGenes(finalIndices);
+    individual.setGenes(indices);
+    LOG_DEBUG("Initialized individual with " + std::to_string(indices.size()) + " genes");
     return true;
 }
 

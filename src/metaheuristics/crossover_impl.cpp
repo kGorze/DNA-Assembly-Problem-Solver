@@ -29,9 +29,18 @@ std::vector<std::shared_ptr<Individual>> OrderCrossover::crossover(
     
     const auto& parent1Genes = parents[0]->getGenes();
     const auto& parent2Genes = parents[1]->getGenes();
+    const size_t spectrumSize = instance.getSpectrum().size();
     
+    // Validate gene lengths
     if (parent1Genes.empty() || parent2Genes.empty()) {
         LOG_WARNING("OrderCrossover: Empty parent genes");
+        return parents;
+    }
+    
+    // Enforce same length equal to spectrum size
+    if (parent1Genes.size() != spectrumSize || parent2Genes.size() != spectrumSize) {
+        LOG_WARNING("OrderCrossover: Parents must have length equal to spectrum size (" + 
+                   std::to_string(spectrumSize) + ")");
         return parents;
     }
     
@@ -44,11 +53,26 @@ std::vector<std::shared_ptr<Individual>> OrderCrossover::crossover(
     
     while (!success && attempts < MAX_ATTEMPTS) {
         try {
-            // Create child genes
-            auto child1Genes = performOrderCrossover(parent1Genes, parent2Genes, parent1Genes.size());
-            auto child2Genes = performOrderCrossover(parent2Genes, parent1Genes, parent2Genes.size());
+            // Create child genes with fixed size equal to spectrum size
+            auto child1Genes = performOrderCrossover(parent1Genes, parent2Genes, spectrumSize);
+            auto child2Genes = performOrderCrossover(parent2Genes, parent1Genes, spectrumSize);
             
-            if (child1Genes.empty() || child2Genes.empty()) {
+            // Validate gene indices
+            bool validIndices = true;
+            for (int gene : child1Genes) {
+                if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
+                    validIndices = false;
+                    break;
+                }
+            }
+            for (int gene : child2Genes) {
+                if (gene < 0 || static_cast<size_t>(gene) >= spectrumSize) {
+                    validIndices = false;
+                    break;
+                }
+            }
+            
+            if (!validIndices) {
                 LOG_WARNING("OrderCrossover: Invalid gene indices in offspring");
                 attempts++;
                 continue;
@@ -59,14 +83,16 @@ std::vector<std::shared_ptr<Individual>> OrderCrossover::crossover(
             auto child2 = std::make_shared<Individual>(child2Genes);
             
             // Validate offspring
-            bool child1Valid = !child1->getGenes().empty() && representation->isValid(child1, instance);
-            bool child2Valid = !child2->getGenes().empty() && representation->isValid(child2, instance);
+            bool child1Valid = representation->isValid(child1, instance);
+            bool child2Valid = representation->isValid(child2, instance);
             
             if (child1Valid) {
                 offspring.push_back(child1);
+                LOG_DEBUG("OrderCrossover: Created valid first offspring");
             }
             if (child2Valid) {
                 offspring.push_back(child2);
+                LOG_DEBUG("OrderCrossover: Created valid second offspring");
             }
             
             if (!offspring.empty()) {
@@ -181,9 +207,18 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
     
     const auto& parent1Genes = parents[0]->getGenes();
     const auto& parent2Genes = parents[1]->getGenes();
+    const size_t spectrumSize = instance.getSpectrum().size();
     
+    // Validate gene lengths
     if (parent1Genes.empty() || parent2Genes.empty()) {
         LOG_WARNING("EdgeRecombination: Empty parent genes");
+        return parents;
+    }
+    
+    // Enforce same length equal to spectrum size
+    if (parent1Genes.size() != spectrumSize || parent2Genes.size() != spectrumSize) {
+        LOG_WARNING("EdgeRecombination: Parents must have length equal to spectrum size (" + 
+                   std::to_string(spectrumSize) + ")");
         return parents;
     }
     
@@ -199,15 +234,15 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
             // Try to create two offspring
             for (int k = 0; k < 2 && offspring.size() < 2; k++) {
                 std::vector<int> childGenes;
-                childGenes.reserve(parent1Genes.size());
+                childGenes.reserve(spectrumSize);  // Reserve fixed size
                 
                 // Start with a random gene from first parent
-                int current = parent1Genes[rng.getRandomInt(0, static_cast<int>(parent1Genes.size() - 1))];
+                int current = parent1Genes[rng.getRandomInt(0, static_cast<int>(spectrumSize - 1))];
                 childGenes.push_back(current);
                 
                 // Build the rest of the path prioritizing high-quality overlaps
                 bool validPath = true;
-                while (childGenes.size() < parent1Genes.size() && validPath) {
+                while (childGenes.size() < spectrumSize && validPath) {
                     const auto neighbors = edgeTable.getNeighbors(current);
                     bool foundNext = false;
                     
@@ -229,11 +264,6 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                                 unusedGenes.push_back(gene);
                             }
                         }
-                        for (int gene : parent2Genes) {
-                            if (std::find(childGenes.begin(), childGenes.end(), gene) == childGenes.end()) {
-                                unusedGenes.push_back(gene);
-                            }
-                        }
                         
                         if (!unusedGenes.empty()) {
                             // Choose random unused gene
@@ -246,20 +276,22 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombination::crossover(
                     }
                 }
                 
-                if (validPath) {
+                if (validPath && childGenes.size() == spectrumSize) {
                     auto child = std::make_shared<Individual>(childGenes);
-                    if (!child->getGenes().empty() && representation->isValid(child, instance)) {
+                    if (representation->isValid(child, instance)) {
                         offspring.push_back(child);
+                        LOG_DEBUG("EdgeRecombination: Created valid offspring");
                     }
                 }
             }
+            maxAttempts--;
+            
         } catch (const std::exception& e) {
             LOG_WARNING("EdgeRecombination: Exception during crossover: " + std::string(e.what()));
+            maxAttempts--;
         }
-        maxAttempts--;
     }
     
-    // If we couldn't create any valid offspring, return copies of parents
     if (offspring.empty()) {
         LOG_WARNING("EdgeRecombination: Failed to create valid offspring, returning parents");
         return parents;
