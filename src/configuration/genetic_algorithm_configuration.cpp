@@ -245,7 +245,7 @@ std::shared_ptr<IMutation> GAConfig::getMutation() const
 
 std::shared_ptr<IReplacement> GAConfig::getReplacement() const
 {
-    return std::make_shared<PartialReplacement>(m_replacementRatio, m_cache);
+    return std::make_shared<PartialReplacement>(m_replacementRatio, m_diversityParams.sharingRadius, m_cache);
 }
 
 std::shared_ptr<IFitness> GAConfig::getFitness() const {
