@@ -11,7 +11,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 # Find Python (if needed)
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+#find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 # Define include directories at the top level
 include_directories(
@@ -53,33 +53,31 @@ set(SOURCES
 )
 
 # Create library
-add_library(optymalizacja_kombinatoryczna_lib STATIC ${SOURCES})
+add_library(${PROJECT_NAME}_lib STATIC ${SOURCES})
 
 # Set include directories for the library
-target_include_directories(optymalizacja_kombinatoryczna_lib PUBLIC 
+target_include_directories(${PROJECT_NAME}_lib PUBLIC 
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src
 )
 
 # Main executable
-add_executable(optymalizacja_kombinatoryczna
-    src/main.cpp
-)
+add_executable(${PROJECT_NAME} src/main.cpp)
 
 # Link the library
-target_link_libraries(optymalizacja_kombinatoryczna PRIVATE optymalizacja_kombinatoryczna_lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 
 # Copy configuration files to build directory
 file(COPY ${CMAKE_SOURCE_DIR}/config DESTINATION ${CMAKE_BINARY_DIR})
 
 # Set working directory for the executable
-set_target_properties(optymalizacja_kombinatoryczna PROPERTIES
+set_target_properties(${PROJECT_NAME} PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
 # Only include tests if ENABLE_TESTING is set
-option(ENABLE_TESTING "Enable testing" OFF)
+option(ENABLE_TESTING "Enable testing" ON)
 if(ENABLE_TESTING)
     # Google Test setup
     include(FetchContent)
@@ -94,5 +92,5 @@ if(ENABLE_TESTING)
     enable_testing()
 
     # Add tests
-    add_subdirectory(tests)
+    add_subdirectory(google_tests)
 endif()

@@ -1,14 +1,19 @@
-add_executable(Google_Tests_run
+add_executable(optymalizacja_kombinatoryczna_test
         tests/test_main.cpp
-        tests/your_tests.cpp
+        tests/dna_tests/dna_instance_test.cpp
+        tests/metaheuristics/adaptive_crossover_test.cpp
 )
 
-target_link_libraries(Google_Tests_run PRIVATE
-        gtest
-        gtest_main
+target_link_libraries(optymalizacja_kombinatoryczna_test PRIVATE
+        GTest::gtest
+        GTest::gtest_main
         ${PROJECT_NAME}_lib
 )
 
-target_include_directories(Google_Tests_run PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(optymalizacja_kombinatoryczna_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src
+)
 
-add_test(NAME GoogleTests COMMAND Google_Tests_run)
+include(GoogleTest)
+gtest_discover_tests(optymalizacja_kombinatoryczna_test)

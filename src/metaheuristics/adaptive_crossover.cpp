@@ -408,7 +408,7 @@ void AdaptiveCrossover::logDiversityMetrics(
     ss << "\n  Average Hamming Distance: " << avgDistance;
     ss << "\n  Unique Solutions Ratio: " << uniqueSolutionsRatio << " (" << clusters.size() << "/" << population.size() << ")";
     ss << "\n  Unique DNA Sequences Ratio: " << uniqueDNASequencesRatio << " (" << dnaClusters.size() << "/" << population.size() << ")";
-    ss << "\n  Average Cluster Size: " << (population.size() / std::max(1UL, clusters.size()));
+    ss << "\n  Average Cluster Size: " << (population.size() / (clusters.empty() ? 1 : clusters.size()));
     
     LOG_INFO(ss.str());
     
