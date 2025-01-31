@@ -10,7 +10,7 @@
 - [Szczegółowa dokumentacja](#szczegółowa-dokumentacja)
 
 ## Wprowadzenie
-Program implementuje rozwiązanie problemu składania DNA (DNA Assembly Problem) przy użyciu algorytmów metaheurystycznych, w szczególności algorytmu genetycznego. Program zawiera zaawansowane mechanizmy optymalizacji i adaptacji parametrów.
+Program implementuje rozwiązanie problemu składania DNA (DNA Assembly Problem) przy użyciu algorytmów metaheurystycznych, w szczególności algorytmu genetycznego. Program zawiera zaawansowane mechanizmy optymalizacji i adaptacji parametrów. Zadanie na labolatoria do dr. Radoma - Bioinformatyka 3 semestr, optymalizacja kombinatoryczna.
 
 ## Struktura projektu
 ```
