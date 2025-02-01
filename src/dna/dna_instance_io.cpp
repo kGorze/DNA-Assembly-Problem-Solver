@@ -56,47 +56,76 @@ DNAInstance InstanceIO::loadInstance(const std::string& filename) {
         bool repAllowed;
         double probablePositive;
 
-        file >> n >> k >> deltaK >> lNeg >> lPoz;
-        file >> line; repAllowed = (line == "1");
-        file >> probablePositive;
-        file >> size;
-        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // Skip to next line
-
-        // Set basic parameters
-        instance.setN(n);
-        instance.setK(k);
-        instance.setDeltaK(deltaK);
-        instance.setLNeg(lNeg);
-        instance.setLPoz(lPoz);
-        instance.setRepAllowed(repAllowed);
-        instance.setProbablePositive(probablePositive);
-        instance.setSize(size);
-
-        // Read DNA sequences
-        std::getline(file, line); instance.setDNA(line);
-        std::getline(file, line); instance.setOriginalDNA(line);
-        std::getline(file, line); instance.setTargetSequence(line);
-
-        // Read spectrum
-        int spectrumSize;
-        file >> spectrumSize;
+        if (!(file >> n >> k >> deltaK >> lNeg >> lPoz)) {
+            throw std::runtime_error("Error reading basic parameters from file");
+        }
+        
+        file >> line; 
+        if (line != "0" && line != "1") {
+            throw std::runtime_error("Invalid repAllowed value in file");
+        }
+        repAllowed = (line == "1");
+        
+        if (!(file >> probablePositive >> size)) {
+            throw std::runtime_error("Error reading probability and size from file");
+        }
         file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-        std::vector<std::string> spectrum;
-        spectrum.reserve(spectrumSize);
-        for (int i = 0; i < spectrumSize; ++i) {
-            std::getline(file, line);
-            spectrum.push_back(line);
+        try {
+            // Set basic parameters
+            instance.setN(n);
+            instance.setK(k);
+            instance.setDeltaK(deltaK);
+            instance.setLNeg(lNeg);
+            instance.setLPoz(lPoz);
+            instance.setRepAllowed(repAllowed);
+            instance.setProbablePositive(probablePositive);
+            instance.setSize(size);
+
+            // Read DNA sequences
+            if (!std::getline(file, line)) throw std::runtime_error("Error reading DNA sequence");
+            instance.setDNA(line);
+            
+            if (!std::getline(file, line)) throw std::runtime_error("Error reading original DNA sequence");
+            instance.setOriginalDNA(line);
+            
+            if (!std::getline(file, line)) throw std::runtime_error("Error reading target sequence");
+            instance.setTargetSequence(line);
+
+            // Read spectrum
+            int spectrumSize;
+            if (!(file >> spectrumSize)) {
+                throw std::runtime_error("Error reading spectrum size");
+            }
+            file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
+            std::vector<std::string> spectrum;
+            try {
+                spectrum.reserve(spectrumSize);
+            } catch (const std::length_error&) {
+                throw std::runtime_error("Invalid spectrum size in file");
+            }
+            
+            for (int i = 0; i < spectrumSize; ++i) {
+                if (!std::getline(file, line)) {
+                    throw std::runtime_error("Error reading spectrum entry");
+                }
+                spectrum.push_back(line);
+            }
+            instance.setSpectrum(spectrum);
+        } catch (const std::invalid_argument& e) {
+            throw std::runtime_error(std::string("Invalid data in file: ") + e.what());
         }
-        instance.setSpectrum(spectrum);
 
         if (!file.good()) {
             throw std::runtime_error("Error reading from file");
         }
 
         return instance;
+    } catch (const std::runtime_error&) {
+        throw;  // Re-throw runtime_error as is
     } catch (const std::exception& e) {
         LOG_ERROR("Error loading instance: " + std::string(e.what()));
-        throw;
+        throw std::runtime_error(std::string("Error loading instance: ") + e.what());
     }
 } 

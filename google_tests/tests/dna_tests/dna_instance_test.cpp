@@ -188,13 +188,14 @@ TEST_F(DNAInstanceTest, StatisticalDistributionOfDNA) {
 
 // Test 13: Test wielowątkowości – równoległe wywołania metod setDNA i setSpectrum.
 TEST_F(DNAInstanceTest, ThreadSafetyOperations) {
-    const int numThreads = 4;
-    const int operationsPerThread = 100;
-    DNAInstance instance(100, 10, 3, 2, 5, true, 0.1, 42);
-    
+    // Using all required parameters: n, k, lNeg, lPoz, maxErrors, allowNegative, errorProb, seed
+    DNAInstance instance(4, 4, 2, 2, 2, true, 0.1, 42);
+    const int numThreads = 4;  // Fixed number of threads
     std::vector<std::future<void>> futures;
-    auto threadFunc = [&instance, operationsPerThread]() {
-        for (int i = 0; i < operationsPerThread; ++i) {
+    futures.reserve(numThreads);  // Pre-reserve to avoid reallocation
+    
+    auto threadFunc = [&instance]() {
+        for (int i = 0; i < 100; ++i) {
             if (i % 2 == 0) {
                 instance.setDNA("ACGTACGT");
             } else {
@@ -204,13 +205,19 @@ TEST_F(DNAInstanceTest, ThreadSafetyOperations) {
         }
     };
     
+    // Launch threads
     for (int i = 0; i < numThreads; ++i) {
         futures.push_back(std::async(std::launch::async, threadFunc));
     }
     
-    for (auto &fut : futures) {
-        fut.get(); // Will throw if any exceptions occurred
+    // Wait for all threads to complete
+    for (auto& fut : futures) {
+        if (fut.valid()) {
+            fut.get();  // Will throw if any exceptions occurred
+        }
     }
+    
+    futures.clear();  // Explicitly clear futures
     
     // Final validation
     instance.setDNA("ACGT");

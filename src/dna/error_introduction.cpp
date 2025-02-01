@@ -41,25 +41,28 @@ void NegativeErrorIntroducer::introduceErrors(DNAInstance& instance) {
         throw std::runtime_error("Cannot introduce negative errors: spectrum is empty");
     }
     
+    // Check if removing lNeg elements would make spectrum empty
+    if (instance.getLNeg() >= static_cast<int>(spectrum.size())) {
+        LOG_ERROR("Cannot remove more elements than spectrum size");
+        throw std::runtime_error("Cannot remove more elements than spectrum size");
+    }
+    
     LOG_INFO("Introducing " + std::to_string(instance.getLNeg()) + " negative errors");
     LOG_INFO("Original spectrum size: " + std::to_string(originalSize));
     
     // Remove random k-mers from the spectrum
     std::uniform_int_distribution<> dist(0, spectrum.size() - 1);
     
-    for (int i = 0; i < std::min(instance.getLNeg(), static_cast<int>(spectrum.size())); ++i) {
+    for (int i = 0; i < instance.getLNeg(); ++i) {
         int index = dist(m_random);
         spectrum.erase(spectrum.begin() + index);
+        // Update distribution range after removing an element
+        dist = std::uniform_int_distribution<>(0, spectrum.size() - 1);
     }
     
     // Update the instance's spectrum in a thread-safe way
-    if (!spectrum.empty()) {
-        instance.setSpectrum(spectrum);
-        LOG_INFO("Final spectrum size after negative errors: " + std::to_string(spectrum.size()));
-    } else {
-        LOG_ERROR("Cannot set empty spectrum after negative errors");
-        throw std::runtime_error("Cannot set empty spectrum after negative errors");
-    }
+    instance.setSpectrum(spectrum);
+    LOG_INFO("Final spectrum size after negative errors: " + std::to_string(spectrum.size()));
 }
 
 PositiveErrorIntroducer::PositiveErrorIntroducer(int lPoz, int k)

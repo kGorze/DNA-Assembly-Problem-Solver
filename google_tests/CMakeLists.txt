@@ -5,6 +5,9 @@ add_executable(optymalizacja_kombinatoryczna_test
         tests/dna_tests/dna_instance_builder_test.cpp
         tests/dna_tests/dna_generator_test.cpp
         tests/utils_tests/random_test.cpp
+        tests/dna_tests/dna_instance_io_test.cpp
+        tests/dna_tests/error_introduction_test.cpp
+        tests/dna_tests/spectrum_generator_test.cpp
 )
 
 target_link_libraries(optymalizacja_kombinatoryczna_test PRIVATE

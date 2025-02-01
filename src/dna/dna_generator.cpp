@@ -6,7 +6,11 @@
 #include <random>
 
 DNAGenerator::DNAGenerator(std::unique_ptr<Random> random) 
-    : m_random(random ? std::move(random) : std::make_unique<Random>()) {}
+    : m_random(std::move(random)), m_n(0), m_k(0), m_deltaK(0) {
+    if (!m_random) {
+        throw std::invalid_argument("Random generator cannot be null");
+    }
+}
 
 void DNAGenerator::setParameters(int n, int k, int deltaK) {
     std::lock_guard<std::recursive_mutex> lock(m_mutex);

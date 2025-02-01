@@ -172,6 +172,12 @@ DNAInstance DNAGenerator::generateRandomInstance(
     bool allowNegative,
     double errorProb
 ) const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    
+    if (!validateParameters()) {
+        throw std::invalid_argument("Parameters not set. Call setParameters first.");
+    }
+    
     if (size <= 0 || k <= 0 || lNeg < 0 || lPoz < 0 || maxErrors < 0 || errorProb < 0.0 || errorProb > 1.0) {
         throw std::invalid_argument("Invalid parameters for random instance generation");
     }
