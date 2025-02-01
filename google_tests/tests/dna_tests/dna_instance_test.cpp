@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "../base_test.h"
 #include "dna/dna_instance.h"
 #include "dna/dna_instance_io.h"
 #include <stdexcept>
@@ -9,6 +10,7 @@
 #include <filesystem>
 #include <thread>
 #include <future>
+#include "utils/logging.h"
 
 // Helper class for managing temporary test files
 class TempFile {
@@ -25,22 +27,36 @@ public:
     const std::string& getName() const { return filename; }
 };
 
+class DNAInstanceTest : public BaseTest {
+protected:
+    void SetUp() override {
+        Logger::initialize("dna_instance_test.log");
+        Logger::setLogLevel(LogLevel::INFO);
+        BaseTest::SetUp();
+    }
+
+    void TearDown() override {
+        BaseTest::TearDown();
+        Logger::cleanup();
+    }
+};
+
 // Test 1: Domyślna (pusta) instancja – przy konstruktorze domyślnym DNA oraz spectrum są puste.
-TEST(DNAInstanceTest, CreateEmptyInstance) {
+TEST_F(DNAInstanceTest, CreateEmptyInstance) {
     DNAInstance instance;
     EXPECT_TRUE(instance.getDNA().empty());
     EXPECT_EQ(instance.getSpectrum().size(), 0);
 }
 
 // Test 2: Ustawianie i pobieranie sekwencji DNA.
-TEST(DNAInstanceTest, AddDNASequence) {
+TEST_F(DNAInstanceTest, AddDNASequence) {
     DNAInstance instance;
     EXPECT_NO_THROW(instance.setDNA("ACGT"));
     EXPECT_EQ(instance.getDNA(), "ACGT");
 }
 
 // Test 3: Ustawianie i pobieranie spectrum.
-TEST(DNAInstanceTest, SetAndGetSpectrum) {
+TEST_F(DNAInstanceTest, SetAndGetSpectrum) {
     DNAInstance instance;
     std::vector<std::string> spectrum = {"ACGT", "CGTA"};
     EXPECT_NO_THROW(instance.setSpectrum(spectrum));
@@ -49,7 +65,7 @@ TEST(DNAInstanceTest, SetAndGetSpectrum) {
 
 // Test 4: Konstrukcja instancji z poprawnymi parametrami – używamy pełnego konstruktora.
 // Parametry: n=100, k=10, lNeg=3, lPoz=2, maxErrors=5, allowNegative=true, errorProb=0.1, seed=42.
-TEST(DNAInstanceTest, ValidConstructionParameters) {
+TEST_F(DNAInstanceTest, ValidConstructionParameters) {
     DNAInstance instance(100, 10, 3, 2, 5, true, 0.1, 42);
     EXPECT_EQ(instance.getN(), 100);
     EXPECT_EQ(instance.getK(), 10);
@@ -64,22 +80,22 @@ TEST(DNAInstanceTest, ValidConstructionParameters) {
 }
 
 // Test 5: Konstrukcja z niepoprawnymi parametrami – n <= 0.
-TEST(DNAInstanceTest, InvalidConstruction_NLessOrEqualZero) {
+TEST_F(DNAInstanceTest, InvalidConstruction_NLessOrEqualZero) {
     EXPECT_THROW(DNAInstance(0, 10, 3, 2, 5, true, 0.1, 42), std::invalid_argument);
 }
 
 // Test 6: Konstrukcja z niepoprawnymi parametrami – k <= 0.
-TEST(DNAInstanceTest, InvalidConstruction_KLessOrEqualZero) {
+TEST_F(DNAInstanceTest, InvalidConstruction_KLessOrEqualZero) {
     EXPECT_THROW(DNAInstance(100, 0, 3, 2, 5, true, 0.1, 42), std::invalid_argument);
 }
 
 // Test 7: Konstrukcja z niepoprawnymi parametrami – k > n.
-TEST(DNAInstanceTest, InvalidConstruction_KGreaterThanN) {
+TEST_F(DNAInstanceTest, InvalidConstruction_KGreaterThanN) {
     EXPECT_THROW(DNAInstance(50, 60, 3, 2, 5, true, 0.1, 42), std::invalid_argument);
 }
 
 // Test 8: Test metody clearSpectrum – po jej wywołaniu spectrum jest puste.
-TEST(DNAInstanceTest, ClearSpectrumWorks) {
+TEST_F(DNAInstanceTest, ClearSpectrumWorks) {
     DNAInstance instance(100, 10, 3, 2, 5, true, 0.1, 42);
     EXPECT_FALSE(instance.getSpectrum().empty());
     EXPECT_NO_THROW(instance.clearSpectrum());
@@ -87,7 +103,7 @@ TEST(DNAInstanceTest, ClearSpectrumWorks) {
 }
 
 // Test 9: Test integracyjny zapisu i odczytu – zapisujemy instancję do pliku, potem ją wczytujemy.
-TEST(DNAInstanceTest, SaveAndLoadFileIntegration) {
+TEST_F(DNAInstanceTest, SaveAndLoadFileIntegration) {
     TempFile testFile("test_instance.txt");
     
     // Create instance with known state
@@ -118,7 +134,7 @@ TEST(DNAInstanceTest, SaveAndLoadFileIntegration) {
 }
 
 // Test 10: Spójność generowanego spectrum – każdy k-mer powinien mieć długość równą k.
-TEST(DNAInstanceTest, SpectrumGenerationConsistency) {
+TEST_F(DNAInstanceTest, SpectrumGenerationConsistency) {
     DNAInstance instance(80, 8, 2, 2, 3, true, 0.0, 42);
     auto spectrum = instance.getSpectrum();
     EXPECT_GT(spectrum.size(), 0);
@@ -128,7 +144,7 @@ TEST(DNAInstanceTest, SpectrumGenerationConsistency) {
 }
 
 // Test 11: Po konstrukcji pola DNA, originalDNA, targetSequence oraz size powinny być spójne.
-TEST(DNAInstanceTest, DNAFieldsAfterConstruction) {
+TEST_F(DNAInstanceTest, DNAFieldsAfterConstruction) {
     // Create instance and let it generate DNA
     DNAInstance instance(60, 6, 2, 2, 3, true, 0.0, 42);
     
@@ -150,7 +166,7 @@ TEST(DNAInstanceTest, DNAFieldsAfterConstruction) {
 }
 
 // Test 12: Kontrola statystycznego rozkładu liter w sekwencji DNA (dla dużej sekwencji).
-TEST(DNAInstanceTest, StatisticalDistributionOfDNA) {
+TEST_F(DNAInstanceTest, StatisticalDistributionOfDNA) {
     DNAInstance instance(10000, 10, 3, 2, 5, true, 0.1, 42);
     std::string dna = instance.getDNA();
     EXPECT_EQ(dna.length(), 10000);
@@ -171,7 +187,7 @@ TEST(DNAInstanceTest, StatisticalDistributionOfDNA) {
 }
 
 // Test 13: Test wielowątkowości – równoległe wywołania metod setDNA i setSpectrum.
-TEST(DNAInstanceTest, ThreadSafetyOperations) {
+TEST_F(DNAInstanceTest, ThreadSafetyOperations) {
     const int numThreads = 4;
     const int operationsPerThread = 100;
     DNAInstance instance(100, 10, 3, 2, 5, true, 0.1, 42);
@@ -206,7 +222,7 @@ TEST(DNAInstanceTest, ThreadSafetyOperations) {
 
 // Test 15: Test wczytywania z nieistniejącego pliku oraz pliku o niepoprawnym formacie.
 // Zmodyfikowano oczekiwanie na std::runtime_error.
-TEST(DNAInstanceTest, LoadFromFileErrors) {
+TEST_F(DNAInstanceTest, LoadFromFileErrors) {
     EXPECT_THROW(InstanceIO::loadInstance("nonexistent.txt"), std::runtime_error);
     EXPECT_THROW(InstanceIO::loadInstance("invalid.txt"), std::runtime_error);
 }

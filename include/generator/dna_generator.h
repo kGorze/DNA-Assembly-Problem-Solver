@@ -34,7 +34,7 @@ public:
 
 private:
     bool validateParameters() const;
-    mutable std::mutex m_mutex;
+    mutable std::recursive_mutex m_mutex;
     std::unique_ptr<Random> m_random;
     int m_n;
     int m_k;

@@ -17,6 +17,8 @@ public:
     }
 
     explicit Random(int seed) : m_generator(seed) {}
+    
+    virtual ~Random() = default;
 
     static Random& instance() {
         static Random instance;
@@ -27,12 +29,12 @@ public:
         return m_generator;
     }
 
-    double generateProbability() {
+    virtual double generateProbability() {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         return dist(m_generator);
     }
 
-    int getRandomInt(int min, int max) {
+    virtual int getRandomInt(int min, int max) {
         if (min > max) {
             throw std::invalid_argument("min cannot be greater than max");
         }
@@ -40,7 +42,7 @@ public:
         return dist(m_generator);
     }
 
-    size_t getRandomSizeT(size_t min, size_t max) {
+    virtual size_t getRandomSizeT(size_t min, size_t max) {
         if (min > max) {
             throw std::invalid_argument("min cannot be greater than max");
         }

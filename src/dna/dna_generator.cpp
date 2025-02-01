@@ -9,7 +9,7 @@ DNAGenerator::DNAGenerator(std::unique_ptr<Random> random)
     : m_random(random ? std::move(random) : std::make_unique<Random>()) {}
 
 void DNAGenerator::setParameters(int n, int k, int deltaK) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
     if (n <= 0) throw std::invalid_argument("n must be positive");
     if (k <= 0) throw std::invalid_argument("k must be positive");
     if (deltaK < 0) throw std::invalid_argument("deltaK must be non-negative");
@@ -21,24 +21,32 @@ void DNAGenerator::setParameters(int n, int k, int deltaK) {
 }
 
 std::string DNAGenerator::generateDNA(int length, bool repAllowed) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (length <= 0) throw std::invalid_argument("Length must be positive");
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    LOG_INFO("Starting DNA generation with length={}", length);
+    
+    if (length <= 0) {
+        LOG_ERROR("Invalid length: {}", length);
+        throw std::invalid_argument("Length must be positive");
+    }
     
     static const char nucleotides[] = {'A', 'C', 'G', 'T'};
     std::string dna;
     dna.reserve(length);
     
+    LOG_INFO("Generating DNA sequence...");
     for (int i = 0; i < length; ++i) {
+        if (i % 100 == 0) {
+            LOG_INFO("Generated {} nucleotides so far", i);
+        }
         int index = m_random->getRandomInt(0, 3);
         dna += nucleotides[index];
     }
     
     if (!repAllowed) {
-        // Here you could add logic to prevent repetitions if needed
-        // For now, we'll just return the sequence as is
         LOG_INFO("Repetition prevention not implemented");
     }
     
+    LOG_INFO("DNA generation completed, length={}", dna.length());
     return dna;
 }
 
@@ -47,15 +55,30 @@ bool DNAGenerator::validateParameters() const {
 }
 
 DNAInstance DNAGenerator::generateRandomInstance(int size, int k, int lNeg, int lPoz) const {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    
+    LOG_INFO("Starting random instance generation with size={}, k={}, lNeg={}, lPoz={}", size, k, lNeg, lPoz);
     
     if (!validateParameters()) {
+        LOG_ERROR("Invalid parameters for DNA generation");
         throw std::invalid_argument("Invalid parameters for DNA generation");
     }
 
-    auto dna = generateDNA(size);
+    LOG_INFO("Creating instance with parameters...");
     // Create instance with all required parameters
-    return DNAInstance(size, k, lNeg, lPoz, 0, false, 0.0, 0);
+    DNAInstance instance(size, k, lNeg, lPoz, m_deltaK, false, 0.0, 0);
+    
+    LOG_INFO("Generating DNA sequence...");
+    // Generate and set DNA
+    std::string dna = generateDNA(size);
+    LOG_INFO("DNA sequence generated, length={}", dna.length());
+    
+    instance.setDNA(dna);
+    instance.setOriginalDNA(dna);
+    instance.setTargetSequence(dna);
+    
+    LOG_INFO("Random instance generation completed");
+    return instance;
 }
 
 bool DNAGenerator::saveToFile(const DNAInstance& instance, const std::string& filename) const {

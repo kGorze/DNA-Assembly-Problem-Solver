@@ -69,16 +69,17 @@ std::string DNAGenerator::generateDNA(int length, bool repAllowed) const {
             throw std::invalid_argument("DNA length must be positive");
         }
         
-        static thread_local std::random_device rd;
-        static thread_local std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, 3);
+        if (!m_random) {
+            throw std::runtime_error("Random generator not initialized");
+        }
         
         const char nucleotides[] = {'A', 'C', 'G', 'T'};
         std::string dna;
         dna.reserve(length);
         
         for (int i = 0; i < length; ++i) {
-            dna.push_back(nucleotides[dis(gen)]);
+            int index = (*m_random).getRandomInt(0, 3);
+            dna.push_back(nucleotides[index]);
         }
         
         if (!repAllowed) {
@@ -222,6 +223,10 @@ std::vector<std::string> DNAGenerator::generateDNASpectrum(const DNAInstance& in
     std::vector<std::string> spectrum;
     const std::string& dna = instance.getDNA();
     int k = instance.getK();
+    
+    if (dna.empty()) {
+        throw std::invalid_argument("Invalid DNA or k-mer length: DNA sequence is empty");
+    }
     
     for (size_t i = 0; i <= dna.length() - k; ++i) {
         spectrum.push_back(dna.substr(i, k));

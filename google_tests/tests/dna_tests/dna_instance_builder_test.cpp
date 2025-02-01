@@ -2,6 +2,7 @@
 // Created by konrad_guest on 01/02/2025.
 //
 #include <gtest/gtest.h>
+#include "../base_test.h"
 #include <stdexcept>
 #include <vector>
 #include <string>
@@ -12,6 +13,7 @@
 #include "generator/dna_generator.h"
 #include "dna/error_introduction.h"
 #include "utils/random.h"
+#include "utils/logging.h"
 
 // ----- Dummy strategie błędu -----
 
@@ -42,10 +44,24 @@ std::shared_ptr<DNAGenerator> createValidGenerator() {
     return std::make_shared<DNAGenerator>(std::make_unique<Random>());
 }
 
+class DNAInstanceBuilderTest : public BaseTest {
+protected:
+    void SetUp() override {
+        Logger::initialize("dna_instance_builder_test.log");
+        Logger::setLogLevel(LogLevel::INFO);
+        BaseTest::SetUp();
+    }
+
+    void TearDown() override {
+        BaseTest::TearDown();
+        Logger::cleanup();
+    }
+};
+
 // ==================== TESTY DNAInstanceBuilder ====================
 
 // 1. Inicjalizacja buildera z poprawnym generatorem nie rzuca wyjątku.
-TEST(DNAInstanceBuilderTest, InitializationWithValidGenerator) {
+TEST_F(DNAInstanceBuilderTest, InitializationWithValidGenerator) {
     auto generator = createValidGenerator();
     EXPECT_NO_THROW({
         DNAInstanceBuilder builder(generator);
@@ -53,14 +69,14 @@ TEST(DNAInstanceBuilderTest, InitializationWithValidGenerator) {
 }
 
 // 2. Inicjalizacja buildera z nullptr jako generator – powinno rzucić wyjątek.
-TEST(DNAInstanceBuilderTest, InitializationWithNullGenerator) {
+TEST_F(DNAInstanceBuilderTest, InitializationWithNullGenerator) {
     EXPECT_THROW({
         DNAInstanceBuilder builder(nullptr);
     }, std::invalid_argument);
 }
 
 // 3. Ustawianie N poprzez builder.
-TEST(DNAInstanceBuilderTest, SetNValid) {
+TEST_F(DNAInstanceBuilderTest, SetNValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(100);
@@ -68,7 +84,7 @@ TEST(DNAInstanceBuilderTest, SetNValid) {
 }
 
 // 4. Ustawianie K poprzez builder.
-TEST(DNAInstanceBuilderTest, SetKValid) {
+TEST_F(DNAInstanceBuilderTest, SetKValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setK(10);
@@ -76,7 +92,7 @@ TEST(DNAInstanceBuilderTest, SetKValid) {
 }
 
 // 5. Ustawianie deltaK.
-TEST(DNAInstanceBuilderTest, SetDeltaKValid) {
+TEST_F(DNAInstanceBuilderTest, SetDeltaKValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setDeltaK(2);
@@ -84,7 +100,7 @@ TEST(DNAInstanceBuilderTest, SetDeltaKValid) {
 }
 
 // 6. Ustawianie LNeg.
-TEST(DNAInstanceBuilderTest, SetLNegValid) {
+TEST_F(DNAInstanceBuilderTest, SetLNegValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setLNeg(5);
@@ -92,7 +108,7 @@ TEST(DNAInstanceBuilderTest, SetLNegValid) {
 }
 
 // 7. Ustawianie LPoz.
-TEST(DNAInstanceBuilderTest, SetLPozValid) {
+TEST_F(DNAInstanceBuilderTest, SetLPozValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setLPoz(3);
@@ -100,7 +116,7 @@ TEST(DNAInstanceBuilderTest, SetLPozValid) {
 }
 
 // 8. Ustawianie flagi repAllowed.
-TEST(DNAInstanceBuilderTest, SetRepAllowedValid) {
+TEST_F(DNAInstanceBuilderTest, SetRepAllowedValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setRepAllowed(false);
@@ -108,7 +124,7 @@ TEST(DNAInstanceBuilderTest, SetRepAllowedValid) {
 }
 
 // 9. Ustawianie probablePositive.
-TEST(DNAInstanceBuilderTest, SetProbablePositiveValid) {
+TEST_F(DNAInstanceBuilderTest, SetProbablePositiveValid) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setProbablePositive(0.25);
@@ -116,7 +132,7 @@ TEST(DNAInstanceBuilderTest, SetProbablePositiveValid) {
 }
 
 // 10. Test buildDNA – po buildDNA sekwencja DNA nie jest pusta i ma długość równą N.
-TEST(DNAInstanceBuilderTest, BuildDNAGeneratesDNA) {
+TEST_F(DNAInstanceBuilderTest, BuildDNAGeneratesDNA) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(50).setK(5).setDeltaK(1);
@@ -127,7 +143,7 @@ TEST(DNAInstanceBuilderTest, BuildDNAGeneratesDNA) {
 }
 
 // 11. Test buildSpectrum – po buildSpectrum spectrum nie jest puste, a każdy k-mer ma długość równą K.
-TEST(DNAInstanceBuilderTest, BuildSpectrumGeneratesSpectrum) {
+TEST_F(DNAInstanceBuilderTest, BuildSpectrumGeneratesSpectrum) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(50).setK(5).setDeltaK(1).buildDNA().buildSpectrum();
@@ -139,7 +155,7 @@ TEST(DNAInstanceBuilderTest, BuildSpectrumGeneratesSpectrum) {
 }
 
 // 12. Pełny łańcuch: ustawienie parametrów i budowanie instancji bez błędów.
-TEST(DNAInstanceBuilderTest, FullChainTestWithoutErrors) {
+TEST_F(DNAInstanceBuilderTest, FullChainTestWithoutErrors) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80)
@@ -164,7 +180,7 @@ TEST(DNAInstanceBuilderTest, FullChainTestWithoutErrors) {
 }
 
 // 13. Test applyError z nullptr – metoda nie powinna rzucać wyjątku.
-TEST(DNAInstanceBuilderTest, ApplyErrorWithNullStrategy) {
+TEST_F(DNAInstanceBuilderTest, ApplyErrorWithNullStrategy) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80).setK(7).setDeltaK(1).buildDNA().buildSpectrum();
@@ -174,7 +190,7 @@ TEST(DNAInstanceBuilderTest, ApplyErrorWithNullStrategy) {
 }
 
 // 14. Test applyError z DummyErrorStrategy – spectrum powinno się zmniejszyć o jeden element.
-TEST(DNAInstanceBuilderTest, ApplyErrorWithDummyStrategy) {
+TEST_F(DNAInstanceBuilderTest, ApplyErrorWithDummyStrategy) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80).setK(7).setDeltaK(1).buildDNA().buildSpectrum();
@@ -186,7 +202,7 @@ TEST(DNAInstanceBuilderTest, ApplyErrorWithDummyStrategy) {
 }
 
 // 15. Test wielokrotnych aktualizacji parametrów – ostatnia wartość ma być zachowana.
-TEST(DNAInstanceBuilderTest, MultipleParameterUpdates) {
+TEST_F(DNAInstanceBuilderTest, MultipleParameterUpdates) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(100).setK(10).setDeltaK(1);
@@ -198,7 +214,7 @@ TEST(DNAInstanceBuilderTest, MultipleParameterUpdates) {
 }
 
 // 16. Test jawnego ustawiania sekwencji DNA przez setDNA.
-TEST(DNAInstanceBuilderTest, SetDNAExplicitly) {
+TEST_F(DNAInstanceBuilderTest, SetDNAExplicitly) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     std::string customDNA = "ACGTACGTACGT";
@@ -207,7 +223,7 @@ TEST(DNAInstanceBuilderTest, SetDNAExplicitly) {
 }
 
 // 17. Test jawnego ustawiania spectrum przez setSpectrum.
-TEST(DNAInstanceBuilderTest, SetSpectrumExplicitly) {
+TEST_F(DNAInstanceBuilderTest, SetSpectrumExplicitly) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     std::vector<std::string> customSpectrum = {"ACG", "CGT", "GTA"};
@@ -216,7 +232,7 @@ TEST(DNAInstanceBuilderTest, SetSpectrumExplicitly) {
 }
 
 // 18. Test – jeżeli nie ustawimy wymaganych parametrów (N lub K) – buildDNA powinno rzucić wyjątkiem.
-TEST(DNAInstanceBuilderTest, BuildDNAWithoutMandatoryParameters) {
+TEST_F(DNAInstanceBuilderTest, BuildDNAWithoutMandatoryParameters) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     // Nie ustawiamy N ani K – oczekujemy wyjątku przy wywołaniu buildDNA.
@@ -226,7 +242,7 @@ TEST(DNAInstanceBuilderTest, BuildDNAWithoutMandatoryParameters) {
 }
 
 // 19. Test integracyjny: pełny łańcuch (buildDNA, buildSpectrum, applyError, build) daje spójną instancję.
-TEST(DNAInstanceBuilderTest, FullChainBuildAndApplyErrorIntegration) {
+TEST_F(DNAInstanceBuilderTest, FullChainBuildAndApplyErrorIntegration) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(90)
@@ -247,7 +263,7 @@ TEST(DNAInstanceBuilderTest, FullChainBuildAndApplyErrorIntegration) {
 }
 
 // 20. Test walidacji stanu w kontekście "buildDNA" – przed generowaniem spectrum metoda buildDNA powinna działać.
-TEST(DNAInstanceBuilderTest, ValidateStateContextBuildDNA) {
+TEST_F(DNAInstanceBuilderTest, ValidateStateContextBuildDNA) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80).setK(7).setDeltaK(1);
@@ -258,7 +274,7 @@ TEST(DNAInstanceBuilderTest, ValidateStateContextBuildDNA) {
 
 // 21. Test walidacji stanu w kontekście "buildSpectrum" – jeżeli spectrum jest puste, buildSpectrum powinno rzucić wyjątek.
 // Aby wymusić pusty spectrum, używamy const_cast.
-TEST(DNAInstanceBuilderTest, ValidateStateContextBuildSpectrumEmptySpectrum) {
+TEST_F(DNAInstanceBuilderTest, ValidateStateContextBuildSpectrumEmptySpectrum) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80).setK(7).setDeltaK(1).buildDNA();
@@ -271,7 +287,7 @@ TEST(DNAInstanceBuilderTest, ValidateStateContextBuildSpectrumEmptySpectrum) {
 }
 
 // 22. Test – po buildSpectrum wszystkie k-mery mają długość równą K.
-TEST(DNAInstanceBuilderTest, KmerLengthConsistencyAfterBuildSpectrum) {
+TEST_F(DNAInstanceBuilderTest, KmerLengthConsistencyAfterBuildSpectrum) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(100).setK(5).setDeltaK(1).buildDNA().buildSpectrum();
@@ -282,7 +298,7 @@ TEST(DNAInstanceBuilderTest, KmerLengthConsistencyAfterBuildSpectrum) {
 }
 
 // 23. Test – po buildDNA pola DNA, originalDNA, targetSequence oraz size są poprawnie ustawione.
-TEST(DNAInstanceBuilderTest, DNAFieldsAfterBuildDNA) {
+TEST_F(DNAInstanceBuilderTest, DNAFieldsAfterBuildDNA) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(60).setK(6).setDeltaK(1).buildDNA();
@@ -294,7 +310,7 @@ TEST(DNAInstanceBuilderTest, DNAFieldsAfterBuildDNA) {
 }
 
 // 24. Test – finalna instancja (build) musi mieć ustawione wszystkie wymagane pola.
-TEST(DNAInstanceBuilderTest, FinalInstanceIntegrity) {
+TEST_F(DNAInstanceBuilderTest, FinalInstanceIntegrity) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80)
@@ -314,7 +330,7 @@ TEST(DNAInstanceBuilderTest, FinalInstanceIntegrity) {
 }
 
 // 25. Test – applyError z FailingErrorStrategy powinno rzucić wyjątek.
-TEST(DNAInstanceBuilderTest, ApplyErrorExceptionHandling) {
+TEST_F(DNAInstanceBuilderTest, ApplyErrorExceptionHandling) {
     auto generator = createValidGenerator();
     DNAInstanceBuilder builder(generator);
     builder.setN(80).setK(7).setDeltaK(1).buildDNA().buildSpectrum();

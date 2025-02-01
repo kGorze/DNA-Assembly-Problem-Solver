@@ -8,19 +8,31 @@
 DNAInstance::DNAInstance(int n, int k, int lNeg, int lPoz, int maxErrors, bool allowNegative, double errorProb, int seed)
     : n(n), k(k), deltaK(maxErrors), lNeg(lNeg), lPoz(lPoz), repAllowed(allowNegative), probablePositive(errorProb), size(n) {
     
+    LOG_INFO("Creating DNAInstance with parameters: n={}, k={}, lNeg={}, lPoz={}, maxErrors={}, allowNegative={}, errorProb={}, seed={}", 
+             n, k, lNeg, lPoz, maxErrors, allowNegative, errorProb, seed);
+    
     if (n <= 0 || k <= 0 || k > n) {
         LOG_ERROR("Invalid parameters: n={}, k={}", n, k);
         throw std::invalid_argument("Invalid DNA or k-mer length");
     }
 
+    LOG_INFO("Creating random generator with seed {}", seed);
     m_random = std::make_unique<Random>(seed);
+    
+    LOG_INFO("Generating random DNA sequence of length {}", n);
     m_dna = generateRandomDNA(n, *m_random);
+    LOG_INFO("Generated DNA: {}", m_dna);
+    
     m_originalDNA = m_dna;
     targetSequence = m_dna;  // Initialize target sequence with DNA
+    
+    LOG_INFO("Generating spectrum...");
     generateSpectrum();
+    LOG_INFO("DNAInstance creation completed");
 }
 
 void DNAInstance::generateSpectrum() {
+    LOG_INFO("Starting spectrum generation...");
     if (k <= 0) {
         LOG_ERROR("Invalid k-mer length: {}", k);
         throw std::invalid_argument("k-mer length must be positive");
@@ -31,19 +43,26 @@ void DNAInstance::generateSpectrum() {
         throw std::invalid_argument("k-mer length exceeds DNA length");
     }
 
+    LOG_INFO("Clearing existing spectrum...");
     m_spectrum.clear();
     m_spectrum.reserve(m_dna.length() - k + 1);
 
+    LOG_INFO("Generating k-mers...");
     // Generate k-mers
     for (size_t i = 0; i + k <= m_dna.length(); ++i) {
         m_spectrum.push_back(m_dna.substr(i, k));
+        if (i % 1000 == 0) {
+            LOG_INFO("Generated {} k-mers so far...", i);
+        }
     }
 
+    LOG_INFO("Sorting spectrum...");
     // Sort spectrum for consistent ordering
     std::sort(m_spectrum.begin(), m_spectrum.end());
 
     // Remove duplicates if repetitions are not allowed
     if (!repAllowed) {
+        LOG_INFO("Removing duplicates...");
         auto last = std::unique(m_spectrum.begin(), m_spectrum.end());
         m_spectrum.erase(last, m_spectrum.end());
     }
@@ -53,20 +72,26 @@ void DNAInstance::generateSpectrum() {
         throw std::runtime_error("Generated spectrum is invalid");
     }
 
-    LOG_DEBUG("Generated spectrum with {} k-mers", m_spectrum.size());
+    LOG_INFO("Spectrum generation completed. Generated {} k-mers", m_spectrum.size());
 }
 
 std::string DNAInstance::generateRandomDNA(int length, Random& random) const {
+    LOG_INFO("Starting generateRandomDNA with length={}", length);
+    
     static const char nucleotides[] = "ACGT";
     static const int numNucleotides = 4;
 
     std::string dna;
     dna.reserve(length);
 
+    LOG_INFO("Generating DNA sequence...");
     for (int i = 0; i < length; ++i) {
-        dna += nucleotides[random.getRandomInt(0, numNucleotides - 1)];
+        int index = random.getRandomInt(0, numNucleotides - 1);
+        LOG_INFO("Generated index {} for position {}", index, i);
+        dna += nucleotides[index];
     }
-
+    
+    LOG_INFO("Generated DNA sequence: {}", dna);
     return dna;
 }
 

@@ -1,14 +1,19 @@
 #include <gtest/gtest.h>
+#include "../base_test.h"
 #include "metaheuristics/adaptive_crossover.h"
 #include "metaheuristics/crossover_impl.h"
 #include "configuration/genetic_algorithm_configuration.h"
 #include "dna/dna_instance.h"
 #include "metaheuristics/representation.h"
 #include "metaheuristics/individual.h"
+#include "utils/logging.h"
 
-class AdaptiveCrossoverTest : public ::testing::Test {
+class AdaptiveCrossoverTest : public BaseTest {
 protected:
     void SetUp() override {
+        Logger::initialize("adaptive_crossover_test.log");
+        Logger::setLogLevel(LogLevel::INFO);
+        BaseTest::SetUp();
         // Konfiguracja dla testów
         config = GAConfig();
         // Ustawienie podstawowych parametrów
@@ -26,6 +31,11 @@ protected:
         
         // Inicjalizacja testowanego obiektu
         crossover = std::make_unique<AdaptiveCrossover>(config);
+    }
+
+    void TearDown() override {
+        BaseTest::TearDown();
+        Logger::cleanup();
     }
 
     GAConfig config;

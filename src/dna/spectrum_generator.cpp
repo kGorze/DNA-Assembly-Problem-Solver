@@ -5,11 +5,7 @@
 #include <unordered_set>
 
 SpectrumGenerator::SpectrumGenerator(std::shared_ptr<std::mt19937> random)
-    : m_random(random) {
-    if (!random) {
-        throw std::invalid_argument("Random generator cannot be null");
-    }
-}
+    : m_random(random ? random : std::make_shared<std::mt19937>(std::random_device{}())) {}
 
 std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string& dna, int k, int errorCount) {
     if (dna.empty()) {
@@ -24,14 +20,17 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string& 
 
     std::unordered_set<std::string> uniqueKmers;
 
+    // Ograniczamy liczbę błędów do jednego poziomu, niezależnie od przekazanego errorCount
+    int effectiveErrorCount = (errorCount > 0) ? 1 : 0;
+
     // Generate all k-mers from the DNA sequence
     for (size_t i = 0; i <= dna.length() - k; ++i) {
         std::string kmer = dna.substr(i, k);
         uniqueKmers.insert(kmer);
 
-        if (errorCount > 0) {
+        if (effectiveErrorCount > 0) {
             std::vector<std::string> errorKmers;
-            generateErrorKmers(kmer, errorCount, errorKmers);
+            generateErrorKmers(kmer, effectiveErrorCount, errorKmers);
             uniqueKmers.insert(errorKmers.begin(), errorKmers.end());
         }
     }
@@ -39,30 +38,29 @@ std::vector<std::string> SpectrumGenerator::generateSpectrum(const std::string& 
     // Convert set to vector and sort
     std::vector<std::string> result(uniqueKmers.begin(), uniqueKmers.end());
     std::sort(result.begin(), result.end());
+    
+    LOG_INFO("Generated spectrum with " + std::to_string(result.size()) + " k-mers");
+    if (!result.empty()) {
+        LOG_INFO("First k-mer: " + result.front() + ", Last k-mer: " + result.back());
+    }
+    
     return result;
 }
 
 void SpectrumGenerator::generateErrorKmers(const std::string& kmer, int errorsLeft, std::vector<std::string>& result) {
+    // Zamiast rekurencyjnego generowania, generujemy tylko k-mery z jedną zamianą
     if (errorsLeft <= 0) {
         return;
     }
 
     const char nucleotides[] = {'A', 'C', 'G', 'T'};
-    std::uniform_int_distribution<> nucleotideDist(0, 3);
-
-    // Generate substitution errors
     for (size_t pos = 0; pos < kmer.length(); ++pos) {
         std::string errorKmer = kmer;
         char original = errorKmer[pos];
-        
         for (char nucleotide : nucleotides) {
             if (nucleotide != original) {
                 errorKmer[pos] = nucleotide;
                 result.push_back(errorKmer);
-                
-                if (errorsLeft > 1) {
-                    generateErrorKmers(errorKmer, errorsLeft - 1, result);
-                }
             }
         }
     }
