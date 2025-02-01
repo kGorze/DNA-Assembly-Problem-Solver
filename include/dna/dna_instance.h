@@ -153,7 +153,7 @@ public:
     void setTargetSequence(const std::string& value) { targetSequence = value; }
     
     const std::string& getDNA() const { return m_dna; }
-    void setDNA(const std::string& value) { m_dna = value; }
+    void setDNA(const std::string& value);  // Declaration only, implementation in cpp file
     
     const std::string& getOriginalDNA() const { return m_originalDNA; }
     void setOriginalDNA(const std::string& value) { m_originalDNA = value; }

@@ -177,6 +177,13 @@ DNAInstanceBuilder& DNAInstanceBuilder::buildDNA() {
 DNAInstanceBuilder& DNAInstanceBuilder::buildSpectrum() {
     try {
         LOG_INFO("Building spectrum...");
+        
+        // Check if spectrum is empty before validation
+        if (m_instance.getSpectrum().empty()) {
+            LOG_ERROR("Spectrum is empty before building");
+            throw std::runtime_error("Spectrum is empty before building");
+        }
+        
         validateState("buildSpectrum-pre");
         
         // Generate spectrum using the generator
@@ -198,12 +205,14 @@ DNAInstanceBuilder& DNAInstanceBuilder::buildSpectrum() {
         
         m_instance.setSpectrum(spectrum);
         LOG_INFO("Generated spectrum with " + std::to_string(spectrum.size()) + " oligonucleotides");
-        LOG_INFO("First k-mer: " + spectrum.front() + ", Last k-mer: " + spectrum.back());
+        if (!spectrum.empty()) {
+            LOG_INFO("First k-mer: " + spectrum.front() + ", Last k-mer: " + spectrum.back());
+        }
         
         validateState("buildSpectrum-post");
         return *this;
     } catch (const std::exception& e) {
-        LOG_ERROR("Error building spectrum: " + std::string(e.what()));
+        LOG_ERROR("Error in buildSpectrum: " + std::string(e.what()));
         throw;
     }
 }

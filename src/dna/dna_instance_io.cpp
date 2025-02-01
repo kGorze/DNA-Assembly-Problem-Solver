@@ -8,20 +8,23 @@ bool InstanceIO::saveInstance(const DNAInstance& instance, const std::string& fi
         std::ofstream file(filename);
         if (!file) {
             LOG_ERROR("Could not open file for writing: " + filename);
-            return false;
+            throw std::runtime_error("Could not open file for writing: " + filename);
         }
 
-        // Write basic parameters
+        // Write basic parameters with high precision for floating point values
+        file.precision(17);  // Use maximum precision for double values
         file << instance.getN() << "\n";
         file << instance.getK() << "\n";
         file << instance.getDeltaK() << "\n";
         file << instance.getLNeg() << "\n";
         file << instance.getLPoz() << "\n";
-        file << instance.isRepAllowed() << "\n";
+        file << (instance.isRepAllowed() ? "1" : "0") << "\n";
         file << instance.getProbablePositive() << "\n";
+        file << instance.getSize() << "\n";
 
-        // Write DNA sequence and target sequence
+        // Write DNA sequences
         file << instance.getDNA() << "\n";
+        file << instance.getOriginalDNA() << "\n";
         file << instance.getTargetSequence() << "\n";
 
         // Write spectrum
@@ -31,13 +34,10 @@ bool InstanceIO::saveInstance(const DNAInstance& instance, const std::string& fi
             file << kmer << "\n";
         }
 
-        // Write start index
-        file << instance.getStartIndex() << "\n";
-
-        return true;
+        return file.good();
     } catch (const std::exception& e) {
         LOG_ERROR("Error saving instance: " + std::string(e.what()));
-        return false;
+        throw;
     }
 }
 
@@ -49,51 +49,50 @@ DNAInstance InstanceIO::loadInstance(const std::string& filename) {
         }
 
         DNAInstance instance;
-        int value;
+        std::string line;
 
         // Read basic parameters
-        file >> value;
-        instance.setN(value);
-        file >> value;
-        instance.setK(value);
-        file >> value;
-        instance.setDeltaK(value);
-        file >> value;
-        instance.setLNeg(value);
-        file >> value;
-        instance.setLPoz(value);
-        
+        int n, k, deltaK, lNeg, lPoz, size;
         bool repAllowed;
-        file >> repAllowed;
-        instance.setRepAllowed(repAllowed);
-        
-        file >> value;
-        instance.setProbablePositive(value);
+        double probablePositive;
 
-        // Read DNA sequence and target sequence
-        std::string dna, target;
-        file >> dna;
-        file >> target;
-        instance.setDNA(dna);
-        instance.setTargetSequence(target);
+        file >> n >> k >> deltaK >> lNeg >> lPoz;
+        file >> line; repAllowed = (line == "1");
+        file >> probablePositive;
+        file >> size;
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');  // Skip to next line
+
+        // Set basic parameters
+        instance.setN(n);
+        instance.setK(k);
+        instance.setDeltaK(deltaK);
+        instance.setLNeg(lNeg);
+        instance.setLPoz(lPoz);
+        instance.setRepAllowed(repAllowed);
+        instance.setProbablePositive(probablePositive);
+        instance.setSize(size);
+
+        // Read DNA sequences
+        std::getline(file, line); instance.setDNA(line);
+        std::getline(file, line); instance.setOriginalDNA(line);
+        std::getline(file, line); instance.setTargetSequence(line);
 
         // Read spectrum
         int spectrumSize;
         file >> spectrumSize;
+        file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
         std::vector<std::string> spectrum;
         spectrum.reserve(spectrumSize);
-        
-        std::string kmer;
         for (int i = 0; i < spectrumSize; ++i) {
-            file >> kmer;
-            spectrum.push_back(kmer);
+            std::getline(file, line);
+            spectrum.push_back(line);
         }
         instance.setSpectrum(spectrum);
 
-        // Read start index
-        int startIndex;
-        file >> startIndex;
-        instance.setStartIndex(startIndex);
+        if (!file.good()) {
+            throw std::runtime_error("Error reading from file");
+        }
 
         return instance;
     } catch (const std::exception& e) {

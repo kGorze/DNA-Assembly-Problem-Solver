@@ -2,11 +2,15 @@ add_executable(optymalizacja_kombinatoryczna_test
         tests/test_main.cpp
         tests/dna_tests/dna_instance_test.cpp
         tests/metaheuristics/adaptive_crossover_test.cpp
+        tests/dna_tests/dna_instance_builder_test.cpp
+        tests/dna_tests/dna_generator_test.cpp
 )
 
 target_link_libraries(optymalizacja_kombinatoryczna_test PRIVATE
         GTest::gtest
         GTest::gtest_main
+        GTest::gmock
+        GTest::gmock_main
         ${PROJECT_NAME}_lib
 )
 

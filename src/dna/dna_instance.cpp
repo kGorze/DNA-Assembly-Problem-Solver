@@ -6,7 +6,7 @@
 #include <sstream>
 
 DNAInstance::DNAInstance(int n, int k, int lNeg, int lPoz, int maxErrors, bool allowNegative, double errorProb, int seed)
-    : n(n), k(k), deltaK(maxErrors), lNeg(lNeg), lPoz(lPoz), repAllowed(allowNegative), probablePositive(errorProb) {
+    : n(n), k(k), deltaK(maxErrors), lNeg(lNeg), lPoz(lPoz), repAllowed(allowNegative), probablePositive(errorProb), size(n) {
     
     if (n <= 0 || k <= 0 || k > n) {
         LOG_ERROR("Invalid parameters: n={}, k={}", n, k);
@@ -16,6 +16,7 @@ DNAInstance::DNAInstance(int n, int k, int lNeg, int lPoz, int maxErrors, bool a
     m_random = std::make_unique<Random>(seed);
     m_dna = generateRandomDNA(n, *m_random);
     m_originalDNA = m_dna;
+    targetSequence = m_dna;  // Initialize target sequence with DNA
     generateSpectrum();
 }
 
@@ -109,4 +110,23 @@ int DNAInstance::findStartVertexIndex(const DNAInstance& instance) {
     }
 
     return static_cast<int>(std::distance(spectrum.begin(), minKmer));
+}
+
+void DNAInstance::setDNA(const std::string& dna) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (dna.empty()) {
+        LOG_ERROR("Cannot set empty DNA sequence");
+        throw std::invalid_argument("DNA sequence cannot be empty");
+    }
+    
+    m_dna = dna;
+    size = dna.length();
+    
+    if (targetSequence.empty()) {
+        targetSequence = dna;  // Set target sequence if not already set
+    }
+    
+    if (m_originalDNA.empty()) {
+        m_originalDNA = dna;  // Set original DNA if not already set
+    }
 }
