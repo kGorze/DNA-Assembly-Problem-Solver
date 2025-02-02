@@ -204,8 +204,8 @@ void SwapMutation::mutate(
             }
 
             // Store original values
-            const int gene1 = genes[pos1];
-            const int gene2 = genes[pos2];
+            [[maybe_unused]] const int gene1 = genes[pos1];
+            [[maybe_unused]] const int gene2 = genes[pos2];
 
             // Perform the swap
             std::swap(genes[pos1], genes[pos2]);

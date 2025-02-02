@@ -65,7 +65,8 @@ AdaptiveCrossover::AdaptiveCrossover(const GAConfig& config)
               std::to_string(ADAPTATION_INTERVAL));
 }
 
-void AdaptiveCrossover::setParameters(double inertia, int adaptInterval, int minTrials, double minProb) {
+void AdaptiveCrossover::setParameters([[maybe_unused]] double inertia, [[maybe_unused]] int adaptInterval, 
+    [[maybe_unused]] int minTrials, [[maybe_unused]] double minProb) {
     // This method is now empty as the parameters are defined as constexpr
 }
 
@@ -94,16 +95,13 @@ RunMetrics AdaptiveCrossover::getMetrics() const {
     return result;
 }
 
-void AdaptiveCrossover::updatePerformance(bool improved) {
-    LOG_DEBUG("Entering updatePerformance, generation: " + std::to_string(generationCount));
+void AdaptiveCrossover::updatePerformance(bool success) {
+    if (m_crossovers.empty()) return;
     
-    // Update performance metrics for current crossover operator
-    if (m_currentCrossoverIndex >= 0 && m_currentCrossoverIndex < static_cast<int>(m_crossovers.size())) {
-        auto& currentOp = m_crossovers[m_currentCrossoverIndex];
+    if (success) {
+        [[maybe_unused]] auto& currentOp = m_crossovers[m_currentCrossoverIndex];
         m_crossoverUsage[m_currentCrossoverIndex]++;
-        if (improved) {
-            m_crossoverPerformance[m_currentCrossoverIndex]++;
-        }
+        m_crossoverPerformance[m_currentCrossoverIndex]++;
         
         // Update success rates
         if (m_crossoverUsage[m_currentCrossoverIndex] > 0) {
@@ -320,8 +318,8 @@ void AdaptiveCrossover::logDiversityMetrics(
                 // Count exact matches and adjacent positions
                 if (genes1[k] == genes2[k]) {
                     matchingPositions++;
-                } else if (k > 0 && genes1[k] == genes2[k-1] || 
-                          k < genes1.size()-1 && genes1[k] == genes2[k+1]) {
+                } else if ((k > 0 && genes1[k] == genes2[k-1]) ||
+                          (k < genes1.size()-1 && genes1[k] == genes2[k+1])) {
                     matchingPositions++; // Count adjacent matches with half weight
                 } else {
                     differences++;
@@ -370,7 +368,7 @@ void AdaptiveCrossover::logDiversityMetrics(
                 bool regionMatches = false;
                 // Look for this region anywhere within ±10 positions in the other sequence
                 for (int offset = -10; offset <= 10; ++offset) {
-                    if (k + offset < 0 || k + offset + regionSize > dna2.length()) continue;
+                    if (static_cast<int>(k) + offset < 0 || k + offset + regionSize > dna2.length()) continue;
                     
                     bool allMatch = true;
                     for (int r = 0; r < regionSize; ++r) {
@@ -477,7 +475,7 @@ std::shared_ptr<ICrossover> AdaptiveCrossover::selectCrossover() {
 
 std::vector<std::shared_ptr<Individual>> AdaptiveCrossover::crossover(
     const std::vector<std::shared_ptr<Individual>>& parents,
-    const DNAInstance& instance,
+    [[maybe_unused]] const DNAInstance& instance,
     std::shared_ptr<IRepresentation> representation) {
     
     if (parents.size() < 2 || !representation) {
@@ -556,10 +554,10 @@ void AdaptiveCrossover::updateFeedback(double currentBestFitness) {
 }
 
 void AdaptiveCrossover::updateMetrics(
-    const std::vector<std::shared_ptr<Individual>>& offspring,
-    const std::vector<std::shared_ptr<Individual>>& parents,
-    const DNAInstance& instance,
-    std::shared_ptr<IRepresentation> representation) {
+    [[maybe_unused]] const std::vector<std::shared_ptr<Individual>>& offspring,
+    [[maybe_unused]] const std::vector<std::shared_ptr<Individual>>& parents,
+    [[maybe_unused]] const DNAInstance& instance,
+    [[maybe_unused]] std::shared_ptr<IRepresentation> representation) {
     
     // Implementation of updateMetrics method
     // This method should update the metrics based on the new offspring and parents

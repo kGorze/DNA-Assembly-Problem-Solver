@@ -347,7 +347,6 @@ void GeneticAlgorithm::logGenerationStats(
 
     // Calculate best and worst possible Levenshtein distances
     int targetLength = instance.getTargetSequence().length();
-    int k = instance.getK();
     const auto& spectrum = instance.getSpectrum();
     int worstPossibleDistance = std::accumulate(spectrum.begin(), spectrum.end(),
         0, [](int sum, const std::string& kmer) { return sum + kmer.length(); });

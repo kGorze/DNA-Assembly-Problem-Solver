@@ -308,7 +308,6 @@ CoverageMetrics SimpleFitness::calculateDetailedCoverage(
     int k = instance.getK();
     
     for (const auto& targetKmer : spectrum) {
-        bool foundExact = false;
         bool foundPartial = false;
         
         // Check each possible k-mer in the DNA sequence
@@ -317,7 +316,6 @@ CoverageMetrics SimpleFitness::calculateDetailedCoverage(
             
             if (kmer == targetKmer) {
                 exactMatches++;
-                foundExact = true;
                 break;
             }
             

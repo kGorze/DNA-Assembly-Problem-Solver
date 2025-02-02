@@ -171,7 +171,7 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombinationCrossover::crossover(
         }
         
         // Add edges from both parents with overlap weights and position-based bonuses
-        auto addEdges = [&](const std::vector<int>& genes, const char* parentName) {
+        auto addEdges = [&](const std::vector<int>& genes, [[maybe_unused]] const char* parentName) {
             for (size_t i = 0; i < genes.size(); i++) {
                 int current = genes[i];
                 // Look at neighbors within a window of 5 positions
@@ -325,7 +325,7 @@ std::vector<std::shared_ptr<Individual>> EdgeRecombinationCrossover::crossover(
                         int bestCombinedOverlap = -1;
                         
                         for (size_t j = 0; j < spectrumSize; j++) {
-                            if (j != curr && j != next) {
+                            if (j != static_cast<size_t>(curr) && j != static_cast<size_t>(next)) {
                                 int overlapPrev = dna_utils::calculateEdgeWeight(spectrum[curr], spectrum[j], k);
                                 int overlapNext = dna_utils::calculateEdgeWeight(spectrum[j], spectrum[next], k);
                                 int combinedOverlap = overlapPrev + overlapNext;

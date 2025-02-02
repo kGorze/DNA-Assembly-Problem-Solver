@@ -1978,3 +1978,147 @@ Wnioski z porównania:
 3. EdgeRecombination najlepiej zachowuje różnorodność populacji
 4. PMX ma najlepszy stosunek jakości do czasu wykonania
 5. Operatory proste (SinglePoint, TwoPoint) są najszybsze, ale mniej skuteczne
+
+# Test Coverage Overview
+
+## I. Pliki `.cpp` (z katalogu `src`)
+
+### 1. Benchmark
+| Plik źródłowy                                 | Plik testowy                                                        | Status |
+|-----------------------------------------------|---------------------------------------------------------------------|---------|
+| src/benchmark/adaptive_crossover_benchmark.cpp| tests/google_tests/benchmark/adaptive_crossover_benchmark_test.cpp | ❌      |
+| src/benchmark/crossover_benchmark.cpp         | tests/google_tests/benchmark/crossover_benchmark_test.cpp          | ❌      |
+| src/benchmark/naive_benchmark.cpp             | tests/google_tests/benchmark/naive_benchmark_test.cpp              | ❌      |
+
+### 2. Configuration
+| Plik źródłowy                                          | Plik testowy                                                       | Status |
+|--------------------------------------------------------|----------------------------------------------------------------------|---------|
+| src/configuration/genetic_algorithm_configuration.cpp   | tests/google_tests/configuration/genetic_algorithm_configuration_test.cpp | ❌      |
+
+### 3. DNA
+| Plik źródłowy                      | Plik testowy                                             | Status |
+|------------------------------------|------------------------------------------------------------|---------|
+| src/dna/dna_generator.cpp          | tests/google_tests/dna/dna_generator_test.cpp              | ✅      |
+| src/dna/dna_instance.cpp           | tests/google_tests/dna/dna_instance_test.cpp               | ✅      |
+| src/dna/dna_instance_builder.cpp   | tests/google_tests/dna/dna_instance_builder_test.cpp       | ✅      |
+| src/dna/dna_instance_io.cpp        | tests/google_tests/dna/dna_instance_io_test.cpp            | ✅      |
+| src/dna/error_introduction.cpp     | tests/google_tests/dna/error_introduction_test.cpp         | ✅      |
+| src/dna/spectrum_generator.cpp     | tests/google_tests/dna/spectrum_generator_test.cpp         | ✅      |
+
+### 4. Generator
+| Plik źródłowy                         | Plik testowy                                                | Status |
+|---------------------------------------|---------------------------------------------------------------|---------|
+| src/generator/dna_generator.cpp       | tests/google_tests/generator/dna_generator_test.cpp           | ✅      |
+| src/generator/spectrum_generator.cpp  | tests/google_tests/generator/spectrum_generator_test.cpp      | ✅      |
+
+### 5. Main
+| Plik źródłowy             | Plik testowy                                   | Status |
+|---------------------------|--------------------------------------------------|---------|
+| src/main.cpp              | tests/google_tests/main/main_test.cpp            | ❌      |
+
+### 6. Metaheuristics
+| Plik źródłowy                                      | Plik testowy                                                    | Status |
+|----------------------------------------------------|-------------------------------------------------------------------|---------|
+| src/metaheuristics/adaptive_crossover.cpp          | tests/google_tests/metaheuristics/adaptive_crossover_test.cpp     | ✅      |
+| src/metaheuristics/crossover.cpp                   | tests/google_tests/metaheuristics/crossover_test.cpp              | ❌      |
+| src/metaheuristics/crossover_impl.cpp              | tests/google_tests/metaheuristics/crossover_impl_test.cpp         | ❌      |
+| src/metaheuristics/edge_table.cpp                  | tests/google_tests/metaheuristics/edge_table_test.cpp             | ❌      |
+| src/metaheuristics/fitness.cpp                     | tests/google_tests/metaheuristics/fitness_test.cpp                | ❌      |
+| src/metaheuristics/fitness_impl.cpp                | tests/google_tests/metaheuristics/fitness_impl_test.cpp           | ❌      |
+| src/metaheuristics/genetic_algorithm.cpp           | tests/google_tests/metaheuristics/genetic_algorithm_test.cpp      | ✅      |
+| src/metaheuristics/genetic_algorithm_runner.cpp    | tests/google_tests/metaheuristics/genetic_algorithm_runner_test.cpp | ❌     |
+| src/metaheuristics/individual.cpp                  | tests/google_tests/metaheuristics/individual_test.cpp             | ❌      |
+| src/metaheuristics/mutation.cpp                    | tests/google_tests/metaheuristics/mutation_test.cpp               | ❌      |
+| src/metaheuristics/mutation_impl.cpp               | tests/google_tests/metaheuristics/mutation_impl_test.cpp          | ❌      |
+| src/metaheuristics/path_analyzer.cpp               | tests/google_tests/metaheuristics/path_analyzer_test.cpp          | ❌      |
+| src/metaheuristics/permutation_representation.cpp  | tests/google_tests/metaheuristics/permutation_representation_test.cpp | ❌  |
+| src/metaheuristics/population_cache.cpp            | tests/google_tests/metaheuristics/population_cache_test.cpp       | ❌      |
+| src/metaheuristics/selection.cpp                   | tests/google_tests/metaheuristics/selection_test.cpp              | ❌      |
+| src/metaheuristics/selection_impl.cpp              | tests/google_tests/metaheuristics/selection_impl_test.cpp         | ❌      |
+| src/metaheuristics/stopping_criteria.cpp           | tests/google_tests/metaheuristics/stopping_criteria_test.cpp      | ❌      |
+
+### 7. Naive
+| Plik źródłowy                              | Plik testowy                                             | Status |
+|--------------------------------------------|------------------------------------------------------------|---------|
+| src/naive/naive_reconstruction.cpp         | tests/google_tests/naive/naive_reconstruction_test.cpp     | ❌      |
+
+### 8. Tuning
+| Plik źródłowy                                 | Plik testowy                                                       | Status |
+|-----------------------------------------------|----------------------------------------------------------------------|---------|
+| src/tuning/parameter_parser.cpp               | tests/google_tests/tuning/parameter_parser_test.cpp                  | ❌      |
+| src/tuning/parameter_tuning_manager.cpp       | tests/google_tests/tuning/parameter_tuning_manager_test.cpp          | ❌      |
+| src/tuning/tuning_structures.cpp              | tests/google_tests/tuning/tuning_structures_test.cpp                 | ❌      |
+
+### 9. Utils
+| Plik źródłowy                                             | Plik testowy                                              | Status |
+|-----------------------------------------------------------|-------------------------------------------------------------|---------|
+| src/utils/logging.cpp                                     | tests/google_tests/utils/logging_test.cpp                   | ❌      |
+| src/utils/performance_profilling_framework.cpp            | tests/google_tests/utils/performance_profilling_test.cpp    | ❌      |
+| src/utils/utility_functions.cpp                           | tests/google_tests/utils/utility_functions_test.cpp         | ❌      |
+
+## II. Pliki nagłówkowe `.h` bez plików `.cpp`
+
+### A. `include/common.h`
+| Plik nagłówkowy                      | Plik testowy                                | Status |
+|--------------------------------------|-----------------------------------------------|---------|
+| include/common.h                     | tests/google_tests/common/common_test.cpp     | ❌      |
+
+### B. `include/config`
+| Plik nagłówkowy                      | Plik testowy                                   | Status |
+|--------------------------------------|--------------------------------------------------|---------|
+| include/config/genetic_config.h      | tests/google_tests/config/genetic_config_test.cpp| ❌      |
+
+### C. `include/interfaces`
+| Plik nagłówkowy                      | Plik testowy                                       | Status |
+|--------------------------------------|-------------------------------------------------------|---------|
+| include/interfaces/i_algorithm.h     | tests/google_tests/interfaces/i_algorithm_test.cpp    | ❌      |
+| include/interfaces/i_benchmark.h     | tests/google_tests/interfaces/i_benchmark_test.cpp    | ❌      |
+| include/interfaces/i_crossover.h     | tests/google_tests/interfaces/i_crossover_test.cpp    | ❌      |
+| include/interfaces/i_fitness.h       | tests/google_tests/interfaces/i_fitness_test.cpp      | ❌      |
+| include/interfaces/i_mutation.h      | tests/google_tests/interfaces/i_mutation_test.cpp     | ❌      |
+| include/interfaces/i_population_cache.h | tests/google_tests/interfaces/i_population_cache_test.cpp| ❌      |
+| include/interfaces/i_replacement.h   | tests/google_tests/interfaces/i_replacement_test.cpp  | ❌      |
+| include/interfaces/i_representation.h| tests/google_tests/interfaces/i_representation_test.cpp| ❌      |
+| include/interfaces/i_selection.h     | tests/google_tests/interfaces/i_selection_test.cpp    | ❌      |
+| include/interfaces/i_stopping.h      | tests/google_tests/interfaces/i_stopping_test.cpp     | ❌      |
+
+### D. `include/io`
+| Plik nagłówkowy                     | Plik testowy                               | Status |
+|-------------------------------------|----------------------------------------------|---------|
+| include/io/instance_io.h            | tests/google_tests/io/instance_io_test.cpp   | ✅      |
+
+### E. `include/metaheuristics`
+| Plik nagłówkowy                       | Plik testowy                                                 | Status |
+|---------------------------------------|----------------------------------------------------------------|---------|
+| include/metaheuristics/adaptive_mutation.h       | tests/google_tests/metaheuristics/adaptive_mutation_test.cpp       | ❌      |
+| include/metaheuristics/concrete_fitness.h        | tests/google_tests/metaheuristics/concrete_fitness_test.cpp        | ❌      |
+| include/metaheuristics/dna_utils.h               | tests/google_tests/metaheuristics/dna_utils_test.cpp               | ❌      |
+| include/metaheuristics/preprocessed_edge.h       | tests/google_tests/metaheuristics/preprocessed_edge_test.cpp       | ❌      |
+| include/metaheuristics/replacement_impl.h        | tests/google_tests/metaheuristics/replacement_impl_test.cpp        | ❌      |
+
+### F. `include/tuning`
+| Plik nagłówkowy                         | Plik testowy                                           | Status |
+|-----------------------------------------|----------------------------------------------------------|---------|
+| include/tuning/meta_ea.h               | tests/google_tests/tuning/meta_ea_test.cpp               | ❌      |
+| include/tuning/parameters.h            | tests/google_tests/tuning/parameters_test.cpp            | ❌      |
+| include/tuning/racing.h                | tests/google_tests/tuning/racing_test.cpp                | ❌      |
+
+### G. `include/utils`
+| Plik nagłówkowy                                      | Plik testowy                                              | Status |
+|------------------------------------------------------|-------------------------------------------------------------|---------|
+| include/utils/random.h                               | tests/google_tests/utils/random_test.cpp                    | ✅      |
+| include/utils/timer.h                                | tests/google_tests/utils/timer_test.cpp                     | ❌      |
+| include/utils/zobrist_hasher.h                       | tests/google_tests/utils/zobrist_hasher_test.cpp            | ❌      |
+
+## Test Coverage Summary
+
+- Total Files: 52
+- Files with Tests: 11
+- Coverage Percentage: 21.15%
+
+### Coverage by Module
+- DNA Module: 100% (6/6)
+- Generator Module: 100% (2/2)
+- Metaheuristics Module: 11.76% (2/17)
+- Utils Module: 33.33% (1/3)
+- Other Modules: 0% (0/24)
