@@ -62,9 +62,8 @@ enum class CrossoverType {
 
 class GAConfig {
 public:
-    GAConfig();  // Constructor declaration only
-    GAConfig(const GAConfig& other) = default;
-    GAConfig& operator=(const GAConfig& other) = default;
+    GAConfig();
+    virtual ~GAConfig() = default;
 
     // Load configuration from file
     bool loadFromFile(const std::string& filename);
@@ -74,6 +73,7 @@ public:
 
     // Getters
     int getPopulationSize() const { return m_populationSize; }
+    int getMaxGenerations() const { return m_maxGenerations; }
     double getMutationRate() const { return m_mutationRate; }
     double getCrossoverProbability() const { return m_crossoverProbability; }
     double getTargetFitness() const { return m_targetFitness; }
@@ -95,6 +95,7 @@ public:
 
     // Setters
     void setPopulationSize(int size) { m_populationSize = size; }
+    void setMaxGenerations(int generations) { m_maxGenerations = generations; }
     void setMutationRate(double rate);  // Defined in cpp file
     void setCrossoverProbability(double probability) { m_crossoverProbability = probability; }
     void setTargetFitness(double fitness) { m_targetFitness = fitness; }
@@ -138,12 +139,17 @@ public:
 
     int getParentCount() const { return 2; }
 
+protected:
+    AdaptiveParams m_adaptiveParams;
+    DiversityParams m_diversityParams;
+
 private:
     int m_populationSize = 100;
-    double m_mutationRate = 0.2;
+    int m_maxGenerations = 1000;
+    double m_mutationRate = 0.1;
     double m_crossoverProbability = 0.8;
     double m_targetFitness = 1.0;
-    int m_tournamentSize = 3;
+    int m_tournamentSize = 5;
     int m_k = 0;
     int m_deltaK = 0;
     int m_lNeg = 0;
@@ -154,9 +160,6 @@ private:
     std::string m_selectionMethod = "rank";
     int m_noImprovementGenerations = 30;
     int m_timeLimitSeconds = 60;
-    
-    AdaptiveParams m_adaptiveParams;
-    DiversityParams m_diversityParams;
     
     // Cache for population
     std::shared_ptr<IPopulationCache> m_cache;

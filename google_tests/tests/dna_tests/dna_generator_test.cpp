@@ -79,9 +79,9 @@ TEST_F(DNAGeneratorTest, ConstructorWithValidRandom) {
 
 // 2. Konstruktor z nullptr – powinien utworzyć domyślny generator
 TEST_F(DNAGeneratorTest, ConstructorWithNullRandom) {
-    DNAGenerator gen(nullptr);
-    std::string dna = gen.generateDNA(10, true);
-    EXPECT_EQ(dna.length(), 10);
+    EXPECT_THROW({
+        DNAGenerator generator(std::unique_ptr<Random>(nullptr));
+    }, std::invalid_argument);
 }
 
 // 3. setParameters z poprawnymi wartościami – nie rzuca wyjątku.

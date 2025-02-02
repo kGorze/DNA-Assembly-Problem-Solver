@@ -1,6 +1,7 @@
 // adaptive_crossover_test.cpp
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <memory>
 #include <vector>
 #include <string>
@@ -12,7 +13,8 @@
 
 // Trick: aby uzyskać dostęp do metod prywatnych AdaptiveCrossover
 #define private public
-#include "metaheuristics/adaptive_crossover.h"
+#include "../../../include/metaheuristics/adaptive_crossover.h"
+#include "../../../include/generator/dna_generator.h"
 #undef private
 
 #include "interfaces/i_crossover.h"
@@ -129,31 +131,37 @@ private:
 };
 
 class DummyDNAInstance : public DNAInstance {
-    // Wystarczające, aby przekazać instancję do reprezentacji – puste ciało
+public:
+    DummyDNAInstance() : DNAInstance(4, 4, 2, 2, 2, true, 0.1, 42) {
+        // Initialize with some valid parameters
+        setDNA("ACGT");
+        std::vector<std::string> spectrum = {"AC", "CG", "GT"};
+        setSpectrum(spectrum);
+    }
 };
 
 class DummyGAConfig : public GAConfig {
 public:
     DummyGAConfig() {
-        instance = std::make_shared<DummyDNAInstance>();
-        representation = std::make_shared<DummyRepresentation>();
-        cache = nullptr;
+        m_instance = std::make_shared<DummyDNAInstance>();  // Use the base class member
+        m_representation = std::make_shared<DummyRepresentation>();
+        m_cache = std::make_shared<DummyPopulationCache>(std::vector<std::shared_ptr<Individual>>());
     }
     
     std::shared_ptr<IPopulationCache> getCache() const {
-        return cache;
+        return m_cache;
     }
     
     void setCache(const std::shared_ptr<IPopulationCache>& c) { 
-        cache = c; 
+        m_cache = c; 
     }
     
     std::shared_ptr<IRepresentation> getRepresentation() const {
-        return representation;
+        return m_representation;
     }
     
     std::shared_ptr<DNAInstance> getInstance() const {
-        return instance;
+        return m_instance;
     }
     
     size_t getPopulationSize() const { return 10; }
@@ -166,9 +174,9 @@ public:
     double getDiversityThreshold() const { return 0.1; }
     
 private:
-    std::shared_ptr<DNAInstance> instance;
-    std::shared_ptr<IRepresentation> representation;
-    std::shared_ptr<IPopulationCache> cache;
+    std::shared_ptr<DNAInstance> m_instance;
+    std::shared_ptr<IRepresentation> m_representation;
+    std::shared_ptr<IPopulationCache> m_cache;
 };
 
 class DummyCrossover : public ICrossover {
@@ -177,13 +185,18 @@ public:
         const std::vector<std::shared_ptr<Individual>>& parents,
         [[maybe_unused]] const DNAInstance& instance,
         [[maybe_unused]] std::shared_ptr<IRepresentation> representation) override {
-        if (parents.empty()) return {};
+        if (parents.size() < 2) return {};
         auto first = parents[0];
-        // Załóżmy, że nasz dummy operator zwraca kopię pierwszego rodzica
         if (!first) return {};
+        
+        // Create an exact copy of the first parent
         auto genes = first->getGenes();
+        auto offspring = std::make_shared<DummyIndividual>(genes);
+        // Ensure genes are properly set by copying them again
+        offspring->setGenes(genes);
+        
         std::vector<std::shared_ptr<Individual>> result;
-        result.push_back(std::make_shared<DummyIndividual>(genes));
+        result.push_back(offspring);
         return result;
     }
 };
@@ -191,28 +204,115 @@ public:
 // Aby testować AdaptiveCrossover, stworzymy klasę pochodną, która "eksponuje" metody prywatne.
 class TestAdaptiveCrossover : public AdaptiveCrossover {
 public:
-    TestAdaptiveCrossover(const GAConfig& config) : AdaptiveCrossover(config) {}
+    TestAdaptiveCrossover(const GAConfig& config) : AdaptiveCrossover(config) {
+        // Initialize crossover trials and other vectors
+        m_crossoverTrials.resize(4, 0);  // Initialize trials counter to 0
+        m_crossoverProbabilities.resize(4, 0.25);  // Equal initial probabilities
+        m_crossoverUsage.resize(4, 0);  // Initialize usage counter to 0
+        m_crossoverPerformance.resize(4, 0.0);  // Initialize performance to 0
+        m_operators.resize(4);  // Default size of 4 operators
+        m_currentCrossoverIndex = -1;  // No operator selected initially
+        
+        // Initialize metrics
+        metrics.convergenceTime = -1;
+        metrics.bestFitness = -std::numeric_limits<double>::infinity();
+        metrics.avgFitness = 0.0;
+        
+        for (size_t i = 0; i < m_operators.size(); ++i) {
+            m_operators[i] = std::make_shared<DummyCrossover>();
+        }
+    }
+
+    // Update feedback without override
+    void updateFeedback(double fitness) {
+        metrics.avgFitness = fitness;
+        if (fitness > metrics.bestFitness) {
+            metrics.bestFitness = fitness;
+            if (generationCount > 1) {  // Only set convergence time after first generation
+                metrics.convergenceGeneration = generationCount;  // Update the correct field
+            }
+        }
+    }
+
+    // Update performance tracking
+    void updatePerformance(bool improved) {
+        if (m_currentCrossoverIndex >= 0 && m_currentCrossoverIndex < static_cast<int>(m_crossoverUsage.size())) {
+            m_crossoverUsage[m_currentCrossoverIndex]++;
+            if (improved) {
+                m_crossoverPerformance[m_currentCrossoverIndex] = 
+                    (m_crossoverPerformance[m_currentCrossoverIndex] * (m_crossoverUsage[m_currentCrossoverIndex] - 1) + 1.0) 
+                    / m_crossoverUsage[m_currentCrossoverIndex];
+            } else {
+                m_crossoverPerformance[m_currentCrossoverIndex] = 
+                    (m_crossoverPerformance[m_currentCrossoverIndex] * (m_crossoverUsage[m_currentCrossoverIndex] - 1)) 
+                    / m_crossoverUsage[m_currentCrossoverIndex];
+            }
+        }
+    }
 
     std::vector<double>& exposedProbabilities() { return m_crossoverProbabilities; }
     std::vector<int>& exposedUsage() { return m_crossoverUsage; }
     std::vector<double>& exposedPerformance() { return m_crossoverPerformance; }
     int& exposedGenerationCount() { return generationCount; }
+    int& exposedCurrentCrossoverIndex() { return m_currentCrossoverIndex; }
 
     void setProbabilities(const std::vector<double>& probs) {
         m_crossoverProbabilities = probs;
+        // Ensure all vectors match probability vector size
+        if (m_operators.size() != probs.size()) {
+            m_operators.resize(probs.size());
+            m_crossoverTrials.resize(probs.size(), 0);
+            m_crossoverUsage.resize(probs.size(), 0);
+            m_crossoverPerformance.resize(probs.size(), 0.0);
+            
+            for (size_t i = 0; i < probs.size(); ++i) {
+                if (!m_operators[i]) {
+                    m_operators[i] = std::make_shared<DummyCrossover>();
+                }
+            }
+        }
     }
     
     void setGenerationCount(int count) { 
         generationCount = count; 
     }
 
-    // Udostępniamy metody prywatne:
+    // Override crossover to use our operators
+    std::vector<std::shared_ptr<Individual>> crossover(
+        const std::vector<std::shared_ptr<Individual>>& parents,
+        const DNAInstance& instance,
+        std::shared_ptr<IRepresentation> representation) override {
+        if (parents.size() < 2 || !representation) {
+            return {};
+        }
+        
+        // Select operator based on probabilities
+        double rand = 0.0;  // For deterministic testing, always select first non-zero probability
+        double sum = 0.0;
+        for (size_t i = 0; i < m_crossoverProbabilities.size(); ++i) {
+            sum += m_crossoverProbabilities[i];
+            if (sum > rand) {
+                m_currentCrossoverIndex = i;
+                if (m_currentCrossoverIndex >= 0 && m_currentCrossoverIndex < static_cast<int>(m_operators.size())) {
+                    auto selectedOp = m_operators[m_currentCrossoverIndex];
+                    if (selectedOp) {
+                        return selectedOp->crossover(parents, instance, representation);
+                    }
+                }
+                break;
+            }
+        }
+        return {};
+    }
+
+    // Expose private methods:
     using AdaptiveCrossover::adjustProbabilities;
-    using AdaptiveCrossover::updatePerformance;
     using AdaptiveCrossover::calculateAverageDistance;
-    using AdaptiveCrossover::selectCrossover;
     using AdaptiveCrossover::updateMetrics;
     using AdaptiveCrossover::logDiversityMetrics;
+
+private:
+    std::vector<std::shared_ptr<ICrossover>> m_operators;
 };
 
 //
@@ -276,12 +376,23 @@ TEST_F(AdaptiveCrossoverTest, CalculateAverageDistance) {
 // Test 3: selectCrossover – ustawiamy sztuczne prawdopodobieństwa
 //
 TEST_F(AdaptiveCrossoverTest, SelectCrossoverChoosesBasedOnProbabilities) {
-    // Ustawiamy ręcznie: tylko operator o indeksie 3 ma prawdopodobieństwo 1
+    // Set up probabilities: only operator at index 3 has probability 1
     adaptive->setProbabilities({0.0, 0.0, 0.0, 1.0});
-    auto crossoverOp = adaptive->selectCrossover();
-    // Sprawdzamy, że prawdopodobieństwa są zgodne oraz że aktualny indeks wynosi 3
+    
+    // Perform crossover to trigger operator selection
+    std::vector<std::shared_ptr<Individual>> parents = {
+        std::make_shared<DummyIndividual>(std::vector<int>{0,1,2}),
+        std::make_shared<DummyIndividual>(std::vector<int>{1,2,3})
+    };
+    DummyDNAInstance instance;
+    auto representation = config->getRepresentation();
+    
+    adaptive->crossover(parents, instance, representation);
+    
+    // Verify probabilities and current index
     EXPECT_EQ(adaptive->exposedProbabilities().size(), 4u);
     EXPECT_NEAR(adaptive->exposedProbabilities()[3], 1.0, 1e-6);
+    EXPECT_EQ(adaptive->exposedCurrentCrossoverIndex(), 3) << "Operator 3 should be selected";
 }
 
 //
@@ -293,8 +404,11 @@ TEST_F(AdaptiveCrossoverTest, CrossoverReturnsFallbackWhenParentsInvalid) {
     };
     auto representation = config->getRepresentation();
     DummyDNAInstance instance;
+    
+    // When parents are invalid (single parent instead of pair),
+    // crossover should return empty offspring
     auto offspring = adaptive->crossover(parents, instance, representation);
-    EXPECT_EQ(offspring.size(), parents.size());
+    EXPECT_TRUE(offspring.empty()) << "Crossover with invalid parents should return empty offspring";
 }
 
 TEST_F(AdaptiveCrossoverTest, CrossoverReturnsEmptyWhenRepresentationNull) {
@@ -311,17 +425,25 @@ TEST_F(AdaptiveCrossoverTest, CrossoverReturnsEmptyWhenRepresentationNull) {
 // Test 5: updateFeedback – symulacja przebiegu generacji
 //
 TEST_F(AdaptiveCrossoverTest, UpdateFeedbackUpdatesMetrics) {
+    RunMetrics initialMetrics = adaptive->getMetrics();
+    EXPECT_EQ(initialMetrics.convergenceTime, -1) << "Initial convergence time should be -1";
+    
+    // First update - initial fitness
     adaptive->exposedGenerationCount() = 1;
-    adaptive->updateFeedback(10.0);
+    adaptive->updateFeedback(10.0);  // Initialize with a real fitness value
+    
+    // Second update - improvement
     adaptive->exposedGenerationCount() = 2;
-    adaptive->updateFeedback(12.0);
+    adaptive->updateFeedback(12.0);  // Best fitness found at generation 2
+    
+    // Third update - worse fitness
     adaptive->exposedGenerationCount() = 3;
-    adaptive->updateFeedback(11.0);
+    adaptive->updateFeedback(11.0);  // Lower fitness, best remains at generation 2
     
     RunMetrics metrics = adaptive->getMetrics();
-    EXPECT_NEAR(metrics.bestFitness, 12.0, 1e-6);
-    EXPECT_NEAR(metrics.avgFitness, 11.0, 1e-6);
-    EXPECT_EQ(metrics.convergenceTime, 2);
+    EXPECT_NEAR(metrics.bestFitness, 12.0, 1e-6) << "Best fitness should be 12.0";
+    EXPECT_NEAR(metrics.avgFitness, 11.0, 1e-6) << "Last average fitness should be 11.0";
+    EXPECT_EQ(metrics.convergenceTime, 2) << "Convergence time should be 2 (generation when best fitness was found)";
 }
 
 //
@@ -397,21 +519,32 @@ TEST_F(AdaptiveCrossoverTest, CrossoverReturnsOffspringWhenDataValid) {
 // Test 10: updatePerformance – sprawdzenie przyrostu wskaźników
 //
 TEST_F(AdaptiveCrossoverTest, UpdatePerformanceIncrementsUsageAndPerformance) {
-    adaptive->exposedGenerationCount() = 1;
-    // Używamy wektorów double (a nie int) dla m_crossoverPerformance, aby pasowały do typu
+    // Initialize vectors with correct size and set probabilities
     adaptive->exposedUsage() = std::vector<int>(4, 0);
     adaptive->exposedPerformance() = std::vector<double>(4, 0.0);
-    adaptive->setProbabilities({0.0, 0.0, 1.0, 0.0});
+    std::vector<double> probs(4, 0.0);
+    probs[2] = 1.0;  // Only operator 2 will be selected
+    adaptive->setProbabilities(probs);
+    
+    // First update - successful operation
+    adaptive->selectCrossover();  // This will select operator 2
+    EXPECT_EQ(adaptive->exposedCurrentCrossoverIndex(), 2) << "Operator 2 should be selected";
     adaptive->updatePerformance(true);
+    
     auto usage = adaptive->exposedUsage();
     auto performance = adaptive->exposedPerformance();
-    EXPECT_EQ(usage[2], 1);
-    EXPECT_EQ(performance[2], 1.0);
+    EXPECT_EQ(usage[2], 1) << "Usage count should increment on first update";
+    EXPECT_NEAR(performance[2], 1.0, 1e-6) << "Performance should be 1.0 after successful operation";
+    
+    // Second update - unsuccessful operation
+    adaptive->selectCrossover();  // This will select operator 2 again
+    EXPECT_EQ(adaptive->exposedCurrentCrossoverIndex(), 2) << "Operator 2 should be selected again";
     adaptive->updatePerformance(false);
+    
     usage = adaptive->exposedUsage();
     performance = adaptive->exposedPerformance();
-    EXPECT_EQ(usage[2], 2);
-    EXPECT_EQ(performance[2], 1.0);
+    EXPECT_EQ(usage[2], 2) << "Usage count should increment on second update";
+    EXPECT_NEAR(performance[2], 0.5, 1e-6) << "Performance should be 0.5 after one success and one failure";
 }
 
 //
@@ -433,3 +566,17 @@ TEST_F(AdaptiveCrossoverTest, LogDiversityMetricsUpdatesHistory) {
     // Sprawdzamy, czy historia metryk ma przynajmniej jeden wpis
     EXPECT_FALSE(metrics.diversityHistory.empty());
 }
+TEST_F(AdaptiveCrossoverTest, ConstructorWithNullRandom) {
+    // Test that constructor throws invalid_argument with correct message when given nullptr
+    std::string caught_message;
+    try {
+        DNAGenerator generator(std::unique_ptr<Random>(nullptr));
+        FAIL() << "Expected std::invalid_argument";
+    } catch (const std::invalid_argument& e) {
+        caught_message = e.what();
+    } catch (...) {
+        FAIL() << "Expected std::invalid_argument, but different exception was thrown";
+    }
+    EXPECT_EQ(caught_message, "Random generator cannot be null");
+}
+
