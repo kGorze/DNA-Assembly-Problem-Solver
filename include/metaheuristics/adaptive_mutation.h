@@ -177,6 +177,16 @@ public:
         return m_stats.getUsage();
     }
     
+    // Method to clear any references before destruction
+    void clearReferences() {
+        std::lock_guard<std::mutex> lock(m_configMutex);
+        m_currentMutationRate.store(0.0);
+        m_stagnationCounter.store(0);
+        m_lastBestFitness.store(0.0);
+        m_stats.reset();
+        // We don't reset m_config here as it's const and will be handled by the destructor
+    }
+    
     // Add explicit destructor to ensure proper cleanup order
     ~AdaptiveMutation() = default;
 }; 

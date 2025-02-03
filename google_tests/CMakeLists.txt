@@ -9,6 +9,7 @@ add_executable(optymalizacja_kombinatoryczna_test
         tests/dna_tests/error_introduction_test.cpp
         tests/dna_tests/spectrum_generator_test.cpp
         tests/metaheuristics/adaptive_mutation_test.cpp
+        tests/configuration/genetic_algorithm_configuration_test.cpp
 )
 
 target_link_libraries(optymalizacja_kombinatoryczna_test PRIVATE

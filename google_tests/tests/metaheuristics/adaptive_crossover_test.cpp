@@ -143,9 +143,17 @@ public:
 class DummyGAConfig : public GAConfig {
 public:
     DummyGAConfig() {
-        m_instance = std::make_shared<DummyDNAInstance>();  // Use the base class member
+        // Initialize members in a safe order
         m_representation = std::make_shared<DummyRepresentation>();
         m_cache = std::make_shared<DummyPopulationCache>(std::vector<std::shared_ptr<Individual>>());
+        m_instance = std::make_shared<DummyDNAInstance>();
+    }
+    
+    ~DummyGAConfig() override {
+        // Clear members in reverse order of initialization
+        m_instance.reset();
+        m_cache.reset();
+        m_representation.reset();
     }
     
     std::shared_ptr<IPopulationCache> getCache() const {
@@ -321,17 +329,44 @@ private:
 class AdaptiveCrossoverTest : public BaseTest {
 protected:
     void SetUp() override {
-        Logger::initialize("adaptive_crossover_test.log");
-        Logger::setLogLevel(LogLevel::INFO);
-        BaseTest::SetUp();  // Call base class SetUp
-        
-        config = std::make_shared<DummyGAConfig>();
-        adaptive = std::make_unique<TestAdaptiveCrossover>(*config);
+        try {
+            BaseTest::SetUp();
+            
+            // Initialize members to nullptr first
+            config = nullptr;
+            adaptive = nullptr;
+            
+            // Create config first
+            config = std::make_shared<DummyGAConfig>();
+            if (!config) {
+                throw std::runtime_error("Failed to create DummyGAConfig");
+            }
+            
+            // Then create adaptive crossover
+            adaptive = std::make_unique<TestAdaptiveCrossover>(*config);
+            if (!adaptive) {
+                throw std::runtime_error("Failed to create TestAdaptiveCrossover");
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "SetUp failed: " << e.what() << std::endl;
+            throw;
+        }
     }
-
+    
     void TearDown() override {
-        BaseTest::TearDown();  // Call base class TearDown
-        Logger::cleanup();
+        try {
+            // Release in reverse order of creation
+            if (adaptive) {
+                adaptive.reset();
+            }
+            if (config) {
+                config.reset();
+            }
+            BaseTest::TearDown();
+        } catch (const std::exception& e) {
+            std::cerr << "TearDown failed: " << e.what() << std::endl;
+            ADD_FAILURE() << "TearDown failed: " << e.what();
+        }
     }
     
     std::shared_ptr<DummyGAConfig> config;

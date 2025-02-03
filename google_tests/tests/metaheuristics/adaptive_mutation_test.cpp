@@ -15,22 +15,31 @@ struct AdaptiveParams;
 // DummyGAConfig – uproszczona konfiguracja, wystarczająca do testowania AdaptiveMutation
 class DummyGAConfig final : public GAConfig {
 public:
+    // Factory method to ensure proper shared_ptr creation
+    static std::shared_ptr<DummyGAConfig> create(double mutationRate, const AdaptiveParams& params) {
+        return std::shared_ptr<DummyGAConfig>(new DummyGAConfig(mutationRate, params));
+    }
+
+private:
+    // Make constructor private to force use of factory method
     explicit DummyGAConfig(double mutationRate, const AdaptiveParams& params) : GAConfig() {
         LOG_DEBUG("DummyGAConfig constructor - creating with mutation rate: {}", mutationRate);
         setMutationRate(mutationRate);
         setAdaptiveParams(params);
     }
-    
+
+    // Removed friend declarations since factory method now uses new directly
+    // friend class std::allocator<DummyGAConfig>;
+    // template<typename _Alloc>
+    // friend class std::_Sp_counted_ptr_inplace;
+
+public:
     ~DummyGAConfig() override {
         LOG_DEBUG("DummyGAConfig destructor - destroying at address: {}", static_cast<void*>(this));
     }
     
-    // Allow copying since we need it for test isolation
-    DummyGAConfig(const DummyGAConfig& other) : GAConfig() {
-        LOG_DEBUG("DummyGAConfig copy constructor - copying from address: {}", static_cast<const void*>(&other));
-        setMutationRate(other.getMutationRate());
-        setAdaptiveParams(other.getAdaptiveParams());
-    }
+    // Delete copy constructor and assignment to prevent accidental copies
+    DummyGAConfig(const DummyGAConfig&) = delete;
     DummyGAConfig& operator=(const DummyGAConfig&) = delete;
     DummyGAConfig(DummyGAConfig&&) = delete;
     DummyGAConfig& operator=(DummyGAConfig&&) = delete;
@@ -94,7 +103,8 @@ protected:
             params.stagnationGenerations = 3;
             
             LOG_DEBUG("Creating DummyGAConfig");
-            config = std::make_shared<DummyGAConfig>(0.1, params);
+            // Use factory method to create config
+            config = DummyGAConfig::create(0.1, params);
             if (!config) {
                 LOG_ERROR("Failed to create DummyGAConfig - nullptr returned");
                 throw std::runtime_error("Failed to create DummyGAConfig");
@@ -125,28 +135,22 @@ protected:
         try {
             LOG_DEBUG("AdaptiveMutationTest::TearDown - Starting cleanup");
             
-            // Store pointers for logging before we reset them
-            void* adaptive_ptr = adaptive ? adaptive.get() : nullptr;
-            void* config_ptr = config ? config.get() : nullptr;
-            
-            // First, release adaptive mutation as it depends on config
+            // (1) First clear any references in AdaptiveMutation
             if (adaptive) {
-                LOG_DEBUG("Releasing AdaptiveMutation at address: {}", static_cast<void*>(adaptive_ptr));
-                // Move to temporary and destroy
-                std::unique_ptr<AdaptiveMutation> temp_adaptive(std::move(adaptive));
-                LOG_DEBUG("AdaptiveMutation moved to temporary");
-                temp_adaptive.reset();
-                LOG_DEBUG("AdaptiveMutation released");
+                LOG_DEBUG("Clearing references in AdaptiveMutation at address: {}", static_cast<void*>(adaptive.get()));
+                adaptive->clearReferences();
             }
             
-            // Then release config
+            // (2) Then destroy AdaptiveMutation
+            if (adaptive) {
+                LOG_DEBUG("Releasing AdaptiveMutation at address: {}", static_cast<void*>(adaptive.get()));
+                adaptive.reset();  // Use reset directly instead of move+reset
+            }
+            
+            // (3) Now safe to destroy config since AdaptiveMutation is gone
             if (config) {
-                LOG_DEBUG("Releasing DummyGAConfig at address: {}", static_cast<void*>(config_ptr));
-                // Move to temporary and destroy
-                std::shared_ptr<DummyGAConfig> temp_config(std::move(config));
-                LOG_DEBUG("DummyGAConfig moved to temporary");
-                temp_config.reset();
-                LOG_DEBUG("DummyGAConfig released");
+                LOG_DEBUG("Releasing DummyGAConfig at address: {}", static_cast<void*>(config.get()));
+                config.reset();  // Use reset directly instead of move+reset
             }
             
             LOG_DEBUG("Calling BaseTest::TearDown");
@@ -169,24 +173,34 @@ protected:
         try {
             LOG_DEBUG("recreateObjects - Starting recreation with mutation rate: {}", mutationRate);
             
+            // (1) First clear any references in AdaptiveMutation
+            if (adaptive) {
+                LOG_DEBUG("Clearing references in AdaptiveMutation at address: {}", static_cast<void*>(adaptive.get()));
+                adaptive->clearReferences();
+            }
+            
+            // (2) Then destroy AdaptiveMutation
             if (adaptive) {
                 LOG_DEBUG("Releasing old AdaptiveMutation at address: {}", static_cast<void*>(adaptive.get()));
-                adaptive.reset();
+                adaptive.reset();  // Use reset directly instead of move+reset
             }
             
+            // (3) Then destroy config
             if (config) {
                 LOG_DEBUG("Releasing old DummyGAConfig at address: {}", static_cast<void*>(config.get()));
-                config.reset();
+                config.reset();  // Use reset directly instead of move+reset
             }
             
+            // (4) Create fresh config first using factory method
             LOG_DEBUG("Creating new DummyGAConfig");
-            config = std::make_shared<DummyGAConfig>(mutationRate, params);
+            config = DummyGAConfig::create(mutationRate, params);
             if (!config) {
                 LOG_ERROR("Failed to recreate DummyGAConfig - nullptr returned");
                 throw std::runtime_error("Failed to recreate DummyGAConfig");
             }
             LOG_DEBUG("New DummyGAConfig created at address: {}", static_cast<void*>(config.get()));
             
+            // (5) Then create AdaptiveMutation that depends on config
             LOG_DEBUG("Creating new AdaptiveMutation");
             adaptive = std::make_unique<AdaptiveMutation>(config);
             if (!adaptive) {
