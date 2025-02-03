@@ -70,19 +70,46 @@ bool PermutationRepresentation::validateGenes(
     const std::vector<int>& genes,
     const DNAInstance& instance) const {
     
-    if (genes.empty()) return false;
-    
-    const auto& spectrum = instance.getSpectrum();
-    if (spectrum.empty()) return false;
-    
-    // Only check that genes are valid indices
-    for (const auto& gene : genes) {
-        if (gene < 0 || static_cast<size_t>(gene) >= spectrum.size()) return false;
+    if (genes.empty()) {
+        LOG_ERROR("Empty gene sequence");
+        return false;
     }
     
-    // Generate DNA sequence
-    std::string dna = toDNA(std::make_shared<Individual>(genes), instance);
-    if (dna.empty()) return false;
+    const auto& spectrum = instance.getSpectrum();
+    if (spectrum.empty()) {
+        LOG_ERROR("Empty spectrum");
+        return false;
+    }
+    
+    // Check size matches spectrum size
+    if (genes.size() != spectrum.size()) {
+        LOG_ERROR("Gene sequence size mismatch: " + std::to_string(genes.size()) + 
+                 " vs expected " + std::to_string(spectrum.size()));
+        return false;
+    }
+    
+    // Check for valid range and duplicates in one pass
+    std::vector<bool> seen(spectrum.size(), false);
+    for (int gene : genes) {
+        // Check range
+        if (gene < 0 || static_cast<size_t>(gene) >= spectrum.size()) {
+            LOG_ERROR("Gene value out of range: " + std::to_string(gene));
+            return false;
+        }
+        
+        // Check duplicates
+        if (seen[gene]) {
+            LOG_ERROR("Duplicate gene value: " + std::to_string(gene));
+            return false;
+        }
+        seen[gene] = true;
+    }
+    
+    // Verify all values are used (complete permutation)
+    if (std::find(seen.begin(), seen.end(), false) != seen.end()) {
+        LOG_ERROR("Incomplete permutation - missing values");
+        return false;
+    }
     
     return true;
 }

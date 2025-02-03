@@ -304,7 +304,12 @@ bool GAConfig::validate() const {
     
     // Check numeric ranges
     if (m_populationSize <= 0) return false;
-    if (m_mutationRate < 0.0 || m_mutationRate > 1.0) return false;
+    
+    // Check mutation rate is in valid range [0.1, 0.4]
+    static constexpr double MIN_MUTATION_RATE = 0.1;
+    static constexpr double MAX_MUTATION_RATE = 0.4;
+    if (m_mutationRate < MIN_MUTATION_RATE || m_mutationRate > MAX_MUTATION_RATE) return false;
+    
     if (m_replacementRatio < 0.0 || m_replacementRatio > 1.0) return false;
     if (m_crossoverProbability < 0.0 || m_crossoverProbability > 1.0) return false;
     if (m_tournamentSize <= 0) return false;
@@ -318,15 +323,6 @@ bool GAConfig::validate() const {
 }
 
 void GAConfig::setMutationRate(double rate) {
-    // Clamp mutation rate to valid range for CombinedMutation
-    static constexpr double MIN_MUTATION_RATE = 0.1;
-    static constexpr double MAX_MUTATION_RATE = 0.4;
-    
-    if (rate < MIN_MUTATION_RATE || rate > MAX_MUTATION_RATE) {
-        LOG_WARNING("Mutation rate " + std::to_string(rate) + 
-                   " outside valid range [" + std::to_string(MIN_MUTATION_RATE) + 
-                   ", " + std::to_string(MAX_MUTATION_RATE) + "] - clamping");
-    }
-    m_mutationRate = std::clamp(rate, MIN_MUTATION_RATE, MAX_MUTATION_RATE);
+    m_mutationRate = rate;
 }
 

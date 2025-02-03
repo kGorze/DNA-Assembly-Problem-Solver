@@ -10,6 +10,11 @@ add_executable(optymalizacja_kombinatoryczna_test
         tests/dna_tests/spectrum_generator_test.cpp
         tests/metaheuristics/adaptive_mutation_test.cpp
         tests/configuration/genetic_algorithm_configuration_test.cpp
+        tests/crossovers/order_crossover_test.cpp
+        tests/crossovers/cycle_crossover_test.cpp
+        tests/crossovers/pmx_crossover_test.cpp
+        tests/crossovers/edge_recombination_crossover_test.cpp
+        tests/fitness/optimized_graph_based_fitness_test.cpp
 )
 
 target_link_libraries(optymalizacja_kombinatoryczna_test PRIVATE

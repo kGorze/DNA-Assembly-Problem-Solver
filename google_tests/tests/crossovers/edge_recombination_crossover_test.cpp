@@ -6,11 +6,13 @@
 #include "metaheuristics/crossover_impl.h"
 #include "metaheuristics/individual.h"
 #include "metaheuristics/representation.h"
-#include "metaheuristics/permutation_representation.h"
+#include "metaheuristics/fitness_impl.h"
 #include "dna/dna_instance.h"
 #include <vector>
 #include <algorithm>
 #include <set>
+#include "../../tests/base_test.h"
+#include "utils/logging.h"
 
 // Helper: create a dummy DNA instance for Edge-Recombination tests.
 DNAInstance createDummyDNAInstance_ER() {
@@ -31,16 +33,78 @@ std::shared_ptr<Individual> createIndividualER(const std::vector<int>& perm) {
 }
 
 // Test fixture for EdgeRecombinationCrossover.
-class EdgeRecombinationCrossoverTest : public ::testing::Test {
+class EdgeRecombinationCrossoverTest : public BaseTest {
 protected:
-    void SetUp() override {
-        instance = createDummyDNAInstance_ER();
-        representation = std::make_shared<PermutationRepresentation>();
-    }
-    
     DNAInstance instance;
     std::shared_ptr<IRepresentation> representation;
+    static bool s_loggerInitialized;
+
+    static void SetUpTestSuite() {
+        if (!s_loggerInitialized) {
+            try {
+                Logger::initialize("edge_recombination_crossover_test.log");
+                Logger::setLogLevel(LogLevel::DEBUG);
+                s_loggerInitialized = true;
+                LOG_INFO("EdgeRecombinationCrossoverTest test suite initialized successfully");
+            } catch (const std::exception& e) {
+                std::cerr << "Failed to initialize logger: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    static void TearDownTestSuite() {
+        if (s_loggerInitialized) {
+            LOG_INFO("Tearing down EdgeRecombinationCrossoverTest test suite");
+            try {
+                Logger::cleanup();
+                s_loggerInitialized = false;
+            } catch (const std::exception& e) {
+                std::cerr << "Failed to cleanup logger: " << e.what() << std::endl;
+                throw;
+            }
+        }
+    }
+
+    void SetUp() override {
+        try {
+            // Ensure logger is initialized
+            if (!s_loggerInitialized) {
+                SetUpTestSuite();
+            }
+            
+            LOG_DEBUG("EdgeRecombinationCrossoverTest::SetUp - Starting setup");
+            BaseTest::SetUp();  // Call parent's SetUp first
+            
+            instance = createDummyDNAInstance_ER();
+            representation = std::make_shared<PermutationRepresentation>();
+            
+            LOG_DEBUG("EdgeRecombinationCrossoverTest::SetUp - Setup completed successfully");
+        } catch (const std::exception& e) {
+            std::cerr << "SetUp failed with exception: " << e.what() << std::endl;
+            LOG_ERROR("SetUp failed with exception: {}", e.what());
+            throw;
+        } catch (...) {
+            std::cerr << "SetUp failed with unknown exception" << std::endl;
+            LOG_ERROR("SetUp failed with unknown exception");
+            throw;
+        }
+    }
+    
+    void TearDown() override {
+        try {
+            LOG_DEBUG("EdgeRecombinationCrossoverTest::TearDown - Starting cleanup");
+            BaseTest::TearDown();  // Call parent's TearDown
+            LOG_DEBUG("EdgeRecombinationCrossoverTest::TearDown - Cleanup completed successfully");
+        } catch (const std::exception& e) {
+            std::cerr << "TearDown failed: " << e.what() << std::endl;
+            LOG_ERROR("TearDown failed: {}", e.what());
+            throw;
+        }
+    }
 };
+
+bool EdgeRecombinationCrossoverTest::s_loggerInitialized = false;
 
 TEST_F(EdgeRecombinationCrossoverTest, OffspringCountNonZero) {
     EdgeRecombinationCrossover er;
@@ -120,7 +184,7 @@ TEST_F(EdgeRecombinationCrossoverTest, PreservesLocalEdgeQuality) {
     std::vector<int> parentGenes2 = {3,4,5,6,7,8,9,0,1,2};
     std::vector<std::shared_ptr<Individual>> parents = { createIndividualER(parentGenes1), createIndividualER(parentGenes2) };
     auto offspring = er.crossover(parents, instance, representation);
-    // For each pair in offspring, simply check that there is some “overlap”
+    // For each pair in offspring, simply check that there is some "overlap"
     for (auto& child : offspring) {
         const auto& genes = child->getGenes();
         const auto& spectrum = instance.getSpectrum();
@@ -132,7 +196,7 @@ TEST_F(EdgeRecombinationCrossoverTest, PreservesLocalEdgeQuality) {
                 continue;
             std::string suffix = spectrum[genes[i]].substr(spectrum[genes[i]].size() - (k-1));
             std::string prefix = spectrum[genes[i+1]].substr(0, k-1);
-            // If they match, record a “good” connection
+            // If they match, record a "good" connection
             EXPECT_GE(suffix.compare(prefix), 0);
         }
     }
@@ -194,7 +258,7 @@ TEST_F(EdgeRecombinationCrossoverTest, OffspringFitnessIsComputable) {
     std::vector<int> parentGenes2 = {9,8,7,6,5,4,3,2,1,0};
     std::vector<std::shared_ptr<Individual>> parents = { createIndividualER(parentGenes1), createIndividualER(parentGenes2) };
     auto offspring = er.crossover(parents, instance, representation);
-    SimpleFitness fitnessCalc;
+    OptimizedGraphBasedFitness fitnessCalc;
     for (auto& child : offspring) {
         double fit = fitnessCalc.calculateFitness(child, instance, representation);
         EXPECT_GE(fit, 0.0);

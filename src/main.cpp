@@ -233,8 +233,13 @@ void runParameterTuningWithRacing(const DNAInstance& instance) {
 int main(int argc, char* argv[]) {
     // Initialize logger first
     Logger::initialize("log.txt");
-
+    
     try {
+        // Use RAII to ensure logger cleanup
+        struct LoggerCleanup {
+            ~LoggerCleanup() { Logger::cleanup(); }
+        } loggerGuard;
+
         // Initialize variables with proper construction
         std::string mode;
         std::string configFile;
@@ -717,16 +722,12 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        // Cleanup logger before exit
-        Logger::cleanup();
         return 0;
     } catch (const std::exception& e) {
         LOG_ERROR("Unhandled exception: " + std::string(e.what()));
-        Logger::cleanup();
         return 1;
     } catch (...) {
         LOG_ERROR("Unknown error occurred");
-        Logger::cleanup();
         return 1;
     }
 }

@@ -90,6 +90,32 @@ public:
         std::shared_ptr<IRepresentation> representation
     ) const override;
 
+protected:
+    // Protected methods for testing
+    void buildGraphForTest(const std::vector<int>& genes, const DNAInstance& instance) const {
+        buildGraph(genes, instance);
+    }
+
+    bool testNodesConnection(int node1, int node2, const DNAInstance& instance) const {
+        return areNodesConnected(node1, node2, instance);
+    }
+
+    double getConnectivityScore() const {
+        return calculateConnectivityScore();
+    }
+
+    double getLengthPenalty(const std::vector<int>& genes, const DNAInstance& instance) const {
+        return calculateLengthPenalty(genes, instance);
+    }
+
+    double getSpectrumCoverageScore(const std::vector<int>& genes, const DNAInstance& instance) const {
+        return calculateSpectrumCoverageScore(genes, instance);
+    }
+
+    const std::vector<std::vector<bool>>& getAdjacencyMatrix() const {
+        return adjacencyMatrix;
+    }
+
 private:
     void ensureBufferSizes(size_t size) const;
     void buildGraph(const std::vector<int>& genes, const DNAInstance& instance) const;

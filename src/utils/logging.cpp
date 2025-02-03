@@ -19,7 +19,9 @@ namespace {
             now.time_since_epoch()) % 1000;
             
         std::stringstream ss;
-        ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S")
+        struct tm timeinfo;
+        localtime_r(&time, &timeinfo);
+        ss << std::put_time(&timeinfo, "%Y-%m-%d %H:%M:%S")
            << '.' << std::setfill('0') << std::setw(3) << ms.count();
         return ss.str();
     }
@@ -50,9 +52,11 @@ void Logger::initialize(const std::string& filename) {
 void Logger::cleanup() {
     std::lock_guard<std::mutex> lock(logMutex);
     if (isInitialized && logFile.is_open()) {
+        logFile.flush();
         logFile.close();
         isInitialized = false;
     }
+    currentLevel = LogLevel::INFO;
 }
 
 void Logger::setLogLevel(LogLevel level) {
@@ -79,12 +83,11 @@ void Logger::log(LogLevel level, const std::string& message, const char* file, i
     logFile << output;
     logFile.flush();
     
-    // Print to console for all levels in debug mode or ERROR level
     if (level == LogLevel::ERROR || currentLevel == LogLevel::DEBUG) {
         if (level == LogLevel::ERROR) {
-            std::cerr << output;
+            std::cerr << output << std::flush;
         } else {
-            std::cout << output;
+            std::cout << output << std::flush;
         }
     }
 }

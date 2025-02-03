@@ -1,20 +1,30 @@
 // tests/test_main.cpp
 #include <gtest/gtest.h>
 #include "utils/logging.h"
+#include <filesystem>
+#include "base_test.h"
 
 class TestEnvironment : public ::testing::Environment {
 public:
     ~TestEnvironment() override = default;
 
     void SetUp() override {
-        // Inicjalizacja loggera dla testów
+        // Clean up any existing test log file
+        if (std::filesystem::exists("test.log")) {
+            std::filesystem::remove("test.log");
+        }
+        // Initialize logger for tests
         Logger::initialize("test.log");
         Logger::setLogLevel(LogLevel::DEBUG);
     }
 
     void TearDown() override {
-        // Czyszczenie loggera po testach
+        // Clean up logger after tests
         Logger::cleanup();
+        // Remove the test log file
+        if (std::filesystem::exists("test.log")) {
+            std::filesystem::remove("test.log");
+        }
     }
 };
 

@@ -32,7 +32,6 @@ set(SOURCES
     src/metaheuristics/genetic_algorithm.cpp
     src/metaheuristics/genetic_algorithm_runner.cpp
     src/metaheuristics/adaptive_crossover.cpp
-    src/metaheuristics/fitness_impl.cpp
     src/metaheuristics/fitness.cpp
     src/metaheuristics/individual.cpp
     src/metaheuristics/stopping_criteria.cpp

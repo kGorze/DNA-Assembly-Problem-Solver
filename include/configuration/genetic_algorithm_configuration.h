@@ -149,12 +149,12 @@ private:
     double m_mutationRate = 0.1;
     double m_crossoverProbability = 0.8;
     double m_targetFitness = 1.0;
-    int m_tournamentSize = 5;
-    int m_k = 0;
+    int m_tournamentSize = 2;
+    int m_k = 7;
     int m_deltaK = 0;
-    int m_lNeg = 0;
-    int m_lPoz = 0;
-    bool m_repAllowed = false;
+    int m_lNeg = 10;
+    int m_lPoz = 10;
+    bool m_repAllowed = true;
     double m_probablePositive = 0.0;
     double m_replacementRatio = 0.7;
     std::string m_selectionMethod = "rank";
